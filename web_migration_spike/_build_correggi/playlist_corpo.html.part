@@ -1,0 +1,69 @@
+
+  <div class="section-title playlist">
+    <span class="icon"><img src="assets/icons/big_icona_correggi.svg" alt="" width="45" height="45"></span>
+    <h2>Gestione playlist installate</h2>
+  </div>
+  <!-- Questa pagina NON ha un wireframe Figma (il Playlist Manager non e'
+       mai stato disegnato): la struttura e' un'IPOTESI costruita con gli
+       stessi componenti e le stesse coordinate delle altre pagine, cosi'
+       resta coerente e sara' facile allinearla se un giorno il wireframe
+       arrivera'. Griglia riusata da Correggi:
+         card in alto     (44,338)  1360x289  -> playlist selezionata
+         pannello destro (1431,338) 440x693   -> elenco delle playlist
+         card in basso    (43,686)  1360x345  -> brani della playlist -->
+  <p class="section-desc">
+    Qui vedi le playlist gia' installate nella libreria di BoxVR e puoi rimetterle in ordine, togliere un brano,
+    rinominarle o eliminarle. Le modifiche sono scritte davvero sui file della libreria, con un backup automatico
+    prima di ogni scrittura.
+    <b>Tieni presente: agisce sulle playlist installate, non sui brani — per generare nuovi workout serve Genera.</b>
+  </p>
+  <p class="not-wired-note nota-dev" style="margin:4px 0 0; max-width:1301px">
+    (nota dev, non esiste un wireframe per questa pagina) Riusa <code>boxvr_playlist_manager</code>, lo stesso
+    modulo dell'exe gia' distribuito - nessuna riscrittura della logica.
+  </p>
+
+  <div class="genera-layout">
+    <aside class="song-panel" id="song-panel">
+      <div class="song-panel-header">
+        <span class="song-count" id="pl-count">caricamento…</span>
+        <button class="btn-clear" onclick="apriBackup()">Backup 🗂</button>
+      </div>
+      <div class="song-list" id="playlist-list"></div>
+      <div class="song-panel-empty" id="song-panel-empty">
+        <img src="assets/icons/empty_folder.svg" alt="" width="60" height="60">
+        <p>Nessuna playlist installata nella libreria di BoxVR.</p>
+      </div>
+    </aside>
+
+    <main>
+      <h3 class="block-title">Playlist selezionata</h3>
+      <div class="preview-card pl-card">
+        <div class="pv-title">
+          <span class="idx" id="pl-idx">—</span>
+          <span class="artist" id="pl-brani">—</span>
+          <span class="pv-name" id="pl-nome">Seleziona una playlist…</span>
+        </div>
+        <div class="pl-durata" id="pl-durata">—</div>
+        <div class="pl-azioni">
+          <input class="text-input pl-nome-input" id="pl-name-input" aria-label="Nome playlist" placeholder="Nome playlist">
+          <button class="btn-secondary" onclick="rinominaPlaylist()">Rinomina</button>
+          <button class="btn-pericolo" onclick="eliminaPlaylist()">Elimina playlist</button>
+        </div>
+        <!-- striscia dei brani: stessa mini-struttura dell'anteprima, ma qui
+             ogni banda e' un brano, larga quanto la sua durata -->
+        <div class="mini-structure-label">Composizione della playlist <span id="pl-mix-legenda"></span></div>
+        <div class="mini-structure" id="pl-strip"></div>
+        <audio id="pl-audio" preload="none"></audio>
+      </div>
+    </main>
+
+    <h3 class="block-title toolkit-title">Brani della playlist</h3>
+    <div class="toolkit-card pl-toolkit">
+      <p class="tk-stats" id="pl-stats">
+        <span>Brani: <b id="pl-n">0</b></span>
+        <span>Durata totale: <b id="pl-tot">—</b></span>
+      </p>
+      <div class="pl-songs" id="pl-songs"></div>
+      <p class="pl-nota not-wired-note" id="pl-nota"></p>
+    </div>
+  </div>

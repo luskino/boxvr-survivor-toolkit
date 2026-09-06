@@ -1,0 +1,33 @@
+    <aside class="song-panel" id="song-panel">
+      <div class="song-panel-header">
+        <button class="btn-add" onclick="addFiles()">Aggiungi brani +</button>
+        <span class="song-count" id="song-count">caricamento…</span>
+        <button class="btn-clear" onclick="clearList()">Svuota 🗑</button>
+      </div>
+      <!-- Ricerca nell'elenco. Il caso studio sul ridisegno di Ableton Live
+           mette la mancanza di ricerca e organizzazione nel browser fra i
+           problemi principali rilevati su oltre 350 utenti, e la soluzione
+           proposta e' un browser con ricerca e colonne consultabili fra cui
+           il TEMPO - che qui e' esattamente il BPM che ogni riga mostra
+           gia'. Con una cartella da trenta brani, prima si poteva solo
+           scorrere.  https://nenadmilosevic.co/ableton-live-redesign -->
+      <div class="song-search-row">
+        <input type="search" id="song-search" class="song-search"
+               placeholder="Cerca per titolo, artista o BPM"
+               aria-label="Cerca nell'elenco dei brani"
+               oninput="filtraBrani()">
+        <button type="button" class="song-search-x" id="song-search-x"
+                title="Azzera la ricerca" onclick="azzeraRicerca()"
+                hidden>&#10005;</button>
+      </div>
+      <p class="not-wired-note" id="list-note"></p>
+      <div class="song-list" id="song-list"></div>
+      <!-- Stato "empty generate" (30:5504): a elenco vuoto il pannello NON
+           mostra intestazione e lista, ma icona cartella + invito +
+           "Aggiungi brani +" al centro. -->
+      <div class="song-panel-empty" id="song-panel-empty">
+        <img src="assets/icons/empty_folder.svg" alt="" width="60" height="60">
+        <p>Trascina qui le cartelle o i file per generare un workout o aggiungi un percorso.</p>
+        <button class="btn-add" onclick="addFiles()">Aggiungi brani +</button>
+      </div>
+    </aside>

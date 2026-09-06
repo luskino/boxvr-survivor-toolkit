@@ -1,0 +1,109 @@
+</head>
+<body>
+<div class="page dash-fixed">
+  <div class="bg-pattern" id="bg-pattern"></div>
+
+  <!-- Lingua e tema: presenti anche qui, non solo nelle pagine strumento
+       (richiesta dell'utente; posizione misurata sul frame scuro 81:5252,
+       riquadro IT/EN a 1702,40 di 37x55). Stessi componenti delle altre
+       pagine, quindi stesso aspetto e stesso comportamento. -->
+  <div class="dash-controlli">
+    <div class="lang-switch" title="Cambia la lingua dell'interfaccia">
+      <span class="lang-pill active" role="button" tabindex="0"
+            onclick="setLang('it')" onkeydown="attivaConTastiera(event)">IT</span>
+      <span class="lang-pill" role="button" tabindex="0"
+            onclick="setLang('en')" onkeydown="attivaConTastiera(event)">EN</span>
+    </div>
+    <button class="theme-switch" id="theme-switch" onclick="toggleTheme()"
+            title="Tema chiaro/scuro"><span class="theme-switch-knob"></span></button>
+  </div>
+
+  <!-- Le due schermate di disclaimer ("Start page | Disclaimer 1" e
+       "| Disclaimer 2", frame 7:320): stessa scatola 842x537 della scelta,
+       stesso bottone azzurro #3FA2FF 192x29 a (873,751). Si mostrano finche'
+       non vengono accettate; il consenso sta in settings.json. -->
+  <div class="dash-modal dash-disclaimer" id="disclaimer-1" style="display:none">
+    <p class="dash-welcome">Welcome to</p>
+    <h1 class="dash-title">BoxVR Survivor Toolkit</h1>
+    <button class="dash-close" title="Chiudi">✕</button>
+    <p class="dash-disc-head"><span class="segno">⚠</span> DISCLAIMER</p>
+    <div class="dash-disc-body">
+      <p><b>Prima di iniziare</b></p>
+      <p>BoxVR è stato abbandonato, ma la sua community no.<br>
+      Questo toolkit nasce per tutti gli appassionati che vogliono continuare a allenarsi senza essere
+      costretti a passare a modelli in abbonamento.</p>
+      <p><b>Cosa fa questo tool?</b> Ti permette di migliorare i workout custom importati tramite il processing
+      ufficiale di BoxVR e creare nuovi livelli custom (per davvero) gestendo i tuoi file audio personali.</p>
+      <p><b>Come è stato creato?</b> È un progetto amatoriale a quattro mani: design, flussi UX/UI e testing curati
+      da un utente come te; programmazione e build sviluppate con l'ausilio dell'Intelligenza Artificiale.</p>
+      <p><b>Disclaimer Legale: Questo è un progetto fan-made e no-profit, privo di affiliazione con i creatori
+      originali di BoxVR. L'utilizzo del software avviene a proprio rischio e sotto la propria responsabilità.</b></p>
+    </div>
+    <button class="dash-disc-cta" id="disc1-avanti">Accetta e continua ›</button>
+  </div>
+
+  <div class="dash-modal dash-disclaimer" id="disclaimer-2" style="display:none">
+    <p class="dash-welcome">Welcome to</p>
+    <h1 class="dash-title">BoxVR Survivor Toolkit</h1>
+    <button class="dash-close" title="Chiudi">✕</button>
+    <p class="dash-disc-head"><span class="segno">⚠</span> DISCLAIMER <span class="minore">(si, un altro)</span></p>
+    <div class="dash-disc-body stretto">
+      <p><b>Il tool non raccoglie alcun dato personale</b>, integra API e librerie locali
+      per la gestione di tutte le sue componenti, nel caso in cui avesse
+      difficoltà a decodificare i BPM di una canzone potrebbe chiederti se TU
+      vuoi cercare su internet dei valori esatti.</p>
+      <p><b>Il tool è stato principalmente testato con workout ad alti BPM</b> (Brani
+      dance/EDM/Techno), c'è da aspettarsi eventuali bug o desync con
+      altre tipologie di brani, segnalateli e saranno fixate appena possibile.</p>
+    </div>
+    <button class="dash-disc-cta" id="disc2-avanti">Accetta e continua ›</button>
+  </div>
+
+  <!-- Modale 842x537 a (548,271): stessa identica scatola del "Disclaimer 2"
+       (frame Figma 7:320), confermata dal campionamento dell'export. -->
+  <div class="dash-modal" id="dash-scelta">
+    <p class="dash-welcome">Benvenuto/a su</p>
+    <h1 class="dash-title">BoxVR Survivor Toolkit</h1>
+    <button class="dash-close" id="dash-close" title="Chiudi">✕</button>
+
+    <p class="dash-quote">
+      "<span class="blu">Pillola azzurra</span>: fine della storia. Domani ti svegli in camera tua, e credi a quello che vuoi.<br>
+      <span class="rosso">Pillola rossa</span>: resti nel paese delle meraviglie, e quant'è profonda la tana del bianconiglio te lo mostro io."
+    </p>
+
+    <!-- Le due card sono il componente "Tile mode" (4:158), 279x313 -->
+    <div class="dash-tile correggi" id="tile-correggi">
+      <div class="tile-head">
+        <h3>Correggi<br>Workout esistenti</h3>
+        <img src="assets/icons/big_icona_correggi.svg" alt="">
+      </div>
+      <p class="tile-subtitle">Semplice ma poco controllo</p>
+      <p class="tile-desc">
+        Basilare, tenta di migliorare il più possibile i livelli di intensità dei workout che BoxVR ha già creato.
+        Può essere necessario correggere e testare un workout prima di arrivare alla qualità desiderata.
+      </p>
+      <a class="tile-cta" href="#" id="correggi-cta">Vai al tool ›</a>
+      <p class="tile-patch-note" id="correggi-patch-note">⚠ Rilevata Patch. <a href="#" id="disable-patch-link">Disabilita</a></p>
+    </div>
+
+    <div class="dash-tile genera" id="tile-genera">
+      <div class="tile-head">
+        <h3>Crea Workout<br>da Mp3</h3>
+        <img src="assets/icons/big_icona_genera.svg" alt="">
+      </div>
+      <p class="tile-subtitle">Più complesso, più divertente<br>Richiede BoxVR Patchato</p>
+      <p class="tile-desc">
+        Crea allenamenti nuovi da zero, con colpi precisi su beat/drop che non cambiano ogni volta che giocate il
+        workout. Richiede una piccola modifica al gioco, reversibile.
+      </p>
+      <a class="tile-cta" href="#" id="genera-cta">Vai al tool ›</a>
+      <p class="tile-patch-note" id="genera-patch-note"></p>
+    </div>
+  </div>
+
+  <!-- NON nel wireframe: cartella di gioco, pillola patch, versione, tema e
+       il Playlist Manager (che su Figma non e' mai stato disegnato). Tenuti
+       fuori dalla modale e marcati come nota dev, come in Genera/Correggi. -->
+  <div class="dash-devbar" id="game-dir-bar">Rilevamento cartella di gioco…</div>
+  <p class="dash-warning" id="status-warning"></p>
+</div>

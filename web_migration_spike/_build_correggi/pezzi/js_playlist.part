@@ -1,0 +1,944 @@
+  window.__errs = [];
+  window.addEventListener('error', (e) => window.__errs.push(String(e.message)));
+  window.addEventListener('unhandledrejection',
+    (e) => window.__errs.push('promise: ' + (e.reason && e.reason.message || e.reason)));
+
+  // ===================== Traduzione IT/EN =====================
+  // Lo switch IT/EN del wireframe fino ad ora cambiava solo il proprio stato
+  // visivo. Qui traduce per davvero.
+  //
+  // Impianto: dizionario ITALIANO -> INGLESE applicato ai nodi di testo, non
+  // attributi data-i18n sparsi per il markup. Motivo pratico: i testi
+  // arrivano in parte dall'HTML e in parte da render JS (righe brano, stati,
+  // pillole), e marcarli tutti a mano avrebbe lasciato buchi silenziosi.
+  // Cosi' invece una stringa senza traduzione resta in italiano ed e'
+  // ELENCABILE a runtime con stringheNonTradotte().
+  //
+  // Le voci marcate [GUI] sono le traduzioni GIA' ESISTENTI in
+  // boxvr_fixer_gui.py (STRINGS['en']): stessa terminologia della GUI
+  // Tkinter, non una seconda versione inventata. Le altre sono traduzioni
+  // dei testi del wireframe, che su Figma esiste solo in italiano.
+  const TRAD = {
+    'File audio del brano non trovato': 'Track audio file not found',
+    'File audio non raggiungibile': 'Audio file unreachable',
+    'Audio non decodificabile': 'Audio could not be decoded',
+    'Formato audio non supportato': 'Audio format not supported',
+    'Marca': 'Mark',
+    'Calibrazione persa': 'Calibration lost',
+    'Nessuna playlist installata nella libreria di BoxVR.': 'No playlists installed in the BoxVR library.',
+    'brano': 'track',
+    'brani': 'tracks',
+    'Analisi in corso — i comandi si attivano appena è pronta.': 'Analysis in progress — the controls turn on as soon as it is ready.',
+    'Analisi non riuscita: i comandi del brano restano spenti.': 'Analysis failed: the track\'s controls stay disabled.',
+    'Disponibile appena finisce l’analisi del brano.': 'Available as soon as the track analysis finishes.',
+    'Analisi del brano non riuscita: usa «Riprova».': 'Track analysis failed: use «Retry».',
+    'Aggiungi un brano per usare questo comando.': 'Add a track to use this control.',
+    'Seleziona un brano.': 'Select a track.',
+    'Nessun marker registrato: la generazione userà solo l\'algoritmo automatico.': 'No markers recorded: generation will use the automatic algorithm only.',
+    'Audio del brano': 'Track audio',
+    'Suono dei colpi': 'Punch sound',
+    'Suono dei colpi attivo': 'Punch sound on',
+    'Suono dei colpi muto': 'Punch sound muted',
+    'Posizione nel brano': 'Position in the track',
+    'Volume del brano': 'Track volume',
+    'Riproduci / pausa': 'Play / pause',
+    'Ferma e torna all\'inizio': 'Stop and return to the start',
+    'marcati': 'marked',
+    'su': 'of',
+    'più': 'plus',
+    // --- aggiunte al controllo traduzione del 06/09: testi scritti
+    //     dal codice (alert, title, stati) che il dizionario non
+    //     conosceva, quindi restavano in italiano a lingua inglese ---
+    'spazio · ←→ 5s · M muto': 'space · ←→ 5s · M mute',
+    'Play/Pausa — barra spaziatrice': 'Play/Pause — spacebar',
+    'Play o pausa, barra spaziatrice': 'Play or pause, spacebar',
+    'Disattiva l\'audio (M)': 'Mute (M)',
+    'Riattiva l\'audio (M)': 'Unmute (M)',
+    'Azzera la ricerca': 'Clear search',
+    'Stop — Home riporta all\'inizio': 'Stop — Home returns to the start',
+    'In corso…': 'In progress…',
+    'Selezione file in corso…': 'Choosing files…',
+    'Seleziona un brano…': 'Select a track…',
+    'Seleziona una playlist…': 'Select a playlist…',
+    'Nessun brano': 'No tracks',
+    'Nessun brano generato in questa sessione': 'No tracks generated in this session',
+    'audio non disponibile': 'audio unavailable',
+    'Ricalcolo con BPM forzato… (rianalizza da zero)': 'Recalculating with forced BPM… (full re-analysis)',
+    'Ricalcolo con motore': 'Recalculating with engine',
+    '(rianalizza da zero)': '(full re-analysis)',
+    'non trovata in': 'not found in',
+    '- il gioco è stato spostato o disinstallato?': '- has the game been moved or uninstalled?',
+    'Cerca per titolo, artista o BPM': 'Search by title, artist or BPM',
+    'Installazione non riuscita:': 'Installation failed:',
+    'Operazione non riuscita:': 'Operation failed:',
+    'Qualcosa non ha funzionato:': 'Something went wrong:',
+    'errori - vedi il log': 'errors - see the log',
+    'La cartella scelta non sembra una vera installazione di BoxVR (manca Assembly-CSharp.dll).': 'The chosen folder does not look like a real BoxVR installation (Assembly-CSharp.dll is missing).',
+    'Byte della DLL non riconosciuti - questa build del gioco è diversa da quella attesa. Nessuna azione automatica.': 'Unrecognised DLL bytes - this build of the game differs from the expected one. No automatic action taken.',
+    'marker piazzato/i.': 'marker(s) placed.',
+    'marker registrato/i - la generazione userà anche i tuoi marker, secondo la modalità scelta.': 'marker(s) recorded - generation will also use your markers, according to the chosen mode.',
+    'brano/i aggiunto/i': 'track(s) added',
+    'brano corretto,': 'track fixed,',
+    'modifiche scritte.': 'changes written.',
+    'Impostazioni copiate su': 'Settings copied to',
+    'brani.': 'tracks.',
+    'Unificazione annullata su': 'Merge undone on',
+    'brano/i.': 'track(s).',
+    'allineata su': 'aligned on',
+    'Intensità': 'Intensity',
+    'Calibrazione personale:': 'Personal calibration:',
+    'tap appresi.': 'taps learned.',
+    'Non riuscito:': 'Failed:',
+    'Generazione in corso...': 'Generating...',
+    'Generazione completata': 'Generation complete',
+    'Generazione fallita': 'Generation failed',
+    'Workout processati :': 'Workouts processed:',
+    'In corso…': 'In progress…',
+    '(nessuna riga di log prodotta)': '(no log output)',
+    'brano/i generato/i - playlist scritta in': 'track(s) generated - playlist written to',
+    'Qualcosa non ha funzionato:': 'Something went wrong:',
+    'errori - vedi il log': 'errors - see the log',
+    'Blocco': 'Block',
+    'colpi/min': 'punches/min',
+    'BoxVR ufficiale': 'official BoxVR',
+    'blocco ritmico': 'rhythmic block',
+    'blocchi ritmici': 'rhythmic blocks',
+    'accento isolato': 'isolated accent',
+    'accenti isolati': 'isolated accents',
+    's marcati': 's marked',
+    'Estendi imiterà la tua cadenza e il tuo ritmo nel resto del brano.': 'Extend will imitate your cadence and rhythm through the rest of the track.',
+    'ancora pochi perché Estendi impari il tuo ritmo, il resto resta automatico.': 'still too little for Extend to learn your rhythm; the rest stays automatic.',
+    'i tuoi colpi restano dove sono e il resto del brano lo genera l\'algoritmo.': 'your punches stay where they are and the algorithm generates the rest of the track.',
+    'Nessun marker: la generazione userà solo l\'algoritmo automatico.': 'No markers: generation will use the automatic algorithm only.',
+    'colpi marcati su': 'marked punches out of',
+    'Estendi impara il tuo ritmo dai colpi che marchi: senza abbastanza materiale non ha niente da imitare.':
+      'Extend learns your rhythm from the punches you mark: without enough material it has nothing to imitate.',
+    'Gli servono almeno:': 'It needs at least:',
+    'Finora hai marcato:': 'So far you have marked:',
+    'colpi': 'punches',
+    'di ritmo continuo': 'of continuous rhythm',
+    'marker in tutto: quelli isolati restano dove sono, ma da soli non fanno un ritmo da imparare.':
+      'markers in total: isolated ones stay where they are, but on their own they do not make a rhythm to learn from.',
+    'Analisi del brano non ancora pronta: Estendi si sblocca quando è finita.':
+      'Track analysis not ready yet: Extend unlocks when it finishes.',
+    'Seleziona un brano e registra qualche colpo: Estendi impara da quelli.':
+      'Select a track and record some punches: Extend learns from those.',
+    'sono troppo pochi perché Estendi ricavi una cadenza, il resto del brano resta una coreografia automatica.': 'too few for Extend to derive a cadence; the rest of the track stays an automatic choreography.',
+    'marker ignorato': 'marker ignored',
+    'marker ignorati': 'markers ignored',
+    // --- intestazione e comuni ---
+    'Patch installata': 'Patch installed',
+    'Patch non rilevata': 'Patch not detected',
+    'Disabilita': 'Disable',
+    'Tema chiaro/scuro': 'Light/dark theme',
+    'Anteprima brano': 'Track preview',                       // [GUI] preview
+    'Struttura BoxVR di partenza': 'Event structure from BoxVR',  // [GUI]
+    'Aggiungi brani +': 'Add tracks +',
+    'Svuota': 'Clear list',                                   // [GUI]
+    'Base beat': 'Base beat',
+    'Marker visibili': 'Show markers',
+    'Curva di carica': 'Energy curve',
+    'Analisi': 'Analysis',
+    'Veloce': 'Fast',
+    'Precisa': 'Accurate',
+    'Correggi BPM': 'Fix BPM',
+    'Cerca BPM online': 'Search BPM online',
+    'Inserire BPM': 'Enter BPM',
+    'Analisi in corso': 'Analyzing...',                       // [GUI]
+    'Analisi fallita': 'Analysis failed',
+    'Riprova': 'Retry',
+    'Rimuovi': 'Remove',
+    'Rimuovi brano': 'Remove track',
+    'Play/Pausa': 'Play/Pause',
+    'Stop': 'Stop',
+    'Preset Leggero': 'Light preset',                         // [GUI] choreo_light
+    'Preset Medio': 'Medium preset',                          // [GUI] choreo_medium
+    'Preset Aggressivo': 'Intense preset',                    // [GUI] choreo_high
+    'Silenzio': 'Silence',                                    // [GUI] legend_0
+    'Leggero': 'Light',                                       // [GUI] legend_1
+    'Solo pugni': 'Punches',                                  // [GUI] legend_2
+    'Solo Pugni': 'Punches',                                  // [GUI] legend_2
+    'Misto': 'Mixed',                                         // [GUI] legend_3
+    'Blocco Silenzio': 'Silence block',
+    'Blocco Leggero': 'Light block',
+    'Blocco Solo pugni': 'Punches block',
+    'Blocco Misto': 'Mixed block',
+    'Sezioni consecutive:': 'Consecutive sections:',
+    'Colpi totali:': 'Total punches:',
+    'Preset': 'Preset',
+    'Intensità workout': 'Only punch events',                 // [GUI] punch_ratio_label
+    'Margine di confidenza': 'Confidence margin',             // [GUI] margin_label
+    'Info aggiuntive': 'More info',
+    'Chiudi': 'Close',
+
+    // --- pagina Correggi ---
+    'Correggi Workout esistenti': 'Fix existing workouts',
+    'Toolkit': 'Toolkit',
+    'Fasi del brano dopo la correzione': 'Track phases after correction',
+    'Crea backup nella cartella Trackdata': 'Create a backup in the Trackdata folder',
+    'Avvia correzione': 'Start correction',
+    'Correzione in corso…': 'Correcting...',
+    'Copia su tutti i brani': 'Apply to all tracks',
+    'Apri cartella risultati ›': 'Open results folder ›',
+    'Log': 'Log',
+
+    // --- pagina Genera ---
+    'Crea Workout da Mp3': 'Create workout from MP3',
+    'Generazione Automatica': 'Automatic generation',
+    'Generazione Sidecar (beta)': 'Sidecar generation (beta)',
+    'Preset dei colpi': 'Choreography intensity',             // [GUI] choreo_preset_label
+    'Aggressivo': 'Intense',                                  // [GUI] choreo_high
+    'Medio': 'Medium',                                        // [GUI] choreo_medium
+    'Ipotesi fasi totali generate': 'Estimated generated phases',
+    'Fasi totali generate': 'Generated phases',
+    // --- Gestione playlist (pagina mai passata dal dizionario finora) ---
+    'Gestione playlist installate': 'Manage installed playlists',
+    'Conferma': 'Confirm',
+    'Annulla': 'Cancel',
+    '??? BPM': '??? BPM',   // BPM non ancora rilevato: niente da tradurre
+
+    'Backup 🗂': 'Backup 🗂',
+    "Qui vedi le playlist gia' installate nella libreria di BoxVR e puoi rimetterle in ordine, togliere un brano, rinominarle o eliminarle. Le modifiche sono scritte davvero sui file della libreria, con un backup automatico prima di ogni scrittura.":
+      'Here you see the playlists already installed in your BoxVR library, and you can reorder them, remove a track, rename them or delete them. The changes are really written to the library files, with an automatic backup before every write.',
+    'Playlist selezionata': 'Selected playlist',
+    'Brani della playlist': 'Playlist tracks',
+    'Durata totale:': 'Total length:',
+    'Elimina playlist': 'Delete playlist',
+    'Rinomina': 'Rename',
+    'Brani:': 'Tracks:',
+    'Togli dalla playlist': 'Remove from playlist',
+    'Sposta su': 'Move up',
+    'Sposta gi\u00f9': 'Move down',
+    'Silenzio': 'Silence',
+    'Leggero': 'Light',
+    'Solo pugni': 'Punches only',
+    'Misto': 'Mixed',
+    'Senza fasi': 'No phases',
+    'Tieni presente: agisce sulle playlist installate, non sui brani \u2014 per generare nuovi workout serve Genera.':
+      'Note: this acts on installed playlists, not on the tracks \u2014 to generate new workouts use Generate.',
+    // --- barra di stato della Dashboard ---
+    'Cartella di gioco:': 'Game folder:',
+    'stato:': 'state:',
+    'Installa in BoxVR': 'Install in BoxVR',
+    'Cartella BoxVR ›': 'BoxVR folder ›',
+    'Disponibile solo dopo la correzione vera': 'Available only after an actual correction',
+    "Disattiva/riattiva l'audio": 'Mute / unmute',
+    'Salva una copia dei brani che verranno sostituiti, prima di sostituirli':
+      'Saves a copy of the tracks that are about to be replaced, before replacing them',
+    'Ascolta questo brano': 'Play this track',
+    'Composizione della playlist': 'Playlist make-up',
+    // Tooltip (attributo title). Il meccanismo di traduzione li gestiva
+    // gia', ma nessuna di queste frasi era nel dizionario: restavano in
+    // italiano con l'interfaccia in inglese.
+    'Cambia la lingua dell\'interfaccia': 'Change the interface language',
+    'Guarda i colpi del workout appena generato, prima di provarlo in VR. Disponibile dopo "Avvia generazione".':
+      'See the punches of the workout you just generated, before trying it in VR. Available after "Start generation".',
+    'D\u00e0 a tutti i brani dell\'elenco la stessa intensit\u00e0 di quello selezionato. Non genera niente: cambia solo le impostazioni.':
+      'Gives every track in the list the same intensity as the selected one. It generates nothing: it only changes settings.',
+    'Stima basata sull\'intensit\u00e0 scelta. Il numero esatto si vede dopo la generazione.':
+      'An estimate based on the chosen intensity. The exact number shows after generation.',
+    'Disponibile dopo "Unifica playlist": rimette a ogni brano l\'intensit\u00e0 che aveva prima.':
+      'Available after "Merge playlist": puts back the intensity each track had before.',
+    'Ricomincia: cancella i marker registrati e riporta il brano all\'inizio':
+      'Start over: clears the recorded markers and rewinds the track',
+    'Zoom sulla timeline - la rotellina scorre quando sei ingrandito':
+      'Zoom the timeline \u2014 the wheel scrolls when you are zoomed in',
+    'Copia i file nella libreria di BoxVR': 'Copy the files into the BoxVR library',
+    'Apri la cartella della libreria': 'Open the library folder',
+    'Play/Pausa': 'Play/Pause',
+    'Stop': 'Stop',
+    'Nome playlist': 'Playlist name',
+    'Durata massima': 'Maximum duration',
+    'Nessun limite': 'No limit',
+    'Avvia generazione': 'Start generation',
+    'Nome playlist necessario per la generazione': 'A playlist name is required to generate',
+    'Anteprima workout': 'Workout preview',                   // [GUI] visual_btn
+    'Gestione dei marker': 'Marker management',
+    'Modalità': 'Mode',
+    'Armonizza': 'Harmonize',
+    'Nessun ostacolo': 'No obstacles',
+    'Soglia minima fra i colpi': 'Minimum gap between punches',
+    'Registra': 'Record',
+    'oppure premi F/K': 'or press F/K',
+    'Suono colpi attivo': 'Punch sound on',
+    'Suono colpi muto': 'Punch sound muted',
+
+    // --- pagina Dashboard / start page ---
+    'Benvenuto/a su': 'Welcome to',
+    'Accetta e continua ›': 'Accept and continue ›',
+    'Semplice ma poco controllo': 'Simple, but little control',
+    'Più complesso, più divertente': 'More complex, more fun',
+    'Richiede BoxVR Patchato': 'Requires a patched BoxVR',
+    'Vai al tool ›': 'Go to the tool ›',
+    'Vai al tool 🔒': 'Go to the tool 🔒',
+    'Rilevata Patch.': 'Patch detected.',
+    'Cartella BoxVR ›': 'BoxVR folder ›',
+    'Apri la cartella TrackData di BoxVR': 'Open the BoxVR TrackData folder',
+    'playlist in:': 'playlist(s) in:',
+    'Installati': 'Installed',
+    'file': 'files',
+    'brano/i': 'track(s)',
+    'playlist': 'playlist(s)',
+    'Riavvia BoxVR per vederli nella libreria.': 'Restart BoxVR to see them in the library.',
+    'Patch non installata.': 'Patch not installed.',
+    'Serve la cartella di BoxVR.': 'BoxVR folder required.',
+    'Installa': 'Install',
+    'Scegli': 'Choose',
+    '«Crea Workout da Mp3» scrive coreografie che il gioco legge solo con la patch attiva: senza, i workout generati non arriverebbero mai in VR.':
+      '«Create Workout from Mp3» writes choreographies the game only reads with the patch active: without it, the workouts you generate would never reach VR.',
+    'Per creare workout da mp3 serve BoxVR patchato, e la cartella del gioco non è stata ancora trovata. Indicala qui sotto e poi installa la patch.':
+      'Creating workouts from mp3 needs a patched BoxVR, and the game folder has not been found yet. Point to it below, then install the patch.',
+    'Gestione playlist installate →': 'Manage installed playlists →',
+    'Scegli cartella…': 'Choose folder...',                   // [GUI] browse_btn
+    'Nessuna cartella di gioco impostata': 'No game folder set',
+    'Rilevamento cartella di gioco…': 'Detecting game folder...',
+    'brano nell’elenco': 'track in the list',
+    'brani nell’elenco': 'tracks in the list',
+    'playlist installata': 'playlist installed',
+    'playlist installate': 'playlists installed',
+
+    // --- aggiunte dopo l'inventario a tappeto (stringheNonTradotte) ---
+    'caricamento\u2026': 'loading...',
+    'Svuota \ud83d\uddd1': 'Clear list \ud83d\uddd1',
+    'Seleziona un brano\u2026': 'Select a track...',            // [GUI] select_song_prompt
+    'Trascina qui le cartelle o i file per generare un workout o aggiungi un percorso.':
+      'Drop folders or files here to generate a workout, or add a path.',
+    'Trascina qui le cartelle o i file da correggere o aggiungi un percorso.':
+      'Drop folders or files to fix here, or add a path.',
+    'Sezioni totali:': 'Total sections:',
+    'Sezioni individuate:': 'Sections found:',
+    'Solo marker': 'Markers only',
+    'Estendi': 'Extend',
+    '\u25b6 Anteprima workout': '\u25b6 Workout preview',       // [GUI] visual_btn
+    'Unifica playlist': 'Merge playlist',
+    'Annulla unificazione': 'Undo merge',
+    '\u25be Log': '\u25be Log',
+    'In attesa di avvio\u2026': 'Waiting to start...',
+    'Tieni presente: scrive file nuovi che il gioco riconosce solo con la patch installata.':
+      'Note: it writes new files that the game only recognises with the patch installed.',
+    'Questa parte del tool crea un workout completamente nuovo a partire da un mp3: analizza l\u2019audio con lo stesso tipo di rilevamento del ritmo usato da BoxVR e costruisce fasi che coprono l\u2019intero brano, senza i vuoti di silenzio che i workout originali a volte lasciano. Puoi scegliere un preset di intensit\u00e0, vedere in anteprima come verrebbe suddiviso il workout prima di generarlo, ascoltarlo con un click a tempo, e dare un nome alla playlist per generare pi\u00f9 brani insieme e unificarli in un unico allenamento continuo.':
+      'This part of the tool builds a completely new workout from an mp3: it analyses the audio with the same kind of beat detection BoxVR uses, and builds phases that cover the whole track, without the silent gaps the original workouts sometimes leave. You can pick an intensity preset, preview how the workout would be split before generating it, listen to it with a click track, and name the playlist to generate several tracks together and merge them into one continuous session.',
+    'Questa parte del tool migliora i livelli di intensit\u00e0 che BoxVR ha gi\u00e0 assegnato a un workout esistente: analizza l\u2019audio reale, li confronta con l\u2019originale e ti propone una versione pi\u00f9 coerente col ritmo del brano. Puoi scegliere quanti eventi trattare come pugni puri, quanto margine di sicurezza tenere nelle correzioni, ascoltare il risultato con un click a tempo, e decidere se salvare solo un report o sostituire i file (con backup automatico).':
+      'This part of the tool improves the intensity levels BoxVR already assigned to an existing workout: it analyses the real audio, compares them with the original and proposes a version more consistent with the track\u2019s rhythm. You can choose how many events to treat as pure punches, how much safety margin to keep in the corrections, listen to the result with a click track, and decide whether to save just a report or replace the files (with an automatic backup).',
+    'Tieni presente: agisce solo dove BoxVR ha gi\u00e0 creato dei segmenti \u2014 non riempie i vuoti dove il gioco non ha messo nulla. Per quello serve Genera.':
+      'Note: it only acts where BoxVR already created segments \u2014 it does not fill the gaps the game left empty. Use Generate for that.',
+
+    // --- start page / disclaimer ---
+    'Prima di iniziare': 'Before you start',
+    'Cosa fa questo tool?': 'What does this tool do?',
+    'Come \u00e8 stato creato?': 'How was it made?',
+    '(si, un altro)': '(yes, another one)',
+    'BoxVR \u00e8 stato abbandonato, ma la sua community no.':
+      'BoxVR was abandoned, but its community was not.',
+    'Questo toolkit nasce per tutti gli appassionati che vogliono continuare a allenarsi senza essere\n      costretti a passare a modelli in abbonamento.':
+      'This toolkit is for everyone who wants to keep training without being forced onto a subscription model.',
+    'Il tool non raccoglie alcun dato personale': 'The tool collects no personal data',
+    'Il tool \u00e8 stato principalmente testato con workout ad alti BPM':
+      'The tool has mostly been tested with high-BPM workouts',
+    'Pillola azzurra': 'Blue pill',
+    'Pillola rossa': 'Red pill',
+    'Correggi': 'Fix',
+    'Workout esistenti': 'existing workouts',
+    'Crea Workout': 'Create a workout',
+    'da Mp3': 'from MP3',
+    '\u26a0 Rilevata Patch.': '\u26a0 Patch detected.',
+
+    // --- chiavi prese direttamente dal markup (vedi
+    //     _build_correggi/genera_chiavi_mancanti.py) ---
+    "Svuota 🗑":
+      "Clear list",
+    ": fine della storia. Domani ti svegli in camera tua, e credi a quello che vuoi.":
+      ": end of story. Tomorrow you wake up in your bed and believe whatever you want to believe.",
+    ": resti nel paese delle meraviglie, e quant'è profonda la tana del bianconiglio te lo mostro io.\"":
+      ": you stay in Wonderland, and I show you how deep the rabbit hole goes.\"",
+    "Tieni presente: agisce solo dove BoxVR ha già creato dei segmenti — non riempie i vuoti dove il gioco\n    non ha messo nulla. Per quello serve Genera.":
+      "Note: it only acts where BoxVR already created segments - it does not fill the gaps the game left empty. Use Generate for that.",
+    "(Brani\n      dance/EDM/Techno), c'è da aspettarsi eventuali bug o desync con\n      altre tipologie di brani, segnalateli e saranno fixate appena possibile.":
+      "(dance/EDM/Techno tracks), so expect occasional bugs or desync with other kinds of music - report them and they will be fixed as soon as possible.",
+    "Crea allenamenti nuovi da zero, con colpi precisi su beat/drop che non cambiano ogni volta che giocate il\n        workout. Richiede una piccola modifica al gioco, reversibile.":
+      "Create brand new workouts from scratch, with punches placed precisely on beats and drops that do not change every time you play the workout. Requires a small, reversible change to the game.",
+    "Ti permette di migliorare i workout custom importati tramite il processing\n      ufficiale di BoxVR e creare nuovi livelli custom (per davvero) gestendo i tuoi file audio personali.":
+      "It lets you improve custom workouts imported through BoxVR's official processing, and create genuinely new custom levels from your own audio files.",
+    "È un progetto amatoriale a quattro mani: design, flussi UX/UI e testing curati\n      da un utente come te; programmazione e build sviluppate con l'ausilio dell'Intelligenza Artificiale.":
+      "It is an amateur project made by two pairs of hands: design, UX/UI flows and testing by a user like you; programming and builds developed with the help of Artificial Intelligence.",
+    "Disclaimer Legale: Questo è un progetto fan-made e no-profit, privo di affiliazione con i creatori\n      originali di BoxVR. L'utilizzo del software avviene a proprio rischio e sotto la propria responsabilità.":
+      "Legal disclaimer: this is a fan-made, non-profit project with no affiliation to the original creators of BoxVR. You use the software at your own risk and under your own responsibility.",
+    "Basilare, tenta di migliorare il più possibile i livelli di intensità dei workout che BoxVR ha già creato.\n        Può essere necessario correggere e testare un workout prima di arrivare alla qualità desiderata.":
+      "Basic: it tries to improve as much as possible the intensity levels BoxVR has already created. You may need to fix and test a workout a few times before reaching the quality you want.",
+    ", integra API e librerie locali\n      per la gestione di tutte le sue componenti, nel caso in cui avesse\n      difficoltà a decodificare i BPM di una canzone potrebbe chiederti se TU\n      vuoi cercare su internet dei valori esatti.":
+      ", it integrates local APIs and libraries to manage all of its parts; if it struggles to detect a track's BPM it may ask whether YOU want to look up the exact values online.",
+    "Questa parte del tool migliora i livelli di intensità che BoxVR ha già assegnato a un workout esistente:\n    analizza l'audio reale, li confronta con l'originale e ti propone una versione più coerente col ritmo del\n    brano. Puoi scegliere quanti eventi trattare come pugni puri, quanto margine di sicurezza tenere nelle\n    correzioni, ascoltare il risultato con un click a tempo, e decidere se salvare solo un report o sostituire\n    i file (con backup automatico).":
+      "This part of the tool improves the intensity levels BoxVR already assigned to an existing workout: it analyses the real audio, compares them with the original and proposes a version more consistent with the track's rhythm. You can choose how many events to treat as pure punches, how much safety margin to keep in the corrections, listen to the result with a click track, and decide whether to save just a report or replace the files (with an automatic backup).",
+    "Questa parte del tool crea un workout completamente nuovo a partire da un mp3: analizza l'audio con lo stesso\n    tipo di rilevamento del ritmo usato da BoxVR e costruisce fasi che coprono l'intero brano, senza i vuoti di\n    silenzio che i workout originali a volte lasciano. Puoi scegliere un preset di intensità, vedere in anteprima\n    come verrebbe suddiviso il workout prima di generarlo, ascoltarlo con un click a tempo, e dare un nome alla\n    playlist per generare più brani insieme e unificarli in un unico allenamento continuo.":
+      "This part of the tool builds a completely new workout from an mp3: it analyses the audio with the same kind of beat detection BoxVR uses, and builds phases that cover the whole track, without the silent gaps the original workouts sometimes leave. You can pick an intensity preset, preview how the workout would be split before generating it, listen to it with a click track, and name the playlist to generate several tracks together and merge them into one continuous session.",
+
+  };
+
+  // I nodi tradotti vengono ricordati col loro testo italiano, cosi' tornare
+  // a IT non richiede un secondo dizionario EN->IT.
+  const _originali = new WeakMap();
+  let _lingua = 'it';
+
+  // Nel markup i testi lunghi sono spezzati su piu' righe con
+  // l'indentazione: senza normalizzare gli spazi non combaciano MAI con la
+  // chiave del dizionario (era il motivo per cui i copy restavano in
+  // italiano). L'indice normalizzato si costruisce una volta sola.
+  const _TRAD_NORM = {};
+  for (const k in TRAD) _TRAD_NORM[k.replace(/\s+/g, ' ').trim()] = TRAD[k];
+
+  // I suggerimenti (`title`) e i testi grigi delle caselle (`placeholder`)
+  // NON sono nodi di testo: il TreeWalker qui sotto non li incontra mai, e
+  // restavano in italiano anche a lingua cambiata. Si traducono a parte.
+  function traduciAttributi() {
+    for (const el of document.querySelectorAll('[title], [placeholder], [aria-label]')) {
+      for (const attr of ['title', 'placeholder', 'aria-label']) {
+        const v = el.getAttribute(attr);
+        if (!v) continue;
+        // Si conserva l'originale (ritradurre una traduzione non funziona, e
+        // la lingua si puo' cambiare avanti e indietro) MA anche il valore
+        // che abbiamo scritto noi: se al giro dopo l'attributo e' diverso da
+        // quello, l'ha cambiato il codice, e il nuovo valore e' il nuovo
+        // originale. Senza questo confronto un `title` aggiornato a runtime
+        // restava per sempre quello del primo giro - si vedeva sul segno di
+        // "Estendi", che raccontava sempre la stessa cosa.
+        const chiave = 'i18n' + attr.replace('-', '');
+        const chiaveScritta = chiave + 'Out';
+        if (!el.dataset[chiave] || el.dataset[chiaveScritta] !== v) {
+          el.dataset[chiave] = v;
+        }
+        const tradotto = T(el.dataset[chiave]);
+        if (tradotto !== v) el.setAttribute(attr, tradotto);
+        el.dataset[chiaveScritta] = tradotto;
+      }
+    }
+  }
+
+  function traduciPagina() {
+    if (_lingua === 'it') return;
+    traduciAttributi();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      const grezzo = n.nodeValue;
+      const testo = grezzo.trim();
+      if (!testo) continue;
+      // "8 brani nell'elenco" e simili: la parte variabile e' il numero
+      // davanti, che va lasciato com'e' traducendo solo il resto. Senza
+      // questo, un testo composto a runtime resta in italiano per sempre.
+      let tr = TRAD[testo] || _TRAD_NORM[testo.replace(/\s+/g, ' ')];
+      if (!tr) {
+        const m = testo.match(/^(\d+)\s+(.+)$/);
+        if (m) {
+          const coda = TRAD[m[2]] || _TRAD_NORM[m[2].replace(/\s+/g, ' ')];
+          if (coda) tr = m[1] + ' ' + coda;
+        }
+      }
+      if (tr && tr !== testo) {
+        if (!_originali.has(n)) _originali.set(n, grezzo);
+        // gli spazi INTORNO al testo vanno conservati: sostituendo l'intero
+        // nodo, "Silenzio 2" diventava "Silence2" (lo spazio prima del
+        // numero stava in coda al nodo tradotto).
+        const pre = grezzo.match(/^\s*/)[0], post = grezzo.match(/\s*$/)[0];
+        n.nodeValue = pre + tr + post;
+      }
+    }
+    // anche title/placeholder, che il TreeWalker non vede
+    document.querySelectorAll('[title]').forEach((e) => {
+      const t = TRAD[e.getAttribute('title').trim()];
+      if (t) { if (!e.dataset.titleIt) e.dataset.titleIt = e.getAttribute('title'); e.title = t; }
+    });
+    document.querySelectorAll('[placeholder]').forEach((e) => {
+      const t = TRAD[e.getAttribute('placeholder').trim()];
+      if (t) { if (!e.dataset.phIt) e.dataset.phIt = e.getAttribute('placeholder'); e.placeholder = t; }
+    });
+  }
+
+  function ripristinaItaliano() {
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      if (_originali.has(n)) n.nodeValue = _originali.get(n);
+    }
+    document.querySelectorAll('[data-title-it]').forEach((e) => { e.title = e.dataset.titleIt; });
+    document.querySelectorAll('[data-ph-it]').forEach((e) => { e.placeholder = e.dataset.phIt; });
+  }
+
+  // Elenca i testi visibili SENZA traduzione: serve a sapere cosa manca
+  // davvero, invece di dare per scontato che la pagina sia tutta tradotta.
+  function stringheNonTradotte() {
+    const fuori = new Set();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      const t = n.nodeValue.trim();
+      if (!t || t.length < 3 || /^[\d\s:.,%\/·—–-]+$/.test(t)) continue;
+      if (n.parentElement && n.parentElement.closest('.not-wired-note, script, style')) continue;
+      const norm = t.replace(/\s+/g, ' ');
+      if (!TRAD[t] && !_TRAD_NORM[norm] && !Object.values(TRAD).includes(t)) fuori.add(t);
+    }
+    return Array.from(fuori);
+  }
+
+  // "8 brani nell'elenco" e' costruito per concatenazione: il dizionario
+  // lavora su testi interi e non lo intercetterebbe mai. Qui la parte
+  // variabile (il numero) resta fuori e si traduce solo la parola.
+  // Traduzione di UNA stringa, per i testi che non passano dal DOM e che
+  // quindi il MutationObserver non puo' vedere: il contenuto degli
+  // `alert()`, e i `title` che il codice scrive a mano.
+  function T(testo) {
+    if (_lingua === 'it' || !testo) return testo;
+    const norm = String(testo).replace(/\s+/g, ' ').trim();
+    return TRAD[testo] || TRAD[norm] || _TRAD_NORM[norm] || testo;
+  }
+  window.T = T;
+
+  function conConteggio(n, singolare, plurale) {
+    const parola = n === 1 ? singolare : plurale;
+    const tr = (_lingua === 'it') ? parola : (TRAD[parola] || parola);
+    return n + ' ' + tr;
+  }
+  window.conConteggio = conConteggio;
+
+  window.stringheNonTradotte = stringheNonTradotte;
+
+  // Molti testi nascono da render JS (righe brano, pillole, stati, log):
+  // invece di ricordarsi di ritradurre in ognuno di quei punti - dove prima
+  // o poi se ne dimentica uno - la pagina si ritraduce da sola quando il DOM
+  // cambia. Il lavoro e' nullo finche' la lingua e italiano.
+  let _pendente = false;
+  new MutationObserver(() => {
+    if (_lingua === 'it' || _pendente) return;
+    _pendente = true;
+    requestAnimationFrame(() => { _pendente = false; traduciPagina(); });
+  }).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
+
+  // Standalone (genera_real/app.py) espone i metodi senza prefisso
+  // (list_songs, recompute, ...). Dentro dashboard_real, invece, lo stesso
+  // js_api della finestra porta ANCHE i metodi di Correggi con gli stessi
+  // nomi (list_songs, recompute, ...) - per evitare la collisione li'
+  // vengono esposti col prefisso "genera_" (vedi dashboard_real/app.py).
+  // Questo proxy prova prima il nome con prefisso e ripiega su quello nudo,
+  // cosi' TUTTO il resto di questo file chiama sempre api().list_songs()
+  // ecc. senza sapere in quale dei due contesti sta girando.
+  const api = () => new Proxy({}, {
+    get(_, prop) {
+      const real = window.pywebview.api;
+      const prefixed = real['playlist_' + prop];
+      const fn = typeof prefixed === 'function' ? prefixed : real[prop];
+      // Se il metodo non esiste, il messaggio del browser sarebbe
+      // "Cannot read properties of undefined (reading 'bind')": inutile.
+      // Meglio dire QUALE metodo manca.
+      if (typeof fn !== 'function') {
+        return () => Promise.reject(new Error("metodo assente nell'API: " + prop));
+      }
+      return fn.bind(real);
+    }
+  });
+
+  // La pagina e' un canvas 1920x1080 scalato con transform (fitPage): i
+  // popover ci stanno DENTRO, quindi vanno posizionati in coordinate del
+  // canvas, non del viewport. Usando clientX/clientY grezzi finivano
+  // spostati in basso a destra rispetto al puntatore (segnalato
+  // dall utente sul tooltip dei blocchi).
+  function toPageCoords(clientX, clientY) {
+    const page = document.querySelector('.page.genera-fixed');
+    if (!page) return {x: clientX, y: clientY, s: 1};
+    const r = page.getBoundingClientRect();
+    // NON r.width/1920: con --extra il canvas e' piu' largo di 1920 e la
+    // divisione darebbe una scala gonfiata, spostando i popover.
+    const s = r.width / (1920 + extraCorrente()) || 1;
+    return {x: (clientX - r.left) / s, y: (clientY - r.top) / s, s: s};
+  }
+
+  // Quando il layout e' DAVVERO aggiornato. Non basta leggere subito dopo
+  // aver scritto, e non basta nemmeno un requestAnimationFrame: la
+  // richiamata gira prima del calcolo del frame e restituisce la geometria
+  // precedente. Due frame, e la misura e' quella vera.
+  function dopoIlLayout(fn) {
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+  }
+
+  // Il riquadro dei suggerimenti, aperto su un TESTO gia' pronto invece che
+  // su una chiave di dizionario. Serve a chi ha qualcosa da dire che cambia
+  // mentre il tool e' aperto - «Estendi» e il suo conteggio di marker - e
+  // che quindi non puo' stare in una tabella di testi fissi. Stessa
+  // apparizione, stesso allargamento, stesso posizionamento di tutti gli
+  // altri: un secondo riquadro sarebbe divergiuto al primo ritocco.
+  function mostraSuggerimento(bersaglio, testo, chiave) {
+    const pop = document.getElementById('info-popover');
+    document.getElementById('info-popover-body').textContent = testo;
+    pop.classList.remove('largo-2', 'largo-3', 'largo-4');
+    // invisibile ma gia' misurabile: la larghezza definitiva si sa solo dopo
+    // aver misurato, e il salto non deve vedersi
+    pop.style.visibility = 'hidden';
+    pop.classList.add('visible');
+    // il riquadro del bersaglio si prende ADESSO, prima che il mouse vada altrove
+    const rect = bersaglio.getBoundingClientRect();
+    pop.dataset.tipChiave = chiave;           // per abbandonare i giri sorpassati
+    adattaLarghezzaSuggerimento(pop, rect, chiave, 0);
+  }
+  window.mostraSuggerimento = mostraSuggerimento;
+
+  function showInfoPopover(event, key) {
+    event.stopPropagation();
+    const dizionario = (_lingua === 'en') ? TOOLTIPS_EN : TOOLTIPS;
+    mostraSuggerimento(event.target,
+      dizionario[key] || TOOLTIPS[key] || '(testo non disponibile)', key);
+  }
+  window.showInfoPopover = showInfoPopover;
+
+  function adattaLarghezzaSuggerimento(pop, rect, key, giro) {
+    dopoIlLayout(() => {
+      // se nel frattempo si e' passati a un altro pallino, questo giro non
+      // conta piu': starebbe misurando un testo che non c'e' piu'
+      if (pop.dataset.tipChiave !== key) return;
+      const alta = pop.offsetHeight;
+      let i = TIP_CLASSI.findIndex((c) => c && pop.classList.contains(c));
+      if (i < 0) i = 0;
+      if (alta > TIP_ALTEZZA_MAX && i < TIP_LARGHEZZE.length - 1 && giro < 3) {
+        // il testo occupa "alta - testa" alla larghezza di adesso: per stare
+        // dentro TIP_ALTEZZA_MAX serve, in proporzione, questa larghezza
+        const servono = TIP_LARGHEZZE[i] * (alta - TIP_TESTA) /
+                        Math.max(1, TIP_ALTEZZA_MAX - TIP_TESTA);
+        let j = i;
+        while (j < TIP_LARGHEZZE.length - 1 && TIP_LARGHEZZE[j] < servono) j++;
+        if (j === i) j = i + 1;        // e' ancora alto: almeno un passo
+        pop.classList.remove('largo-2', 'largo-3', 'largo-4');
+        if (TIP_CLASSI[j]) pop.classList.add(TIP_CLASSI[j]);
+        adattaLarghezzaSuggerimento(pop, rect, key, giro + 1);
+        return;
+      }
+      posizionaInfoPopover(pop, rect);
+      pop.style.visibility = '';
+    });
+  }
+
+  // Dove si apre: sotto il pallino, dentro i bordi del canvas. In coordinate
+  // del canvas, non del viewport - la pagina e' scalata (vedi toPageCoords).
+  function posizionaInfoPopover(pop, rect) {
+    const a = toPageCoords(rect.left, rect.bottom);
+    const largh = pop.offsetWidth || 260;
+    const bordoDestro = 1920 + extraCorrente() - 10;
+    pop.style.left = Math.max(10, Math.min(a.x, bordoDestro - largh)) + 'px';
+    // e se sfora in basso si apre SOPRA il pallino invece che sotto: prima
+    // usciva dal fondo e il testo restava irraggiungibile
+    const alt = pop.offsetHeight;
+    let top = a.y + 6;
+    if (top + alt > 1080 - 10) top = Math.max(10, a.y - alt - 24);
+    pop.style.top = top + 'px';
+  }
+
+  function hideInfoPopover() {
+    const pop = document.getElementById('info-popover');
+    pop.classList.remove('visible');
+    pop.style.visibility = '';   // se si chiude mentre si misurava
+  }
+  window.hideInfoPopover = hideInfoPopover;
+
+  function fmt(s) {
+    s = Math.max(0, s || 0);
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  }
+
+  async function loadAppInfo() {
+    const info = await api().get_app_info();
+    document.getElementById('app-version').textContent = 'Ver ' + info.version;
+    renderPatchPill(info.patch_state);
+  }
+
+  // Tema chiaro/scuro ("Light switch.svg") - STESSA chiave/default della GUI
+  // Tkinter vera (settings.json['theme'], default 'dark'), condivisa fra le
+  // pagine. applyTheme imposta data-theme sulla radice - styles.css legge
+  // quell'attributo per sovrascrivere prefers-color-scheme (vedi commento
+  // nella palette scura).
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    aggiornaInterruttoreTema(theme);
+  }
+
+  function initTheme() {
+    // Non si stampa data-theme: lasciandolo assente il CSS segue il
+    // sistema da solo, anche se l'utente lo cambia mentre il programma e'
+    // aperto. Si aggiorna solo l'aspetto dell'interruttore.
+    aggiornaInterruttoreTema(temaDiSistema());
+    if (window.matchMedia) {
+      const q = window.matchMedia('(prefers-color-scheme: dark)');
+      const seguiSistema = () => {
+        if (!document.documentElement.dataset.theme) {
+          aggiornaInterruttoreTema(temaDiSistema());
+        }
+      };
+      if (q.addEventListener) q.addEventListener('change', seguiSistema);
+    }
+  }
+
+  function toggleTheme() {
+    // solo per questa sessione: niente set_theme, niente da ricordare
+    applyTheme(temaCorrente() === 'dark' ? 'light' : 'dark');
+  }
+  window.toggleTheme = toggleTheme;
+
+  // Selettore lingua: per ora commuta solo lo stato visivo (quale pillola e'
+  // attiva). La traduzione vera dei testi non c'e' ancora - il tool ha gia'
+  // le sue STRINGS it/en nella GUI Tkinter, andranno portate qui in un giro
+  // dedicato invece di duplicarle a mano.
+  // Cambio lingua VERO (prima cambiava solo la pillola attiva). La scelta e'
+  // ricordata in settings.json come tema e cartella di gioco.
+  async function setLang(code) {
+    document.querySelectorAll('.lang-pill').forEach(p =>
+      p.classList.toggle('active', p.textContent.trim().toLowerCase() === code));
+    _lingua = code;
+    if (code === 'it') ripristinaItaliano(); else traduciPagina();
+    try { await api().set_lang(code); } catch (e) { /* pagina aperta fuori da pywebview */ }
+  }
+  window.setLang = setLang;
+
+  async function initLang() {
+    let code = 'it';
+    try { code = await api().get_lang(); } catch (e) { /* default italiano */ }
+    setLang(code);
+  }
+
+  // Il tema SEGUE IL SISTEMA. Non si legge e non si scrive nessuna
+  // impostazione salvata: la radice resta senza data-theme, e in quello
+  // stato comanda prefers-color-scheme - cioe' il tema di Windows, che e'
+  // quello che l'utente ha gia' scelto una volta per tutte le sue
+  // applicazioni. L'interruttore serve a guardare l'altra versione al volo,
+  // e la scelta vale solo per questa sessione: alla riapertura si torna a
+  // seguire il sistema.
+  function temaDiSistema() {
+    return window.matchMedia &&
+           window.matchMedia('(prefers-color-scheme: dark)').matches
+           ? 'dark' : 'light';
+  }
+
+  function temaCorrente() {
+    // se nessuno ha ancora toccato l'interruttore, e' quello del sistema
+    return document.documentElement.dataset.theme || temaDiSistema();
+  }
+
+  // L'interruttore mostra il tema verso cui si VA, non quello attuale:
+  // con la pagina chiara si vede la versione blu notte (clicchi -> scuro),
+  // con la pagina scura la versione arancio (clicchi -> chiaro).
+  // data-on="true" = variante scura del componente.
+  function aggiornaInterruttoreTema(theme) {
+    const sw = document.getElementById('theme-switch');
+    if (sw) sw.dataset.on = theme === 'light' ? 'true' : 'false';
+  }
+
+  function renderPatchPill(state) {
+    const wrap = document.getElementById('patch-pill-wrap');
+    if (state === 'patched') {
+      wrap.innerHTML = `<div class="patch-pill installed"><span class="patch-icon">${PATCH_CHECK_ICON}</span>Patch installata</div>`;
+    } else if (state === 'original') {
+      wrap.innerHTML = `<div class="patch-pill not-detected"><span class="patch-icon">${PATCH_DOWNLOAD_ICON}</span>Patch non rilevata</div>`;
+    } else {
+      wrap.innerHTML = '';
+    }
+  }
+
+  const PATCH_CHECK_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M6.5 11.5L10.0714 15L16.5 8" stroke="#267448" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const PATCH_DOWNLOAD_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M11 6V15.091M6 11.455L11 16L16 11.455" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // "Pattern Scacchiera": griglia a scacchiera di icone vere del progetto,
+  // stessi passo/rotazioni/ingombri misurati sul frame reale (29:4408).
+  // Deterministica (nessun Math.random): stesso disegno a ogni avvio.
+  function renderBgPattern() {
+    const el = document.getElementById('bg-pattern');
+    if (!el) return;
+    const ICONS = ['jab_sx', 'jab_dx', 'hook_sx', 'hook_dx', 'uppercut_sx', 'uppercut_dx', 'block'];
+    // rosa e azzurri in piu' intensita', come nel pattern reale
+    const COLORS = ['#FF3E9D', '#FF8CC6', '#FFC2E0', '#3B9BFF', '#8FC4FF', '#C2DEFF'];
+    const ROT = [0, 13.3, 22.5, 45];      // -> ingombri 100/122.47/136.60/141.42
+    const DX = 236, DY = 118;
+    let html = '', k = 0;
+    for (let row = -1; row * DY < 1080 + DY; row++) {
+      for (let col = -1; col * DX < 1920 + extraMax() + DX; col++) {
+        const off = (row % 2) ? DX / 2 : 0;
+        // scostamento deterministico, per non sembrare una griglia perfetta
+        const jx = ((k * 37) % 41) - 20, jy = ((k * 61) % 29) - 14;
+        const x = col * DX + off + jx, y = row * DY + jy;
+        const rot = ROT[k % ROT.length];
+        const size = 100;
+        const isBlock = (k % 11) === 0;   // qualche "block" rosso come nel reale
+        const color = isBlock ? '#FF2D2D' : COLORS[k % COLORS.length];
+        const icon = isBlock ? 'block' : ICONS[k % ICONS.length];
+        const op = 0.10 + ((k * 13) % 7) * 0.025;   // 0.10 - 0.25
+        html += `<i style="left:${x}px;top:${y}px;width:${size}px;height:${size}px;` +
+                `transform:rotate(${rot}deg);background:${color};opacity:${op.toFixed(3)};` +
+                `-webkit-mask-image:url(assets/icons/${icon}.svg);mask-image:url(assets/icons/${icon}.svg)"></i>`;
+        k++;
+      }
+    }
+    el.innerHTML = html;
+  }
+  renderBgPattern();
+
+  function fitPage() {
+    const page = document.querySelector('.page.genera-fixed');
+    if (!page) return;
+    // Si sceglie la FORMA prima della scala: se la finestra non regge i
+    // 1920 alla scala minima leggibile, si passa alla disposizione
+    // impilata, che ne chiede 1448. Deciderlo dopo significherebbe
+    // calcolare la scala su una larghezza e disegnare su un'altra.
+    const fascia = fasciaCanvas();
+    page.classList.toggle('stretta', fascia !== 'intera');
+    page.classList.toggle('compatta', fascia === 'compatta');
+    if (page.classList.contains('stretta')) impilaDalContenuto(page);
+    const W = canvasW(), H = canvasH();
+    // Solo la LARGHEZZA vincola la scala. Vincolarla anche all'altezza
+    // faceva rimpicciolire tutto per far entrare 1080px verticali, mentre
+    // scorrere in verticale e' normale e il criterio lo consente: e'
+    // l'orizzontale che non deve mai servire.
+    let s = Math.min(1, window.innerWidth / W);
+    s = Math.max(s, scalaMinimaLeggibile());
+    const extra = Math.max(0, Math.min(extraMax(),
+                           Math.round(window.innerWidth / s - W)));
+    window.__scalaCanvas = s; window.__extraCanvas = extra;
+    // prima decisione presa: la pagina si puo' mostrare
+    page.style.visibility = 'visible';
+    page.style.setProperty('--extra', extra + 'px');
+    page.style.transform = `scale(${s})`;
+    page.style.left = Math.max(0, (window.innerWidth - (W + extra) * s) / 2) + 'px';
+    page.style.top = Math.max(0, (window.innerHeight - H * s) / 2) + 'px';
+    // col pavimento attivo il canvas puo' sforare: meglio scorrere che
+    // rendere illeggibile, ma la barra deve comparire solo quando serve
+    const sfora = (W + extra) * s > window.innerWidth + 1 ||
+                  H * s > window.innerHeight + 1;
+    document.body.style.overflow = sfora ? 'auto' : 'hidden';
+    document.dispatchEvent(new CustomEvent('canvas-ridimensionato'));
+  }
+
+  function canvasW() { return impilata() ? 1448 : 1920; }
+
+  function canvasH() {
+    return impilata() ? (window.__altezzaImpilata || 1420) : 1080;
+  }
+
+  function extraMax() { return 640; }   // oltre, l'onda diventa una striscia
+
+  function scalaMinimaLeggibile() {
+    // Quanto puo' rimpicciolirsi il canvas prima che il testo corrente
+    // diventi troppo piccolo da leggere.
+    //
+    // La versione precedente divideva per il devicePixelRatio, ed era
+    // ROVESCIATA: su uno schermo a 125% (dpr 1.25) il pavimento diventava
+    // 11/(12*1.25) = 0.73, cioe' la pagina poteva scendere al 73% e il
+    // testo da 12px si vedeva come 8.8. Chi ha lo schermo piu' denso - e
+    // ha chiesto a Windows caratteri piu' grandi - si ritrovava il testo
+    // PIU' piccolo. E' l'origine del "in generale sono piccoli".
+    //
+    // La densita' non c'entra: quello che si percepisce e' la dimensione
+    // APPARENTE, e Windows la tiene gia' costante scalando tutto. Quindi
+    // il pavimento e' semplicemente "px dichiarati x scala", senza dpr.
+    //
+    // 0.75 e non 11/13 (=0.85): a 0.85 il canvas 1920x1080 diventa
+    // 1632x918 e su un'area di lavoro 1536x824 comparirebbero le barre di
+    // scorrimento dove oggi non ci sono. 0.75 e' il punto in cui il testo
+    // corrente (ora 13px, era 12) resta sopra i 9.75px apparenti senza
+    // introdurre scorrimento su nessuno schermo comune.
+    // Il pavimento cede solo nella fascia compatta, dove tenerlo a 0.75
+    // significherebbe sbordare in orizzontale: misurato, a 1010px di
+    // finestra il canvas impilato a 0.75 esce di 76px. A 0.68 entra.
+    // Il testo corrente scende a ~8.8px apparenti: e' il compromesso
+    // dichiarato per le finestre piu' piccole, non una svista.
+    return Math.min(1, fasciaCanvas() === 'compatta' ? 0.68 : 0.75);
+  }
+
+  function extraCorrente() { return window.__extraCanvas || 0; }
+
+  // Raccoglitore di errori: senza questo un errore JS (o una promise
+  // rifiutata, il caso piu' frequente qui perche' quasi tutte le chiamate
+  // all'API sono async) sparisce in silenzio e la pagina resta a meta'.
+  // ---- geometria del canvas -------------------------------------------
+  // FUNZIONI e non costanti, per due motivi concreti e non di stile.
+  // Primo: Correggi e Playlist sono composte prendendo da questa pagina i
+  // blocchi elencati per NOME, e un blocco di `const` non ha un nome da
+  // mettere in quella lista - restava indietro, e quelle pagine morivano
+  // con "EXTRA_MAX is not defined". Secondo: le dichiarazioni di funzione
+  // sono hoisted, quindi renderBgPattern() puo' usarle anche se sta prima,
+  // mentre con const sarebbe un errore di accesso anticipato.
+  // Lo stato mutabile (scala ed extra correnti) sta su window per la stessa
+  // ragione: nessuna dichiarazione da far viaggiare.
+  // Il canvas ha DUE forme, non una. Quale sia in uso lo dice la classe
+  // "stretta" sulla pagina, che fitPage mette e toglie: cosi' canvasW e
+  // canvasH restano la sola fonte della geometria e non c'e' il rischio
+  // che la scala venga calcolata su una larghezza e il layout disegnato
+  // su un'altra.
+  // ---- Le tre fasce di adattamento ------------------------------------
+  // Soglie RICAVATE dalle misure, non scelte a intuito: a 1138px di finestra
+  // la disposizione impilata regge senza sbordare, a 1010 no. Le due quote
+  // stanno un po' sopra quei numeri per avere margine.
+  //
+  //   intera    >= 1440   il wireframe com'e' disegnato
+  //   impilata  1100-1440 pannello brani sotto, canvas 1920 -> 1448
+  //   compatta  < 1100    stessa forma, ma il pavimento della scala cede
+  //                       fino a 0.68: sotto quella larghezza l'alternativa
+  //                       sarebbe scorrere in orizzontale, che e' peggio
+  //                       di un testo un po' piu' piccolo.
+  function SOGLIA_IMPILATA() { return 1440; }
+
+  function SOGLIA_COMPATTA() { return 1100; }
+
+  function fasciaCanvas() {
+    const w = window.innerWidth;
+    if (w >= SOGLIA_IMPILATA()) return 'intera';
+    if (w >= SOGLIA_COMPATTA()) return 'impilata';
+    return 'compatta';
+  }
+
+  function impilata() {
+    const p = document.querySelector('.page');
+    return !!(p && p.classList.contains('stretta'));
+  }
+
+  // Quote della disposizione impilata, prese dal CONTENUTO vero: si misura
+  // il fondo dell'intestazione e da li' si impilano i tre blocchi, ciascuno
+  // con la sua altezza piu' un respiro. Cosi' un paragrafo piu' lungo (o
+  // una traduzione piu' lunga) sposta tutto invece di finirci sopra.
+  // offsetTop/offsetHeight sono misure di LAYOUT: la scala non le tocca.
+  function impilaDalContenuto(page) {
+    const RESPIRO = 24, ALTEZZA_BRANI = 300, ALTEZZA_ANTEPRIMA = 339;
+    const testa = page.querySelector('.section-desc') ||
+                  page.querySelector('.app-header');
+    if (!testa) return;
+    const yBrani = Math.round(testa.offsetTop + testa.offsetHeight + RESPIRO * 2);
+    const yAnteprima = yBrani + ALTEZZA_BRANI + RESPIRO;
+    const yGenera = yAnteprima + ALTEZZA_ANTEPRIMA + RESPIRO;
+    page.style.setProperty('--y-brani', yBrani + 'px');
+    page.style.setProperty('--y-anteprima', yAnteprima + 'px');
+    page.style.setProperty('--y-genera', yGenera + 'px');
+    window.__altezzaImpilata = yGenera + 380 + 44;
+  }
+
+  // ---- trascinamento di file e cartelle ---------------------------------
+  // Due cose necessarie, entrambe non ovvie:
+  // 1. senza preventDefault su dragover/drop il webview NAVIGA sul file
+  //    trascinato, buttando via la pagina;
+  // 2. i percorsi veri non li vede il JavaScript - li fornisce pywebview al
+  //    gestore registrato dal lato Python (vedi trascina.py). Qui si fa solo
+  //    la parte visiva.
+  // Funzione con un NOME, non anonima: le pagine composte prendono da
+  // qui i blocchi elencati per nome, e un blocco anonimo non puo'
+  // essere elencato - restava in Genera e non arrivava in Correggi.
+  // Invio e Spazio su un elemento reso interattivo con role+tabindex.
+  // Un <button> lo fa da solo; uno <span role="button"> no, e senza questo
+  // resterebbe azionabile solo col mouse.
+  // Funzione con un NOME perche' le pagine composte prendono da qui i
+  // blocchi elencati per nome: una anonima non arriverebbe.
+  function attivaConTastiera(e) {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();          // lo Spazio farebbe scorrere la pagina
+    e.currentTarget.click();
+  }
+
+  // Il testo, reso innocuo dentro un attributo HTML. L'identificativo di un
+  // brano in Genera e' il NOME DEL FILE: puo' contenere apostrofi,
+  // virgolette, e commerciali. Metterlo dentro un attributo senza protezione
+  // rompeva l'HTML (e, quando finiva in un gestore evento, il JavaScript).
+  function perAttributo(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  window.perAttributo = perAttributo;

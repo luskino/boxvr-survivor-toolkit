@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Spike: timeline web</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 24px; background: #14161c; color: #e8e8ec;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 16px; font-weight: 600; color: #9aa3b2; margin: 0 0 4px 0; }
+  p.sub { color: #6b7280; font-size: 13px; margin: 0 0 20px 0; }
+  #timeline {
+    display: block; width: 100%; height: 140px; background: #1c1f28;
+    border-radius: 8px; cursor: pointer;
+  }
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    background: #2b7de9; color: white; border: none; border-radius: 6px;
+    padding: 8px 16px; font-size: 14px; cursor: pointer;
+  }
+  button:hover { background: #3a8bf5; }
+  button.secondary { background: #2a2d38; }
+  button.secondary:hover { background: #363945; }
+  #status { color: #8b93a5; font-size: 13px; margin-left: auto; }
+  #time { font-variant-numeric: tabular-nums; color: #c9cedb; font-size: 14px; min-width: 90px; }
+</style>
+</head>
+<body>
+  <h1>Spike: timeline con playhead e marker (pywebview + JS, non Tkinter)</h1>
+  <p class="sub">RA TA TA — __N_BEATS__ beat reali dal trackdata, __DURATION_S__s. Verifica di rischio prima della migrazione vera: il browser possiede il clock audio, i marker si piazzano cliccando/premendo M durante la riproduzione.</p>
+
+  <canvas id="timeline" width="1200" height="140"></canvas>
+
+  <div class="controls">
+    <button id="playBtn">Play</button>
+    <span id="time">0:00 / 0:00</span>
+    <button id="markBtn" class="secondary">Segna qui (M)</button>
+    <button id="clearBtn" class="secondary">Cancella marker</button>
+    <button id="saveBtn" class="secondary">Salva marker (bridge → Python)</button>
+    <span id="status"></span>
+  </div>
+
+  <audio id="player" src="track.wav" preload="auto"></audio>
+
+  <script>
+    const BEATS = __BEATS_JSON__;         // [{t, beatInBar}, ...] - dal trackdata reale
+    const DURATION = __DURATION_S__;
+
+    const audio = document.getElementById('player');
+    const canvas = document.getElementById('timeline');
+    const ctx = canvas.getContext('2d');
+    const playBtn = document.getElementById('playBtn');
+    const markBtn = document.getElementById('markBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusEl = document.getElementById('status');
+    const timeEl = document.getElementById('time');
+
+    let markers = [];
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * window.devicePixelRatio);
+      canvas.height = Math.round(140 * window.devicePixelRatio);
+      ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function fmt(s) {
+      s = Math.max(0, s || 0);
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return m + ':' + String(sec).padStart(2, '0');
+    }
+
+    function xOf(t) {
+      const w = canvas.getBoundingClientRect().width;
+      return (t / DURATION) * w;
+    }
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width, h = 140;
+      ctx.clearRect(0, 0, w, h);
+
+      // griglia beat - REGOLA DURA (vedi spike audio-bridge originale): la
+      // posizione del playhead si legge SEMPRE da audio.currentTime, mai da
+      // performance.now()/orologio di sistema - qui non serve nemmeno per la
+      // griglia, che è statica, ma il playhead sotto rispetta la stessa regola.
+      for (const b of BEATS) {
+        const x = xOf(b.t);
+        const tall = b.beatInBar === 1;
+        ctx.strokeStyle = tall ? '#4b5568' : '#2a2f3a';
+        ctx.lineWidth = tall ? 2 : 1;
+        ctx.beginPath();
+        ctx.moveTo(x, tall ? h * 0.25 : h * 0.4);
+        ctx.lineTo(x, tall ? h * 0.75 : h * 0.6);
+        ctx.stroke();
+      }
+
+      // marker dell'utente - stessa idea di _draw_marker_ticks in Tkinter,
+      // ridisegnati ad ogni frame, non solo quando se ne aggiunge uno
+      for (const t of markers) {
+        const x = xOf(t);
+        ctx.strokeStyle = '#f2c94c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, h * 0.1);
+        ctx.lineTo(x, h * 0.9);
+        ctx.stroke();
+      }
+
+      // playhead - da audio.currentTime, MAI da un orologio wall-clock separato
+      const x = xOf(audio.currentTime || 0);
+      ctx.strokeStyle = '#ff5470';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+
+      timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(DURATION);
+    }
+
+    function loop() {
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function addMarkerHere() {
+      markers.push(audio.currentTime);
+      markers.sort((a, b) => a - b);
+      statusEl.textContent = markers.length + ' marker';
+    }
+
+    playBtn.addEventListener('click', () => {
+      if (audio.paused) { audio.play(); playBtn.textContent = 'Pause'; }
+      else { audio.pause(); playBtn.textContent = 'Play'; }
+    });
+    markBtn.addEventListener('click', addMarkerHere);
+    clearBtn.addEventListener('click', () => { markers = []; statusEl.textContent = '0 marker'; });
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const frac = (e.clientX - rect.left) / rect.width;
+      audio.currentTime = Math.max(0, Math.min(DURATION, frac * DURATION));
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'm' || e.key === 'M') addMarkerHere();
+    });
+    saveBtn.addEventListener('click', async () => {
+      statusEl.textContent = 'salvataggio...';
+      try {
+        const result = await window.pywebview.api.save_markers(markers);
+        statusEl.textContent = result;
+      } catch (err) {
+        statusEl.textContent = 'errore: ' + err;
+      }
+    });
+
+    resizeCanvas();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

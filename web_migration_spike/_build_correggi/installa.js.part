@@ -1,0 +1,60 @@
+
+  // ---- installazione nella libreria di BoxVR ----
+  // Era la funzione che mancava per poter abbandonare la GUI Tkinter: senza,
+  // il tool produce file corretti/generati che poi vanno copiati a mano.
+  // Due passi: l'anteprima NON scrive nulla e serve a mostrare destinazione e
+  // conflitti; la conferma scrive, e dice sempre dove.
+  async function installaInBoxVR() {
+    const a = await api().install_preview();
+    if (!a.ok) { alert(a.error || 'Niente da installare.'); return; }
+
+    const righe = [];
+    righe.push('Installare ' + a.n_brani + ' brano/i nella libreria di BoxVR?');
+    righe.push('');
+    righe.push(a.n_data + ' file in:');
+    righe.push(a.trackdata_dir);
+    if (a.n_wdef) {
+      righe.push(a.n_wdef + ' file in:');
+      righe.push(a.trackdefs_dir);
+    }
+    if (a.gioco_aperto) {
+      righe.push('');
+      righe.push('ATTENZIONE: BoxVR risulta APERTO. I file copiati adesso');
+      righe.push('potrebbero non essere letti finche non lo riavvii.');
+    }
+
+    // I conflitti si scelgono per BRANO, non per singolo file: chi installa
+    // ragiona per canzone (stessa scelta del dialogo della GUI Tkinter).
+    let salta = [];
+    if (a.conflitti && a.conflitti.length) {
+      const elenco = a.conflitti.map(function (c) { return '  - ' + c.nome; }).join('\n');
+      const sovrascrivi = confirm(
+        a.conflitti.length + ' brano/i sono GIA presenti nella libreria:\n' +
+        elenco + '\n\nOK = sovrascrivili\nAnnulla = installa solo i brani nuovi');
+      if (!sovrascrivi) salta = a.conflitti.map(function (c) { return c.tid; });
+    }
+
+    righe.push('');
+    righe.push('Procedo?');
+    if (!confirm(righe.join('\n'))) return;
+
+    // Interruttore "Crea backup nella cartella Trackdata": fino al 03/09
+    // era solo grafica. Ora arriva davvero fino alla copia dei file.
+    const bk = document.getElementById('toggle-backup');
+    // ?. e ?? : l'interruttore esiste solo in Correggi, e dove non c'e' il
+    // backup si fa comunque (predefinito prudente)
+    const r = await api().install_run(salta, bk?.classList.contains('on') ?? true);
+    if (r.ok) {
+      alert('Installati ' + r.n_file + ' file (' + r.n_brani + ' brano/i).\n\n' +
+            'Riavvia BoxVR per vederli nella libreria.');
+    } else {
+      alert('Installazione non riuscita: ' + (r.error || '?'));
+    }
+  }
+  window.installaInBoxVR = installaInBoxVR;
+
+  async function apriCartellaGioco() {
+    const r = await api().open_game_folder();
+    if (!r.ok) alert(r.error);
+  }
+  window.apriCartellaGioco = apriCartellaGioco;

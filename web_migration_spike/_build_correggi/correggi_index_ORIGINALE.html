@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Correggi — dati reali (primo port)</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .real-badge {
+    background: #10B981; color: white; font-family: var(--font-display);
+    font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 12px;
+    margin-left: 12px; vertical-align: middle;
+  }
+  .not-wired { opacity: 0.55; cursor: not-allowed !important; }
+  .not-wired-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  /* Rimozione per-brano - "Song Info Card" su Figma: la X compare in hover
+     su qualsiasi riga ("On focus"); interagire con quella X passa allo
+     stato "Cancel on focus" (barra rossa "Rimuovi"). Distinta da
+     ".selected" (stroke blu sotto), che segna il brano aperto nel pannello
+     di modifica - due stati indipendenti, non lo stesso concetto. */
+  .song-row { position: relative; }
+  .song-row .song-remove-x {
+    display: none; position: absolute; top: 8px; right: 8px;
+    width: 16px; height: 16px; border-radius: 50%; border: none; padding: 0;
+    background: transparent; color: var(--accent-blue-strong); font-size: 13px;
+    line-height: 16px; cursor: pointer;
+  }
+  .song-row:hover .song-remove-x { display: block; }
+  .song-row.confirm-remove { background: #FFD5D6 !important; }
+  .song-row.confirm-remove .row-top, .song-row.confirm-remove .row-bottom {
+    filter: blur(2px); opacity: 0.55;
+  }
+  .song-row.confirm-remove .song-remove-x { display: none; }
+  .remove-confirm-bar {
+    display: none; align-items: center; gap: 6px; position: absolute;
+    top: 50%; right: 10px; transform: translateY(-50%);
+    background: var(--accent-red-strong, #FF3E41); color: #fff; border: none;
+    border-radius: 3px; padding: 4px 10px; font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  .song-row.confirm-remove .remove-confirm-bar { display: inline-flex; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="info-popover" id="info-popover">
+  <div class="info-popover-head">
+    <span class="info-popover-icon">ⓘ</span> Info aggiuntive
+    <button class="info-popover-close" onclick="hideInfoPopover()">✕</button>
+  </div>
+  <div class="info-popover-body" id="info-popover-body"></div>
+</div>
+
+  <header class="app-header">
+    <h1>BoxVR Survivor Toolkit</h1>
+    <span class="app-version" id="app-version"></span>
+    <span class="real-badge">DATI REALI — primo port, non un mockup</span>
+    <div id="patch-pill-wrap"></div>
+    <div class="lang-switch" title="Traduzione non ancora reale - solo il widget, vedi tracking doc">
+      <span class="lang-pill active">IT</span>
+      <span class="lang-pill">EN</span>
+    </div>
+    <button class="theme-switch" id="theme-switch" onclick="toggleTheme()" title="Tema chiaro/scuro"><span class="theme-switch-knob"></span></button>
+  </header>
+
+  <div class="section-title correggi">
+    <span class="icon" style="color:var(--accent-blue-strong)">🔧</span>
+    <h2>Correggi Workout esistenti</h2>
+  </div>
+  <p class="section-desc">
+    Questa versione legge per davvero gli 8 brani di test (<code>file di test da correggere wav/</code>)
+    tramite <code>boxvr_fixer.compute_song_analysis</code>/<code>classify_segments_with_preset</code> — stessa
+    logica della GUI vera, stessi margin/punch_ratio di default (12% / 0.5). La forma d'onda, i livelli e la
+    riproduzione sono reali. <b>"Avvia correzione" scrive per davvero</b> in una cartella di output separata
+    (mai sui brani di test originali).
+  </p>
+
+  <div class="layout">
+    <aside class="song-panel">
+      <div class="song-panel-header">
+        <button class="btn-add" onclick="addFiles()">Aggiungi brani +</button>
+        <span class="song-count" id="song-count">caricamento…</span>
+        <button class="btn-clear" onclick="clearList()">Svuota 🗑</button>
+      </div>
+      <button class="btn-secondary" style="margin:8px 0; width:100%" onclick="loadLiveLibrary()">Importa cartella BoxVR →</button>
+      <p class="not-wired-note" id="list-note"></p>
+      <div class="song-list" id="song-list"></div>
+    </aside>
+
+    <main>
+      <h3 class="block-title">Anteprima brano</h3>
+      <div class="preview-card">
+        <div class="preview-top">
+          <span class="idx" id="p-idx">—</span>
+          <span class="artist" id="p-artist">—</span>
+          <span class="track-name" id="p-name">Seleziona un brano…</span>
+          <span class="bpm" id="p-bpm"></span>
+        </div>
+        <div class="transport-row">
+          <button class="transport-btn play" id="play-btn">▶</button>
+          <span id="p-time">0:00 / 0:00</span>
+        </div>
+        <div class="wave-toggle-row">
+          <label><input type="checkbox" id="toggle-base-beat" onchange="renderWaveOverlay()"> Base beat</label>
+          <label><input type="checkbox" id="toggle-energy-curve" onchange="renderWaveOverlay()"> Curva di carica</label>
+        </div>
+        <div class="waveform-wrap">
+          <div class="waveform" id="waveform"></div>
+          <svg class="wave-overlay" id="wave-overlay" viewBox="0 0 1000 100" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="seg-tooltip" id="seg-tooltip"></div>
+        <div class="mini-structure-label">Struttura BoxVR di partenza</div>
+        <div class="mini-structure" id="mini-structure"></div>
+        <audio id="player" preload="auto"></audio>
+      </div>
+
+      <h3 class="block-title">Toolkit</h3>
+      <div class="toolkit-grid">
+        <div class="toolkit-col">
+          <div id="p-counts" style="font-weight:600; color:var(--text-heading)">—</div>
+
+          <div class="field-label">Preset <span class="info-dot" onclick="showInfoPopover(event, 'preset')">i</span></div>
+          <div class="segmented" id="preset-buttons">
+            <button onclick="setPreset(20)">Leggero</button>
+            <button onclick="setPreset(50)" class="active">Medio</button>
+            <button onclick="setPreset(80)">Aggressivo</button>
+          </div>
+
+          <div class="field-label">Intensità workout (punch_ratio) <span class="value" id="ratio-value">50%</span></div>
+          <input type="range" id="ratio-slider" min="0" max="100" value="50" oninput="onControlsChanged()">
+
+          <div class="field-label">Margine di confidenza <span class="info-dot" onclick="showInfoPopover(event, 'margin_info')">i</span> <span class="value" id="margin-value">12%</span></div>
+          <input type="range" id="margin-slider" min="0" max="100" value="12" oninput="onControlsChanged()">
+
+          <p class="not-wired-note">Ricalcolo VERO (boxvr_fixer.classify_segments_with_preset), non un'animazione -
+          muovi gli slider e guarda la forma d'onda sopra cambiare davvero.</p>
+
+          <button class="btn-secondary" style="margin-top:16px" onclick="copyToAll()">Copia su tutti i brani</button>
+          <p class="not-wired-note" id="copy-note"></p>
+        </div>
+        <div class="toolkit-col">
+          <div class="run-row" id="run-row">
+            <button class="btn-primary" id="run-btn" onclick="runCorrection()">Avvia correzione</button>
+            <button class="btn-open-folder" id="open-folder-btn" onclick="openResultFolder()">Apri cartella risultati →</button>
+          </div>
+          <p class="run-error" id="run-error"></p>
+          <p class="not-wired-note" id="run-note">
+            Scrive per davvero in <code>file di test da correggere wav/corretti/</code> (mai sui file di test
+            originali, mai sulla libreria vera di BoxVR) - stessa <code>process_songs_with_presets</code> di
+            GUI e CLI, non una riscrittura.
+          </p>
+          <details class="log-section">
+            <summary>▾ Log</summary>
+            <pre id="run-log">In attesa di avvio…</pre>
+          </details>
+        </div>
+      </div>
+    </main>
+  </div>
+
+</div>
+<script>
+  const api = () => window.pywebview.api;
+  const audio = document.getElementById('player');
+  let songs = [], current = null;
+  let confirmingRemoveId = null;
+
+  // Popover "Info aggiuntive" generico (Tootlip.svg) - testo REALE preso
+  // parola per parola da boxvr_fixer_gui.py (margin_info_tooltip), stesso
+  // componente/pattern di genera_real/index.html
+  const TOOLTIPS = {
+    margin_info: "Quanto deve essere sicura l'analisi prima di correggere un livello. Più alto = correzioni più caute (solo quando l'analisi è molto sicura, il resto resta come l'ha calcolato il gioco). Più basso = più correzioni, ma alcune meno certe.",
+    preset: "Scorciatoia: imposta Intensità a 20/50/80%. Non è un valore già definito altrove nel progetto - interpretazione ragionevole, non confermata dall'utente.",
+  };
+
+  function showInfoPopover(event, key) {
+    event.stopPropagation();
+    const pop = document.getElementById('info-popover');
+    document.getElementById('info-popover-body').textContent = TOOLTIPS[key] || '(testo non disponibile)';
+    pop.classList.add('visible');
+    const rect = event.target.getBoundingClientRect();
+    const popWidth = 260;
+    let left = rect.left;
+    if (left + popWidth > window.innerWidth - 10) left = window.innerWidth - popWidth - 10;
+    pop.style.left = left + 'px';
+    pop.style.top = (rect.bottom + 6) + 'px';
+  }
+  window.showInfoPopover = showInfoPopover;
+
+  function hideInfoPopover() {
+    document.getElementById('info-popover').classList.remove('visible');
+  }
+  window.hideInfoPopover = hideInfoPopover;
+
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('info-popover');
+    if (pop.classList.contains('visible') && !pop.contains(e.target) && !e.target.classList.contains('info-dot')) {
+      hideInfoPopover();
+    }
+  });
+
+  function songRowHtml(s) {
+    return `
+      <div class="song-row${s.id === confirmingRemoveId ? ' confirm-remove' : ''}" data-id="${s.id}" onclick="selectSong('${s.id}')">
+        <button class="song-remove-x" title="Rimuovi brano" onclick="event.stopPropagation(); startRemoveConfirm('${s.id}')">✕</button>
+        <button class="remove-confirm-bar" onclick="event.stopPropagation(); confirmRemove('${s.id}')">Rimuovi ✕</button>
+        <div class="row-top"><span class="idx">${s.idx}</span><span>${s.artist}</span>
+          <span class="bpm">${s.bpm} BPM</span></div>
+        <div class="row-bottom"><span class="track-name">${s.name}</span></div>
+      </div>`;
+  }
+
+  function startRemoveConfirm(id) {
+    confirmingRemoveId = id;
+    document.querySelectorAll('.song-row').forEach(r =>
+      r.classList.toggle('confirm-remove', r.dataset.id === id));
+  }
+  window.startRemoveConfirm = startRemoveConfirm;
+
+  async function confirmRemove(id) {
+    confirmingRemoveId = null;
+    await api().remove_song(id);
+    await loadList();
+  }
+  window.confirmRemove = confirmRemove;
+
+  // un click altrove annulla la conferma "Rimuovi" senza cancellare nulla
+  document.addEventListener('click', (e) => {
+    if (confirmingRemoveId && !e.target.closest('.song-remove-x') && !e.target.closest('.remove-confirm-bar')) {
+      confirmingRemoveId = null;
+      document.querySelectorAll('.song-row.confirm-remove').forEach(r => r.classList.remove('confirm-remove'));
+    }
+  });
+
+  function fmt(s) {
+    s = Math.max(0, s || 0);
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  }
+
+  async function loadList() {
+    songs = await api().list_songs();
+    document.getElementById('song-count').textContent = songs.length + ' brani nell\'elenco';
+    const list = document.getElementById('song-list');
+    confirmingRemoveId = null;   // la lista viene ricostruita da zero, nessuna riga resta "in conferma"
+    list.innerHTML = songs.map(songRowHtml).join('');
+    if (songs.length) {
+      // se il brano gia' aperto e' ancora nell'elenco, resta selezionato
+      // (Aggiungi brani non deve far perdere la selezione corrente)
+      const stillThere = current && songs.some(s => s.id === current.id);
+      selectSong(stillThere ? current.id : songs[0].id);
+    } else {
+      current = null;
+      document.getElementById('p-idx').textContent = '—';
+      document.getElementById('p-artist').textContent = '—';
+      document.getElementById('p-name').textContent = 'Seleziona un brano…';
+      document.getElementById('p-bpm').textContent = '';
+      document.getElementById('p-counts').textContent = '—';
+      document.getElementById('waveform').innerHTML = '';
+      document.getElementById('mini-structure').innerHTML = '';
+      audio.removeAttribute('src');
+    }
+  }
+
+  async function clearList() {
+    const r = await api().clear_list();
+    document.getElementById('list-note').textContent = '';
+    await loadList();
+  }
+  window.clearList = clearList;
+
+  async function addFiles() {
+    document.getElementById('list-note').textContent = 'Selezione file in corso…';
+    const r = await api().add_files();
+    if (r.added.length || r.errors.length) {
+      const parts = [];
+      if (r.added.length) parts.push(`${r.added.length} brano/i aggiunto/i`);
+      if (r.errors.length) parts.push(`${r.errors.length} file scartato/i (manca il .wav corrispondente)`);
+      document.getElementById('list-note').textContent = parts.join(' — ');
+    } else {
+      document.getElementById('list-note').textContent = '';
+    }
+    await loadList();
+  }
+  window.addFiles = addFiles;
+
+  async function loadLiveLibrary() {
+    document.getElementById('list-note').textContent = 'Lettura della libreria BoxVR reale in corso…';
+    const r = await api().load_live_library();
+    if (r.n_found === 0) {
+      document.getElementById('list-note').textContent = 'Nessuna installazione di BoxVR trovata su questo PC.';
+    } else {
+      const parts = [`${r.added.length}/${r.n_found} brani reali caricati`];
+      if (r.errors.length) parts.push(`${r.errors.length} scartati`);
+      document.getElementById('list-note').textContent = parts.join(' — ');
+    }
+    await loadList();
+  }
+  window.loadLiveLibrary = loadLiveLibrary;
+
+  async function selectSong(id) {
+    document.querySelectorAll('.song-row').forEach(r => r.classList.toggle('selected', r.dataset.id === id));
+    const d = await api().get_song_detail(id);
+    current = d;
+    document.getElementById('p-idx').textContent = songs.find(s => s.id === id).idx;
+    document.getElementById('p-artist').textContent = d.artist;
+    document.getElementById('p-name').textContent = d.name;
+    document.getElementById('p-bpm').textContent = d.bpm + ' BPM';
+    document.getElementById('p-counts').textContent =
+      `Sezioni individuate: ${d.n_segments} — Silenzio ${d.counts.silenzio}, Leggero ${d.counts.leggero}, ` +
+      `Solo pugni ${d.counts.pugni}, Misto ${d.counts.misto}`;
+    renderWaveform(d.segments);
+    renderWaveOverlay();
+    // struttura originale (mai influenzata da preset/slider) - renderizzata
+    // una sola volta alla selezione, non ad ogni onControlsChanged/recompute
+    renderSegments('mini-structure', d.original_segments);
+    // ogni brano ricorda la propria intensita'/margine (Api._settings, stessa
+    // idea degli slider per-brano della GUI vera) - non piu' un reset fisso
+    // a 50%/12% ad ogni cambio brano
+    document.getElementById('ratio-slider').value = d.ratio_pct;
+    document.getElementById('margin-slider').value = d.margin_pct;
+    document.getElementById('ratio-value').textContent = d.ratio_pct + '%';
+    document.getElementById('margin-value').textContent = d.margin_pct + '%';
+    const presetMap = { 20: 0, 50: 1, 80: 2 };
+    document.querySelectorAll('#preset-buttons button').forEach((b, i) =>
+      b.classList.toggle('active', presetMap[d.ratio_pct] === i));
+    document.getElementById('copy-note').textContent = '';
+    audio.src = d.wav;
+    audio.pause();
+    document.getElementById('play-btn').textContent = '▶';
+    document.getElementById('p-time').textContent = `0:00 / ${fmt(d.duration)}`;
+  }
+  window.selectSong = selectSong;
+
+  function renderSegments(containerId, segments, withTooltip) {
+    const total = segments.reduce((a, s) => a + s.weight, 0);
+    document.getElementById(containerId).innerHTML = segments.map((s, i) =>
+      `<div class="seg ${s.level}" style="flex-grow:${s.weight / total}"${withTooltip
+        ? ` onmouseenter="showSegTooltip(event, ${i})" onmousemove="moveSegTooltip(event)" onmouseleave="hideSegTooltip()"`
+        : ''}></div>`).join('');
+    if (withTooltip) window._lastSegments = segments;
+  }
+  function renderWaveform(segments) { renderSegments('waveform', segments, true); }
+
+  // "Base beat"/"Curva di carica" - stesso identico componente/dati di
+  // genera_real/index.html (vedi lì per il commento completo)
+  function renderWaveOverlay() {
+    const svg = document.getElementById('wave-overlay');
+    if (!current || !current.duration) { svg.innerHTML = ''; return; }
+    const duration = current.duration;
+    let html = '';
+    if (document.getElementById('toggle-base-beat').checked) {
+      html += (current.beat_times || []).map(t =>
+        `<line class="beat-tick" x1="${(t / duration * 1000).toFixed(2)}" y1="0" x2="${(t / duration * 1000).toFixed(2)}" y2="100"/>`
+      ).join('');
+    }
+    if (document.getElementById('toggle-energy-curve').checked) {
+      const pts = (current.energy_curve || []).map(p =>
+        `${(p.t / duration * 1000).toFixed(2)},${(100 - p.v * 100).toFixed(2)}`).join(' ');
+      html += `<polyline class="energy-line" points="${pts}"/>`;
+    }
+    svg.innerHTML = html;
+  }
+  window.renderWaveOverlay = renderWaveOverlay;
+
+  // Tooltip "Blocco X / Sezioni consecutive" (misurato su Correggi.svg,
+  // stesso componente di Genera) - "Colpi totali" volutamente assente, vedi
+  // il commento su .seg-tooltip in styles.css: nessuna funzione reale del
+  // progetto calcola un conteggio colpi per segmento, solo una media
+  // eventi/min per l'intero preset - mostrarlo sarebbe stata una stima
+  // inventata, non un dato.
+  const LEVEL_LABEL = {silenzio: 'Silenzio', leggero: 'Leggero', pugni: 'Solo pugni', misto: 'Misto'};
+  const LEVEL_COLOR_VAR = {silenzio: '--pill-silenzio-bg', leggero: '--pill-leggero-bg', pugni: '--pill-pugni-bg', misto: '--pill-misto-bg'};
+  function showSegTooltip(evt, idx) {
+    const segments = window._lastSegments || [];
+    const level = segments[idx].level;
+    let start = idx, end = idx;
+    while (start > 0 && segments[start - 1].level === level) start--;
+    while (end < segments.length - 1 && segments[end + 1].level === level) end++;
+    const tt = document.getElementById('seg-tooltip');
+    const color = getComputedStyle(document.documentElement).getPropertyValue(LEVEL_COLOR_VAR[level] || '--text-heading');
+    tt.innerHTML = `
+      <div class="tt-head" style="color:${color}">Blocco ${LEVEL_LABEL[level] || level}</div>
+      <div class="tt-row"><span>Sezioni consecutive:</span><span>${end - start + 1}</span></div>`;
+    tt.classList.add('visible');
+    moveSegTooltip(evt);
+  }
+  window.showSegTooltip = showSegTooltip;
+  function moveSegTooltip(evt) {
+    const tt = document.getElementById('seg-tooltip');
+    tt.style.left = (evt.clientX + 14) + 'px';
+    tt.style.top = (evt.clientY - 50) + 'px';
+  }
+  window.moveSegTooltip = moveSegTooltip;
+  function hideSegTooltip() {
+    document.getElementById('seg-tooltip').classList.remove('visible');
+  }
+  window.hideSegTooltip = hideSegTooltip;
+
+  function setPreset(pct) {
+    document.getElementById('ratio-slider').value = pct;
+    document.querySelectorAll('#preset-buttons button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    onControlsChanged();
+  }
+  window.setPreset = setPreset;
+
+  let recomputeInFlight = false, recomputePending = false;
+  async function onControlsChanged() {
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+    document.getElementById('ratio-value').textContent = ratio + '%';
+    document.getElementById('margin-value').textContent = margin + '%';
+    if (!current) return;
+    // un solo ricalcolo alla volta (trascinare uno slider genera molti
+    // eventi 'input' di fila) - se ne arriva un altro mentre uno gira, lo
+    // rifà una volta sola alla fine invece di accodarli tutti
+    if (recomputeInFlight) { recomputePending = true; return; }
+    recomputeInFlight = true;
+    do {
+      recomputePending = false;
+      const r = await api().recompute(current.id, margin, ratio);
+      renderWaveform(r.segments);
+      document.getElementById('p-counts').textContent =
+        `Sezioni individuate: ${r.n_segments} — Silenzio ${r.counts.silenzio}, Leggero ${r.counts.leggero}, ` +
+        `Solo pugni ${r.counts.pugni}, Misto ${r.counts.misto}`;
+    } while (recomputePending);
+    recomputeInFlight = false;
+  }
+  window.onControlsChanged = onControlsChanged;
+
+  async function copyToAll() {
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+    const r = await api().copy_to_all(margin, ratio);
+    document.getElementById('copy-note').textContent =
+      `Intensità ${ratio}% e margine ${margin}% copiati su tutti i ${r.n_songs} brani.`;
+  }
+  window.copyToAll = copyToAll;
+
+  document.getElementById('play-btn').addEventListener('click', () => {
+    if (audio.paused) { audio.play(); document.getElementById('play-btn').textContent = '⏸'; }
+    else { audio.pause(); document.getElementById('play-btn').textContent = '▶'; }
+  });
+  audio.addEventListener('timeupdate', () => {
+    if (current) document.getElementById('p-time').textContent = `${fmt(audio.currentTime)} / ${fmt(current.duration)}`;
+  });
+  audio.addEventListener('ended', () => { document.getElementById('play-btn').textContent = '▶'; });
+
+  let lastOutputFolder = null;
+  async function runCorrection() {
+    if (!current) return;
+    const row = document.getElementById('run-row');
+    const btn = document.getElementById('run-btn');
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+
+    row.className = 'run-row state-progress';
+    btn.textContent = 'Correzione in corso...';
+    document.getElementById('run-log').textContent = 'In corso…';
+    const r = await api().run_correction(current.id, margin, ratio);
+    document.getElementById('run-log').textContent = r.log || '(nessuna riga di log prodotta)';
+    if (r.ok) {
+      row.className = 'run-row state-done';
+      btn.textContent = 'Correzione completata';
+      document.getElementById('run-note').innerHTML =
+        `${r.n_changed ? 'Modificato' : 'Nessuna modifica necessaria per'} questo brano ` +
+        `(${r.n_total_changes} correzioni) - file scritto in <code>${r.output_folder}</code>`;
+      lastOutputFolder = r.output_folder;
+    } else {
+      row.className = 'run-row state-failed';
+      btn.textContent = 'Correzione fallita';
+      document.getElementById('run-error').textContent = 'Qualcosa non ha funzionato: ' + r.error;
+    }
+  }
+  window.runCorrection = runCorrection;
+
+  async function openResultFolder() {
+    if (lastOutputFolder) await api().open_folder(lastOutputFolder);
+  }
+  window.openResultFolder = openResultFolder;
+
+  // window.pywebview.api non e' garantito pronto al semplice parse della
+  // pagina (differenza reale rispetto al DOM normale) - va aspettato
+  // l'evento 'pywebviewready', altrimenti la primissima chiamata al bridge
+  // puo' fallire silenziosamente (osservato: la pagina restava bloccata
+  // su "caricamento..." per sempre, nessun errore visibile in pagina).
+  async function loadAppInfo() {
+    const info = await api().get_app_info();
+    document.getElementById('app-version').textContent = 'Ver ' + info.version;
+    renderPatchPill(info.patch_state);
+  }
+  function renderPatchPill(state) {
+    const wrap = document.getElementById('patch-pill-wrap');
+    if (state === 'patched') {
+      wrap.innerHTML = `<div class="patch-pill installed"><span class="patch-icon">${PATCH_CHECK_ICON}</span>Patch installata</div>`;
+    } else if (state === 'original') {
+      wrap.innerHTML = `<div class="patch-pill not-detected"><span class="patch-icon">${PATCH_DOWNLOAD_ICON}</span>Patch non rilevata</div>`;
+    } else {
+      wrap.innerHTML = '';
+    }
+  }
+  const PATCH_CHECK_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M6.5 11.5L10.0714 15L16.5 8" stroke="#2EB36B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const PATCH_DOWNLOAD_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M11 6V15.091M6 11.455L11 16L16 11.455" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // Tema chiaro/scuro - stesso pattern/chiave di genera_real/index.html
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    const sw = document.getElementById('theme-switch');
+    // mostra il tema verso cui si VA, non quello attuale (blu notte con
+    // pagina chiara e viceversa) - data-on="true" = variante scura
+    if (sw) sw.dataset.on = theme === 'light' ? 'true' : 'false';
+  }
+  async function initTheme() {
+    applyTheme(await api().get_theme());
+  }
+  async function toggleTheme() {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    await api().set_theme(next);
+  }
+  window.toggleTheme = toggleTheme;
+
+  if (window.pywebview) {
+    loadList();
+    loadAppInfo();
+    initTheme();
+  } else {
+    window.addEventListener('pywebviewready', () => { loadList(); loadAppInfo(); initTheme(); });
+  }
+</script>
+</body>
+</html>

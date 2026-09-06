@@ -1,0 +1,56 @@
+
+  /* ============ Gestione playlist installate ============================
+     Nessun wireframe Figma per questa pagina: riuso le STESSE coordinate e
+     gli STESSI componenti di Correggi, cosi' resta coerente col resto. */
+  .genera-fixed .pl-card .pv-title { width: 900px; }
+  .genera-fixed .pl-durata {
+    left: 19px; top: 44px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-body);
+  }
+  .genera-fixed .pl-azioni {
+    left: 19px; top: 78px; width: 1322px; display: flex; align-items: center; gap: 12px;
+  }
+  .genera-fixed .pl-nome-input { width: 340px; }
+  .genera-fixed .btn-pericolo {
+    border: none; border-radius: 15px; background: var(--accent-red);
+    color: #fff; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    padding: 8px 18px; cursor: pointer; margin-left: auto;
+  }
+  .genera-fixed .pl-card .mini-structure-label { top: 150px; }
+  .genera-fixed .pl-card .mini-structure { top: 167px; }
+
+  /* elenco dei brani: righe riordinabili */
+  .genera-fixed .pl-toolkit .pl-songs {
+    left: 23px; top: 60px; width: 1314px; height: 250px;
+    overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 6px;
+  }
+  .genera-fixed .pl-songs::-webkit-scrollbar { width: 6px; }
+  .genera-fixed .pl-songs::-webkit-scrollbar-thumb {
+    background: var(--border-soft); border-radius: 3px;
+  }
+  .genera-fixed .pl-riga {
+    display: flex; align-items: center; gap: 14px; flex: none;
+    height: 44px; padding: 0 14px; border-radius: 8px;
+    background: var(--bg-card-soft); font-size: 14px; color: var(--text-heading);
+  }
+  .genera-fixed .pl-riga:hover { background: #E7F3FF; }
+  .genera-fixed .pl-riga .pl-pos {
+    font-family: var(--font-display); font-weight: 700; color: var(--text-muted);
+    width: 28px; flex: none;
+  }
+  .genera-fixed .pl-riga .pl-titolo {
+    flex: 1; font-family: var(--font-display); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .genera-fixed .pl-riga .pl-dur { color: var(--text-body); flex: none; }
+  .genera-fixed .pl-riga button {
+    border: none; background: transparent; cursor: pointer; flex: none;
+    width: 26px; height: 26px; border-radius: 50%;
+    color: var(--accent-blue-strong); font-size: 14px; line-height: 26px;
+  }
+  .genera-fixed .pl-riga button:hover { background: #DFF0FF; }
+  .genera-fixed .pl-riga button.pl-togli { color: var(--accent-red); }
+  .genera-fixed .pl-riga button.pl-togli:hover { background: #FFD5D6; }
+  .genera-fixed .pl-riga button:disabled { color: var(--border-soft); cursor: default; background: none; }
+  .genera-fixed .pl-nota { left: 23px; top: 318px; width: 1314px; margin: 0; }
+  .genera-fixed .pl-toolkit .tk-stats { width: 600px; }

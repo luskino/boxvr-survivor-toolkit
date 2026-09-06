@@ -1,0 +1,103 @@
+# === Build artifacts, rigenerati da build_exe.bat - non vanno versionati ===
+/dist/
+/build/
+__pycache__/
+*.pyc
+*.spec
+
+# === Eccezione VOLUTA alla riga *.spec qui sopra ===
+# La regola generica esclude tutti gli .spec di PyInstaller, e per i vecchi
+# BoxVR_Level_Fixer_v*.spec va bene: sono decine di varianti storiche.
+# Ma BoxVR_Toolkit_web.spec e' la RICETTA con cui si costruisce l'eseguibile
+# attuale: senza, chi clona il progetto non puo' ricompilarlo. Escluderlo
+# sarebbe l'opposto della trasparenza.
+!BoxVR_Toolkit_web.spec
+build_output.log
+
+# === Dati REALI di BoxVR - copyright FitXR, MAI da ridistribuire ===
+# La libreria del gioco vera e propria (trackdata/wav/wdef estratti/installati)
+archivio libreria gioco/
+# Il repertorio ufficiale di pattern (estratto dalla patch dell'utente) - il
+# tool sa riestrarlo da solo da chi installa la patch, non va spedito qui.
+# Il repertorio ufficiale di pattern, in QUALUNQUE posto e con qualunque
+# suffisso: una regola sul percorso esatto non protegge da una copia o da
+# un rinomino, e un backup di prova chiamato .viaperprova sarebbe finito
+# online (trovato dal controllo della documentazione, 06/09).
+training_sequences.json
+training_sequences.json.*
+**/training_sequences*
+# Materiale di ricerca derivato dai dati ufficiali del gioco (workout/mappe)
+data/official_workouts/
+data/reference_maps/
+# Gli assembly del gioco usati per costruire/verificare la patch - binari
+# COMPILATI del gioco stesso, non codice di questo progetto.
+patch boxvr/Assembly-CSharp.ORIGINALE.dll
+patch boxvr/Assembly-CSharp.PATCHATA.dll
+# === Audio di test - musica commerciale reale, non di questo progetto ===
+File di test da correggere mp3/
+file di test da correggere wav/
+clip di test/
+training data/mp3/
+training data/official_audio/
+training data/beatsaver_maps/
+training data/_official_cache/
+training data/__pycache__/
+# === Motore madmom opzionale - eseguibile grande, venv separato ===
+# Ricompilabile da zero seguendo madmom_worker/BUILD.md - non serve versionarlo.
+madmom_worker.exe
+madmom_worker/venv310/
+madmom_worker/madmom_src/
+madmom_worker/dist/
+madmom_worker/build/
+
+# === Materiale personale / note di lavoro, non parte del software ===
+debug e note NON ELIMINARE/
+punti di ripristino/
+# === Ambiente locale ===
+.claude/
+*.log
+
+# === Aggiunte del 03/09, trovate preparando la pubblicazione ===
+# Le cartelle di build del port web sono nate DOPO questo file: /dist/ e
+# /build/ non le coprivano, e sarebbero finite su GitHub 400 MB di
+# artefatti - fra cui un exe da 126 MB, che GitHub rifiuta comunque
+# (limite 100 MB per file).
+/dist_web/
+/build_web/
+dist_web.zip
+_tmp_verify.pyz
+
+# Materiale audio di prova dentro il pacchetto di test: musica commerciale,
+# stesso motivo delle altre cartelle audio.
+dist_web/mp3 di prova/
+# === Script usa-e-getta, esclusi al controllo pre-pubblicazione (06/09) ===
+# Puntavano a una cartella temporanea di sessione che non esiste piu' per
+# nessuno. Non sono nella catena di composizione (rigenera.py non li chiama)
+# e nessuno li importa: spedirli significherebbe pubblicare codice che non
+# puo' girare.
+web_migration_spike/_build_correggi/genera_chiavi_mancanti.py
+training data/measure_a4_causal_rule.py
+
+# === Materiale di lavoro Figma, escluso il 06/09 ===
+# Export SVG/PNG, archivi e sorgenti Illustrator dei wireframe. Non servono
+# a chi usa o modifica il programma, e soprattutto NON SONO AGGIORNATI:
+# pubblicarli significherebbe mostrare come stato attuale un disegno
+# superato. Il disegno vivo e la pagina, non il suo export.
+UI Figma dark/
+UI Figma visualizzatore/
+UI revisione/
+UI & Warframing/
+
+# Ricerca, non prodotto: gli script della campagna di misura
+# (correlazione con le mappe Beat Saber, estrazione dei brani ufficiali
+# del gioco, elenchi di titoli commerciali). Non servono a chi usa il
+# tool, e sono esattamente il genere di cose che non deve finire in un
+# repository pubblico. Restano sul disco, fuori da git.
+training data/
+
+# I DISEGNI di partenza: cinque pagine HTML con dati finti, piu il loro
+# mock-data.js. A runtime non li apre nessuno (servono solo styles.css e
+# assets/, vedi build_serving_dir), e in un repository pubblico sarebbero
+# cinque file che sembrano lapplicazione senza esserlo. Restano sul disco.
+web_migration_spike/mockups/*.html
+web_migration_spike/mockups/mock-data.js

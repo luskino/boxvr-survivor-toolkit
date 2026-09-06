@@ -1,0 +1,134 @@
+      <h3 class="block-title">Anteprima brano</h3>
+      <!-- Card "Anteprima brano" alle coordinate ASSOLUTE del componente
+           reale (29:3520, 1360x314). La card bianca parte a y=25, quindi le
+           y qui sotto sono quelle del componente meno 25:
+             riga titolo   left 19   top 10
+             nome brano    left 131  top 10
+             blocco BPM    left 827  top 18   (con Analisi sotto)
+             volume        left 1008 top 18
+             zoom          left 1184 top 13
+             trasporto     left 20   top 38
+             3 switch      left 1017 top 41
+             forma d'onda  left 19   top 69   1322x144
+             marche orario left 60   top 220
+             "Struttura"   left 19   top 247
+             striscia      left 19   top 264  h13
+           Prima era tutto in colonne di flex, con posizioni e altezze
+           diverse dal reale e SENZA la riga delle marche temporali. -->
+      <div class="preview-card">
+        <div class="pv-title">
+          <span class="idx" id="p-idx">—</span>
+          <span class="artist" id="p-artist">—</span>
+          <span class="pv-name" id="p-name">Seleziona un brano…</span>
+        </div>
+        <div class="pv-bpm">
+          <span class="bpm-control" id="bpm-control">
+            <span class="bpm-value" id="p-bpm">—</span>
+            <button class="bpm-edit-btn" id="bpm-edit-btn" data-spento-senza-analisi title="Correggi BPM" onclick="startBpmEdit()"><svg viewBox="978.75 399 15 15"><path fill="currentColor" d="M993.153 412.575H979.353C979.021 412.575 978.753 412.843 978.753 413.175V413.85C978.753 413.933 978.82 414 978.903 414H993.603C993.685 414 993.753 413.933 993.753 413.85V413.175C993.753 412.843 993.485 412.575 993.153 412.575ZM981.485 411C981.522 411 981.56 410.996 981.597 410.991L984.751 410.438C984.789 410.43 984.824 410.413 984.85 410.385L992.799 402.437C992.816 402.42 992.83 402.399 992.839 402.376C992.849 402.354 992.853 402.329 992.853 402.305C992.853 402.28 992.849 402.256 992.839 402.233C992.83 402.21 992.816 402.19 992.799 402.173L989.682 399.054C989.647 399.019 989.6 399 989.549 399C989.499 399 989.452 399.019 989.416 399.054L981.468 407.003C981.44 407.031 981.423 407.064 981.415 407.102L980.862 410.256C980.844 410.356 980.851 410.459 980.881 410.557C980.912 410.654 980.966 410.743 981.039 410.814C981.162 410.934 981.318 411 981.485 411Z"/></svg></button>
+            <button class="bpm-search-btn" id="bpm-search-btn" data-spento-senza-analisi title="Cerca BPM online" style="display:none" onclick="openBpmSearch()"><svg viewBox="999.002685546875 399 15.997314453125 15.718994140625"><path fill="currentColor" d="M1004.99 401.18C1004.69 401.929 1004.46 402.706 1004.32 403.5H1009.68C1009.54 402.706 1009.31 401.929 1009.01 401.18C1008.71 400.447 1008.36 399.886 1008 399.517C1007.65 399.149 1007.31 399 1007 399C1006.69 399 1006.35 399.149 1006 399.517C1005.64 399.887 1005.29 400.447 1004.99 401.18ZM1004.89 399.281C1004.58 399.707 1004.3 400.222 1004.06 400.799C1003.74 401.579 1003.48 402.493 1003.3 403.5H999.804C1000.3 402.476 1001.02 401.57 1001.89 400.842C1002.77 400.115 1003.79 399.582 1004.89 399.281ZM1009.94 400.799C1009.72 400.262 1009.45 399.752 1009.11 399.281C1010.21 399.583 1011.23 400.115 1012.11 400.842C1012.98 401.57 1013.7 402.476 1014.2 403.5H1010.7C1010.52 402.493 1010.26 401.577 1009.94 400.799ZM1014.6 404.5H1010.85C1010.95 405.295 1011 406.134 1011 407C1011 407.866 1010.95 408.705 1010.85 409.5H1014.6C1014.87 408.693 1015 407.849 1015 407C1015 406.151 1014.87 405.307 1014.6 404.5ZM1010.7 410.5H1014.2C1013.7 411.524 1012.98 412.43 1012.11 413.158C1011.23 413.885 1010.21 414.417 1009.11 414.719C1009.45 414.248 1009.72 413.738 1009.94 413.201C1010.26 412.421 1010.52 411.507 1010.7 410.5ZM1006.56 410.94C1006.63 410.797 1006.69 410.65 1006.74 410.5H1009.68C1009.54 411.294 1009.31 412.071 1009.01 412.82C1008.95 412.972 1008.88 413.122 1008.81 413.27C1008.74 413.149 1008.66 413.038 1008.56 412.94L1006.56 410.94ZM1006.97 409.5H1009.84C1009.94 408.714 1010 407.875 1010 407C1010 406.125 1009.94 405.285 1009.84 404.5H1004.16L1004.12 404.8C1005.05 405.158 1005.83 405.813 1006.35 406.664C1006.86 407.514 1007.08 408.512 1006.97 409.5ZM1003.15 404.5L1003.14 404.546C1002.93 404.515 1002.72 404.5 1002.5 404.5H1003.15ZM999.399 404.5H1002.5C1001.84 404.499 1001.19 404.644 1000.6 404.922C999.999 405.201 999.472 405.607 999.05 406.112C999.111 405.556 999.23 405.016 999.4 404.5M1002.5 412.5C1003.29 412.5 1004.01 412.24 1004.6 411.803L1007.15 414.353C1007.19 414.399 1007.25 414.436 1007.31 414.462C1007.37 414.487 1007.44 414.5 1007.5 414.5C1007.57 414.5 1007.63 414.487 1007.69 414.462C1007.75 414.437 1007.81 414.4 1007.86 414.354C1007.9 414.307 1007.94 414.252 1007.96 414.191C1007.99 414.131 1008 414.066 1008 414C1008 413.934 1007.99 413.869 1007.96 413.808C1007.94 413.748 1007.9 413.692 1007.86 413.646L1005.31 411.096C1005.78 410.465 1006.02 409.693 1006 408.905C1005.98 408.117 1005.69 407.36 1005.19 406.755C1004.68 406.15 1003.99 405.734 1003.22 405.573C1002.44 405.413 1001.64 405.517 1000.94 405.87C1000.23 406.223 999.667 406.803 999.333 407.517C998.999 408.23 998.915 409.036 999.096 409.803C999.277 410.57 999.712 411.254 1000.33 411.743C1000.95 412.233 1001.71 412.499 1002.5 412.5M1002.5 411.5C1001.84 411.5 1001.2 411.237 1000.73 410.768C1000.26 410.299 1000 409.663 1000 409C1000 408.337 1000.26 407.701 1000.73 407.232C1001.2 406.763 1001.84 406.5 1002.5 406.5C1003.16 406.5 1003.8 406.763 1004.27 407.232C1004.74 407.701 1005 408.337 1005 409C1005 409.663 1004.74 410.299 1004.27 410.768C1003.8 411.237 1003.16 411.5 1002.5 411.5Z"/></svg></button>
+            <span class="bpm-edit-row" id="bpm-edit-row" style="display:none">
+              <input type="number" id="bpm-input" placeholder="Inserire BPM">
+              <button class="bpm-confirm-btn" title="Conferma" onclick="confirmBpmEdit()"><svg viewBox="982.75 732 15 15"><path fill="currentColor" d="M990.25 732C994.392 732 997.75 735.358 997.75 739.5C997.75 743.642 994.392 747 990.25 747C986.108 747 982.75 743.642 982.75 739.5C982.75 735.358 986.108 732 990.25 732ZM993.78 737.47C993.487 737.177 993.013 737.177 992.72 737.47L989.5 740.689L987.78 738.97C987.487 738.677 987.013 738.677 986.72 738.97C986.427 739.263 986.427 739.737 986.72 740.03L988.97 742.28C989.263 742.573 989.737 742.573 990.03 742.28L993.78 738.53C994.073 738.237 994.073 737.763 993.78 737.47Z"/></svg></button>
+              <button class="bpm-cancel-btn" title="Annulla" onclick="cancelBpmEdit()"><svg viewBox="1000 732 15 15"><path fill="currentColor" d="M1007.5 732C1011.64 732 1015 735.358 1015 739.5C1015 743.642 1011.64 747 1007.5 747C1003.36 747 1000 743.642 1000 739.5C1000 735.358 1003.36 732 1007.5 732ZM1011.03 735.97C1010.74 735.677 1010.26 735.677 1009.97 735.97L1007.5 738.439L1005.03 735.97C1004.74 735.677 1004.26 735.677 1003.97 735.97C1003.68 736.263 1003.68 736.737 1003.97 737.03L1006.44 739.5L1003.97 741.97C1003.68 742.263 1003.68 742.737 1003.97 743.03C1004.26 743.323 1004.74 743.323 1005.03 743.03L1007.5 740.561L1009.97 743.03C1010.26 743.323 1010.74 743.323 1011.03 743.03C1011.32 742.737 1011.32 742.263 1011.03 741.97L1008.56 739.5L1011.03 737.03C1011.32 736.737 1011.32 736.263 1011.03 735.97Z"/></svg></button>
+            </span>
+          </span>
+        </div>
+        <!-- Il selettore del motore NON puo' stare dentro .pv-bpm: impilato
+             sotto la pillola BPM finiva sotto la forma d onda (segnalato
+             dall utente). Ha una posizione sua nella fascia libera fra la
+             pillola (top 18) e la forma d onda (top 69). -->
+        <div class="pv-engine">
+          <span class="analisi-label">Analisi <span class="info-dot" data-tip="beat_engine" tabindex="0">i</span></span>
+          <div class="segmented small" id="engine-toggle">
+            <button id="engine-veloce" onclick="setEngine('librosa')">Veloce</button>
+            <button id="engine-precisa" onclick="setEngine('madmom')">Precisa</button>
+          </div>
+        </div>
+        <div class="pv-volume">
+          <button class="vol-muto" id="vol-muto" onclick="toggleMuto()"
+                  aria-pressed="false"
+                  title="Disattiva l'audio (M)">🔊</button>
+          <input type="range" id="volume-slider" min="0" max="100" value="70"
+                 aria-label="Volume" oninput="setVolume()">
+          <span class="vol-valore" id="vol-valore">70%</span>
+        </div>
+        <div class="pv-zoom">
+          <span class="zoom-lente" title="Zoom sulla timeline - la rotellina scorre quando sei ingrandito">&#128269;</span>
+          <div class="zoom-bar">
+            <button class="zoom-btn active" id="zoom-1" data-spento-senza-analisi onclick="setZoomLevel(1)">1</button>
+            <button class="zoom-btn" id="zoom-2" data-spento-senza-analisi onclick="setZoomLevel(2)">2</button>
+            <button class="zoom-btn" id="zoom-3" data-spento-senza-analisi onclick="setZoomLevel(3)">3</button>
+            <button class="zoom-btn" id="zoom-5" data-spento-senza-analisi onclick="setZoomLevel(5)">5</button>
+            <button class="zoom-btn" id="zoom-10" data-spento-senza-analisi onclick="setZoomLevel(10)">10</button>
+          </div>
+        </div>
+        <div class="pv-toggles">
+          <span class="toggle-label">Base beat <span class="toggle tg-basebeat on" id="toggle-base-beat" data-spento-senza-analisi role="switch" tabindex="0" aria-label="Base beat" onclick="toggleWaveOption(this)" onkeydown="attivaConTastiera(event)"></span></span>
+          <span class="toggle-label">Marker visibili <span class="toggle tg-marker" id="toggle-markers-visible" role="switch" tabindex="0" aria-label="Marker visibili" onclick="toggleWaveOption(this)" onkeydown="attivaConTastiera(event)"></span></span>
+          <span class="toggle-label">Curva di carica <span class="toggle tg-curva on" id="toggle-energy-curve" data-spento-senza-analisi role="switch" tabindex="0" aria-label="Curva di carica" onclick="toggleWaveOption(this)" onkeydown="attivaConTastiera(event)"></span></span>
+        </div>
+        <div class="pv-transport">
+          <button class="playback-icon-btn" id="play-btn" data-spento-senza-analisi
+                  title="Play/Pausa &mdash; barra spaziatrice"
+                  aria-label="Play o pausa, barra spaziatrice"></button>
+          <button class="playback-icon-btn" id="stop-btn" data-spento-senza-analisi
+                  title="Stop &mdash; Home riporta all'inizio"
+                  aria-label="Stop" onclick="stopMainPlayback()"></button>
+          <span class="scorciatoie-nota" aria-hidden="true">spazio &middot; &larr;&rarr; 5s &middot; M muto</span>
+          <span class="avviso-analisi" id="avviso-analisi" role="status" hidden></span>
+          <span id="p-time">0:00 / 0:00</span>
+        </div>
+        <!-- Struttura MISURATA sull'export "Anteprima brano@2x.png"
+             (campionamento pixel, non a occhio):
+             - fondo bianco;
+             - bande delle fasi = token --pill-*-bg a opacita' 0.78
+               (0.39 quando "Marker visibili" e' acceso: nel wireframe le
+               bande passano esattamente a meta' per far risaltare i marker);
+             - forma d'onda = grigio #C7C7C7 in "Linear Burn", che equivale
+               a SOTTRARRE 56 a ogni canale del colore sotto - verificato
+               identico su tutte e quattro le bande e su entrambi gli stati.
+               Non essendoci il linear-burn fra i mix-blend-mode CSS, il
+               secondo layer .wave-dark ripete le bande gia' scurite di 56
+               e la sagoma fa da MASCHERA;
+             - marker viola #7700FF sopra;
+             - cursore fuori da questo riquadro (vedi piu' sotto).
+             Nessuna linea verticale dei beat: "Base beat" e' il click a
+             tempo UDIBILE (vedi la descrizione della pagina), non righe. -->
+        <div class="waveform-wrap" id="waveform-wrap" onmousedown="startSeek(event)" onwheel="panWheel(event)">
+          <!-- I tre livelli disegnano SEMPRE il brano intero: e' questo
+               contenitore che si allarga e scorre quando si zooma, cosi' le
+               posizioni x=tempo/durata restano valide senza ridisegnare. -->
+          <div class="wave-zoom" id="wave-zoom">
+            <div class="waveform" id="waveform"></div>
+            <div class="waveform wave-dark" id="waveform-dark"></div>
+            <svg class="wave-overlay" id="wave-overlay" viewBox="0 0 1000 100" preserveAspectRatio="none"></svg>
+          </div>
+          <!-- Stato "analisi in corso" (29:3526): scritta CENTRATA sulla
+               forma d'onda con lo spinner, 18px #0C355C - non una nota di
+               testo nel titolo come avevo fatto. -->
+          <div class="preview-analyzing" id="preview-analyzing">
+            <span>Analisi in corso</span><span class="status-spinner"></span>
+          </div>
+          <!-- Stato "analisi fallita" (29:3650): card rosata #FDD, nome
+               brano rosso e "Analisi fallita  Riprova" al centro. -->
+          <div class="preview-failed" id="preview-failed">
+            <span>Analisi fallita</span>
+            <button class="retry-link" onclick="retryCurrentSong()">Riprova</button>
+          </div>
+        </div>
+        <!-- Il cursore NON sta dentro il riquadro della forma d'onda: nel
+             wireframe va da y 51 a 249 (card-relative), quindi comincia
+             sopra l'onda e finisce sotto le marche temporali, con un
+             cerchietto vuoto a ogni estremita'. -->
+        <div class="main-playhead" id="main-playhead"></div>
+        <!-- 12 marche temporali sotto la forma d'onda (29:3551-3563):
+             mancavano del tutto. Popolate dalla durata VERA del brano. -->
+        <div class="pv-times" id="pv-times"></div>
+        <div class="seg-tooltip" id="seg-tooltip"></div>
+        <audio id="player" preload="auto"></audio>
+
+        <div class="mini-structure-label">Struttura BoxVR di partenza</div>
+        <div class="mini-structure" id="mini-structure"></div>
+      </div>
+
+    </main>

@@ -1,0 +1,91 @@
+
+  /* ================= blocco inferiore di Correggi =====================
+     Coordinate REALI del frame Figma 1:7 (get_metadata), tutte assolute sul
+     canvas 1920x1080 come il resto della pagina. */
+  .genera-fixed .toolkit-title { position: absolute; left: 49px; top: 653px; margin: 0; }
+  .genera-fixed .toolkit-card {
+    position: absolute; left: 43px; top: 686px; width: 1360px; height: 345px;
+    background: var(--bg-card); border-radius: 8px; box-shadow: var(--shadow-card);
+  }
+  .genera-fixed .toolkit-card > * { position: absolute; }
+  /* separatore fra le due colonne: x=487, da y=710 per 297 (card-relative) */
+  .genera-fixed .tk-sep {
+    left: 444px; top: 24px; width: 1px; height: 297px; background: var(--border-soft);
+  }
+
+  /* --- colonna sinistra --- */
+  .genera-fixed .tk-stats {
+    left: 23px; top: 26px; width: 380px; margin: 0; display: flex; gap: 34px;
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: var(--text-heading);
+  }
+  .genera-fixed .tk-preset-label {
+    left: 23px; top: 65px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-heading); display: flex; align-items: center; gap: 6px;
+  }
+  /* barra 324x24 (rect 30:5705) con i tre bottoni distribuiti: senza flex:1
+     restavano incollati a sinistra dentro la barra */
+  .genera-fixed #preset-buttons { left: 23px; top: 91px; width: 324px; height: 24px; display: flex; }
+  .genera-fixed #preset-buttons button {
+    flex: 1; padding: 0; font-size: 13px; line-height: 24px; height: 24px;
+  }
+
+  .genera-fixed .tk-slider-label {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: var(--text-heading); display: flex; align-items: center; gap: 6px;
+  }
+  .genera-fixed .tk-slider-value {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-slider { width: 393px; margin: 0; }
+  .genera-fixed .tk-ratio-label  { left: 22px;  top: 145px; }
+  .genera-fixed .tk-ratio-value  { left: 183px; top: 145px; }
+  .genera-fixed .tk-ratio-slider { left: 23px;  top: 171px; }
+  .genera-fixed .tk-margin-label  { left: 22px;  top: 209px; }
+  .genera-fixed .tk-margin-value  { left: 217px; top: 209px; }
+  .genera-fixed .tk-margin-slider { left: 23px;  top: 235px; }
+  /* bottone "Copia su tutti i brani": 192x34 a (66,965) = card-relative (23,279) */
+  .genera-fixed .btn-copy-all {
+    left: 23px; top: 279px; width: 192px; height: 34px;
+    border: none; border-radius: 15px; background: var(--accent-blue-strong);
+    color: #fff; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* --- colonna destra --- */
+  .genera-fixed .tk-fasi-label {
+    left: 466px; top: 26px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-fasi-row { left: 466px; top: 53px; display: flex; gap: 12px; }
+  .genera-fixed .tk-fasi-row .pill b { font-weight: 700; }
+  .genera-fixed .tk-backup {
+    left: 466px; top: 99px; display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 500;
+    color: var(--text-heading); cursor: pointer;
+  }
+  /* "Stati correzione" (510,827) 881x71 -> card-relative (467,141) */
+  .genera-fixed #stati-gen { left: 467px; top: 141px; width: 881px; margin: 0; }
+  /* riquadro Log (510,915) 880x93 -> card-relative (467,229) */
+  .genera-fixed .tk-log {
+    left: 467px; top: 229px; width: 880px; height: 93px;
+    /* Era #F1F0F0 fisso: al tema scuro il riquadro del log restava CHIARO
+       mentre il testo dentro seguiva i token e diventava chiaro anche lui,
+       1.09:1 - praticamente invisibile. Il fondo deve venire dallo stesso
+       insieme di token del testo che ci sta sopra, altrimenti la coppia si
+       rompe appena si cambia tema. */
+    background: var(--inset-bg); border-radius: 4px; overflow: hidden;
+  }
+  .genera-fixed .tk-log::before {
+    content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 4px;
+    background: var(--accent-blue-strong);
+  }
+  .genera-fixed .tk-log-head {
+    position: absolute; left: 21px; top: 8px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-log-body {
+    position: absolute; left: 21px; top: 25px; right: 30px; bottom: 6px;
+    margin: 0; overflow: auto; white-space: pre-wrap;
+    font-family: var(--font-body); font-size: 12px; line-height: 1.35; color: var(--text-body);
+  }

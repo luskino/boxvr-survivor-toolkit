@@ -1,0 +1,33 @@
+<div class="info-popover" id="info-popover">
+  <div class="info-popover-head">
+    <img class="info-popover-icon" src="assets/icons/tooltip_info.svg" alt="">Info aggiuntive
+    <button class="info-popover-close" onclick="hideInfoPopover()" title="Chiudi"><img src="assets/icons/tooltip_close.svg" alt=""></button>
+  </div>
+  <div class="info-popover-body" id="info-popover-body"></div>
+</div>
+
+  <header class="app-header">
+    <h1>BoxVR Survivor Toolkit</h1>
+    <span class="app-version" id="app-version"></span>
+    <span class="real-badge nota-dev">DATI REALI — primo port, non un mockup</span>
+    <!-- Sempre raggiungibile, non solo dopo un'operazione riuscita: prima
+         stava dentro il blocco degli stati di generazione, che compare a
+         cose fatte. Ma "vado a vedere cosa c'e' nella libreria" e' una
+         cosa che si vuole fare PRIMA. -->
+    <button class="header-btn" id="game-folder-btn" onclick="apriCartellaGioco()"
+            title="Apri la cartella TrackData di BoxVR">Cartella BoxVR ›</button>
+    <div id="patch-pill-wrap"></div>
+    <div class="lang-switch" title="Cambia la lingua dell'interfaccia">
+      <!-- role/tabindex/tastiera: erano <span onclick>, cioe' cliccabili
+           col mouse e IRRAGGIUNGIBILI da tastiera - non e' che mancasse
+           l'anello di fuoco, e' che non prendevano affatto il fuoco.
+           Con role="button" e tabindex="0" entrano nell'ordine di
+           tabulazione, e attivaConTastiera aggiunge Invio e Spazio, che
+           un <span> non gestisce da solo come farebbe un <button>. -->
+      <span class="lang-pill active" role="button" tabindex="0"
+            onclick="setLang('it')" onkeydown="attivaConTastiera(event)">IT</span>
+      <span class="lang-pill" role="button" tabindex="0"
+            onclick="setLang('en')" onkeydown="attivaConTastiera(event)">EN</span>
+    </div>
+    <button class="theme-switch" id="theme-switch" onclick="toggleTheme()" title="Tema chiaro/scuro"><span class="theme-switch-knob"></span></button>
+  </header>

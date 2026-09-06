@@ -1,0 +1,226 @@
+
+  /* ============ Start page / Dashboard selection (canvas 1920x1080) ========
+     Coordinate MISURATE: modale 842x537 a (548,271) - confermata identica dal
+     frame Figma 7:320 (Disclaimer 2) e dal campionamento pixel dell'export
+     "Start page _ Dashboard selection _ Patch Installed@2x.png".
+     Card interne = il componente "Tile mode" (4:158), 279x313, a (652,449) e
+     (1002,449). Fondo pagina scuro #2F2F31 col Pattern Scacchiera sopra. */
+  /* La tela dietro il canvas deve essere dello STESSO colore del canvas.
+     Il body arriva dal foglio condiviso con --bg-page (#EDEDF7, chiaro),
+     mentre qui il canvas e' scuro: ridimensionando la finestra, tutto
+     quello che il canvas non copre diventava una banda chiara contro uno
+     sfondo scuro. Il canvas si adattava gia'; era la tela dietro a non
+     farlo. Segnalato dall'utente il 03/09. */
+  body { background: var(--dash-bg); }
+  .page.dash-fixed {
+    --extra: 0px;
+    position: absolute; left: 0; top: 0;
+    width: calc(1920px + var(--extra)); height: 1080px;
+    transform-origin: top left; padding: 0; margin: 0; max-width: none;
+    background: var(--dash-bg); overflow: hidden;
+  }
+  /* Angolo alto destro, come nel frame scuro: il riquadro IT/EN parte a
+     x=1702 y=40. Il gruppo segue il contenuto quando il canvas si allarga
+     (stessa regola degli altri figli), invece di incollarsi al bordo. */
+  .dash-fixed .dash-controlli {
+    left: 1702px; top: 40px;
+    display: flex; align-items: center; gap: 22px; z-index: 4;
+  }
+  .dash-fixed .dash-controlli .lang-switch { margin-left: 0; }
+  .dash-fixed .bg-pattern {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    z-index: 0; filter: blur(1.5px);
+  }
+  .dash-fixed .bg-pattern i {
+    position: absolute; display: block;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-position: center; mask-position: center;
+  }
+  /* Il campo scuro e il pattern si allargano fino al bordo della finestra;
+     i riquadri no, ma vanno ricentrati nel canvas allargato. margin-left su
+     un elemento posizionato in assoluto si SOMMA a left, quindi basta una
+     riga e non tocca nessuna delle coordinate del wireframe (a --extra:0 il
+     margine e' zero e tutto torna identico al disegno). */
+  .dash-fixed > *:not(.bg-pattern) {
+    position: absolute; z-index: 1;
+    margin-left: calc(var(--extra) / 2);
+  }
+
+  .dash-modal {
+    left: 548px; top: 271px; width: 842px; height: 537px;
+    background: var(--dash-modal-bg); border-radius: 8px;
+  }
+  .dash-modal > * { position: absolute; }
+  /* "Benvenuto/a su" (826,297) e il titolo (826,315), centrati sulla modale */
+  .dash-welcome {
+    left: 0; top: 26px; width: 842px; margin: 0; text-align: center;
+    font-family: var(--font-display); font-size: 14px; font-weight: 500;
+    color: var(--text-body);
+  }
+  .dash-title {
+    left: 0; top: 44px; width: 842px; margin: 0; text-align: center;
+    font-family: var(--font-display); font-size: 24px; font-weight: 700;
+    color: var(--text-heading);
+  }
+  /* croce di chiusura (1334,294) 30x30 -> modale-relative (786,23) */
+  .dash-close {
+    left: 786px; top: 23px; width: 30px; height: 30px; padding: 0;
+    border: none; background: none; cursor: pointer;
+    color: var(--text-heading); font-size: 26px; line-height: 30px; text-align: center;
+  }
+  .dash-quote {
+    left: 60px; top: 128px; width: 722px; margin: 0; text-align: center;
+    font-family: var(--font-body); font-style: italic; font-size: 14px; line-height: 1.45;
+    color: var(--text-body);
+  }
+  .dash-quote .blu { color: var(--accent-blue-ink); font-style: italic; }
+  .dash-quote .rosso { color: var(--accent-red-ink); font-style: italic; }
+
+  /* --- schermate di disclaimer: stessa scatola della scelta --- */
+  /* "⚠ DISCLAIMER" centrato; nel Disclaimer 2 il gruppo sta a (842,404)
+     -> modale-relative (294,133) */
+  .dash-disc-head {
+    left: 0; top: 126px; width: 842px; margin: 0; text-align: center;
+    font-family: var(--font-display); font-size: 16px; font-weight: 700;
+    color: var(--text-heading); display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+  }
+  .dash-disc-head .segno { color: var(--text-heading); }
+  .dash-disc-head .minore { font-weight: 600; }
+  /* corpo del testo: nel Disclaimer 1 occupa (611,442)-(1320,706) sul canvas
+     -> modale-relative left 63, top 171, larghezza 722 */
+  .dash-disc-body {
+    left: 63px; top: 171px; width: 722px;
+    font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+    color: var(--text-body);
+  }
+  /* il Disclaimer 2 ha il testo piu' stretto: (718,481) 502 di larghezza */
+  .dash-disc-body.stretto { left: 170px; top: 210px; width: 502px; text-align: center; }
+  .dash-disc-body p { margin: 0 0 11px; }
+  .dash-disc-body p:last-child { margin-bottom: 0; }
+  .dash-disc-body b { color: var(--text-heading); }
+  /* bottone MISURATO: (873,751) 192x29, #3FA2FF -> modale-relative (325,480) */
+  .dash-disc-cta {
+    left: 325px; top: 480px; width: 192px; height: 29px;
+    border: none; border-radius: 15px; background: var(--accent-blue);
+    color: #fff; font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* --- i due tile: componente "Tile mode" 279x313 --- */
+  .dash-tile {
+    top: 178px; width: 279px; height: 313px;
+    background: var(--bg-card); border-radius: 12px; box-shadow: var(--shadow-card);
+  }
+  .dash-tile.correggi { left: 104px; }
+  .dash-tile.genera { left: 454px; }
+  .dash-tile > * { position: absolute; }
+  .dash-tile .tile-head { left: 22px; top: 22px; right: 18px; display: flex; align-items: flex-start; gap: 8px; }
+  .dash-tile .tile-head h3 {
+    margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700;
+    line-height: 1.35; color: var(--text-heading); flex: 1;
+  }
+  .dash-tile .tile-head img { width: 42px; height: 42px; flex: none; }
+  .dash-tile .tile-subtitle {
+    left: 0; top: 88px; width: 279px; margin: 0; text-align: center;
+    font-family: var(--font-display); font-size: 14px; font-weight: 600; line-height: 1.35;
+  }
+  .dash-tile.correggi .tile-subtitle { color: var(--accent-blue-ink); }
+  .dash-tile.genera .tile-subtitle { color: var(--accent-red-ink); }
+  .dash-tile .tile-desc {
+    /* 132 e non 122: il sottotitolo della card di destra va su DUE righe
+       ("Piu' complesso, piu' divertente / Richiede BoxVR Patchato") e la
+       seconda finiva incollata alla descrizione, mentre a sinistra, dove
+       il sottotitolo e' di una riga sola, l'aria c'era. Dieci pixel piu'
+       in basso danno respiro al caso peggiore senza stringere l'altro. */
+    left: 20px; top: 132px; width: 239px; margin: 0; text-align: center;
+    font-family: var(--font-body); font-size: 13px; line-height: 1.42; color: var(--text-body);
+  }
+  /* CTA 192x45 a (44,242) tile-relative - misurata sull'export Tile mode */
+  .dash-tile .tile-cta {
+    left: 44px; top: 242px; width: 192px; height: 45px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: 15px; text-decoration: none; cursor: pointer;
+    font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #FFFFFF;
+  }
+  /* Inchiostro per variante, non uno solo per tutte: sul blu #0071DA
+     passa il BIANCO (4.80:1) e non lo scuro (3.70:1), sul rosso #FF3E41 e
+     sul grigio bloccato e' l'opposto (5.09:1 e 6.15:1 contro 3.49:1 e
+     2.88:1). Metterne uno solo ne rompeva sempre una. */
+  .dash-tile.correggi .tile-cta { background: var(--accent-blue-strong); color: #FFFFFF; }
+  .dash-tile.genera .tile-cta { background: var(--accent-red); color: #101828; }
+  /* variante "Rilevata Patch": CTA grigia col lucchetto + avviso rosso sotto */
+  .dash-tile.bloccato .tile-cta { background: #989898; color: #101828; cursor: not-allowed; }
+  .dash-tile .tile-patch-note {
+    left: 0; top: 292px; width: 279px; margin: 0; text-align: center; display: none;
+    font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--accent-red-ink);
+  }
+  .dash-tile.bloccato .tile-patch-note { display: block; }
+  .dash-tile .tile-patch-note a { color: var(--accent-red-ink); font-weight: 700; }
+
+  /* Barra di servizio: NON esiste nel wireframe (cartella di gioco, patch,
+     playlist manager). Tenuta fuori dalla modale e marcata come nota dev,
+     stessa scelta gia' fatta in Genera/Correggi. */
+  /* Barra del percorso di gioco. Segnalata dall'utente come poco
+     leggibile, e la misura gli da' ragione: 12px in Roboto a opacita' 0.85
+     appoggiati DIRETTAMENTE sul pattern sfocato di guantoni, senza niente
+     dietro. Il contrasto calcolato su un colore pieno non descriveva il
+     problema vero, che e' lo sfondo non uniforme.
+     Ora: un piano scuro semitrasparente sotto il testo (cosi' il pattern
+     non passa piu' attraverso le lettere), niente opacita' sul percorso, e
+     il percorso in carattere a spaziatura fissa - separatori e lettere di
+     unita' si distinguono, che e' tutto cio' che serve a un path. */
+  .dash-devbar {
+    left: 548px; top: 818px; width: 842px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    font-family: var(--font-body); font-size: 14px; color: #FFFFFF;
+    background: rgba(8, 12, 24, 0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 8px 12px; box-sizing: border-box;
+    backdrop-filter: blur(3px);
+  }
+  .dash-devbar code {
+    word-break: break-all; font-size: 13px;
+    font-family: 'Consolas', 'Cascadia Mono', ui-monospace, monospace;
+  }
+  .dash-devbar button, .dash-devbar a {
+    border: 1px solid rgba(255,255,255,0.45); background: rgba(255,255,255,0.08);
+    color: #FFFFFF;
+    border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer;
+    text-decoration: none; flex: none;
+  }
+  .dash-devbar button:hover, .dash-devbar a:hover {
+    background: rgba(255,255,255,0.18);
+  }
+  .dash-warning {
+    left: 548px; top: 884px; width: 842px; margin: 0;
+    background: #FFD5D6; color: #660000; border-radius: 8px; padding: 10px 14px;
+    font-size: 14px; display: none;
+  }
+
+  /* ---- Fasce di adattamento: canvas 1200x820 invece di 1920x1080 -------
+     Sotto i 1440px di finestra il canvas della Dashboard si stringe (vedi
+     canvasW/canvasH in fondo alla pagina). Gli elementi posizionati per il
+     canvas largo vanno ricollocati, altrimenti finiscono fuori: misurati
+     .dash-modal, .dash-devbar e .dash-warning a destra 1390, e i controlli
+     in alto a destra a 1702.
+     La finestra di dialogo resta a DUE colonne: 842px stanno dentro 1200
+     senza stringere nulla, e impilare le due pillole quando non serve
+     allungherebbe la pagina per niente. */
+  .dash-fixed.stretta .dash-modal,
+  .dash-fixed.stretta .dash-devbar,
+  .dash-fixed.stretta .dash-warning { left: 179px; }   /* (1200 - 842) / 2 */
+  .dash-fixed.stretta .dash-controlli { left: auto; right: 24px; }
+  /* il campo scuro col pattern segue il canvas stretto */
+  .dash-fixed.stretta { width: 1200px; height: 820px; }
+
+/* Sui due disclaimer sparisce tutto cio' che riguarda la patch: la barra di
+   stato con la cartella di gioco e la pillola con lo stato. Parlano di
+   un'operazione sul gioco mentre l'utente sta ancora leggendo che cosa sia
+   questo programma, e offrirebbero "Disabilita" prima che l'avviso che lo
+   spiega sia stato accettato. Vedi mostraSchermata. */
+body.su-disclaimer #patch-pill-wrap,
+body.su-disclaimer .patch-pill,
+body.su-disclaimer .patch-disable-link,
+body.su-disclaimer #game-dir-bar { display: none !important; }

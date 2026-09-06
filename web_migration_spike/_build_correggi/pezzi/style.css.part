@@ -1,0 +1,1046 @@
+<style>
+  .real-badge {
+    background: #10B981; color: #101828; font-family: var(--font-display);
+    font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 12px;
+    margin-left: 12px; vertical-align: middle;
+  }
+  /* Le note dev (spiegano cosa e' collegato per davvero) non esistono nel
+     wireframe - contribuivano a far sforare la finestra 1920x1080 con lo
+     margin-bottom di default del browser mai azzerato. Font piu' piccolo
+     + niente margine sotto, restano leggibili ma occupano meno spazio
+     verticale reale. */
+  /* 10px erano 10px FISICI sullo schermo del tester (scala 0.75 x dpr
+     1.25): sotto la soglia di leggibilita'. 12px e' il corpo del testo
+     del wireframe, ed e' il minimo che fitPage garantisce. */
+  .not-wired-note { font-size: 13px; line-height: 1.4; color: var(--text-muted); margin: 4px 0 0; }
+  /* BPM: valore/matita/ricerca/riga di modifica - da "Anteprima brano.svg"
+     (componente condiviso Correggi/Genera, ricontrollato dopo un export
+     aggiornato dell'utente). Arancione #FF883E per "incerto" - colore
+     scelto esplicitamente dall'utente per non confonderlo col rosso di
+     un vero errore. */
+  .bpm-control { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+  /* MISURATO sull'export: BPM affidabile = solo testo #676767, nessuna
+     pillola; BPM sospetto = pillola arancione #FF883E con testo BLU SCURO
+     #0C355C (non bianco) e il triangolo di avviso davanti. */
+  .bpm-value {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    color: var(--text-muted); padding: 2px 8px; border-radius: 10px;
+  }
+  .bpm-value.suspicious { background: #FF883E; color: #0C355C; }
+  .bpm-value.suspicious::before { content: '\26A0'; margin-right: 4px; font-size: 12px; }
+  .bpm-edit-btn, .bpm-search-btn, .bpm-confirm-btn, .bpm-cancel-btn {
+    border: none; background: transparent; cursor: pointer;
+    padding: 2px; color: var(--accent-blue-strong);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bpm-edit-btn svg, .bpm-search-btn svg, .bpm-confirm-btn svg, .bpm-cancel-btn svg {
+    width: 15px; height: 15px; display: block;
+  }
+  .bpm-search-btn { color: #FF883E; }
+  .bpm-confirm-btn { color: #5ABE51; }
+  .bpm-cancel-btn { color: #B00000; }
+  .bpm-edit-row { display: inline-flex; align-items: center; gap: 4px; }
+  .bpm-edit-row input {
+    width: 72px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border-soft);
+    font-family: var(--font-display); font-size: 14px;
+  }
+  .analisi-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; }
+  .analisi-row .analisi-label { font-size: 13px; color: var(--text-muted); }
+  .segmented.small button { padding: 3px 10px; font-size: 13px; }
+
+  /* "Blocco Marker.svg" - colori reali: Registra #0071DA, Marca (in ascolto)
+     #7700FF, tick marker gialli #ffd60a (STESSO valore di MARKER_TICK_COLOR
+     in boxvr_fixer_gui.py, non un giallo scelto a occhio). Prima
+     integrazione reale del sidecar nel port. */
+  .sidecar-panel { background: var(--bg-card-soft); border-radius: var(--radius-card); padding: 14px; margin-bottom: 10px; }
+  #sidecar-record-btn { background: #0071DA; }
+  #sidecar-record-btn.recording { background: #7700FF; }
+  /* Blocco Marker ricostruito su dati REALI (get_design_context, 3 stati) -
+     card azzurra con bordo blu, spettro vero del brano come sfondo (non
+     l'immagine decorativa generica del reale, dato vero al suo posto),
+     UN pulsante che cambia testo/colore invece di due (uno disabilitato). */
+  .blocco-marker {
+    position: relative; overflow: hidden; background: var(--bm-fondo); border: 1px solid var(--bm-bordo);
+    border-radius: 15px; padding: 10px 10px 8px; text-align: center; margin-bottom: 0;
+  }
+  /* Spettro e righello scorrono INSIEME sotto un cursore fermo al centro
+     (confermato dall'utente e leggibile nei dati reali: nelle varianti in
+     riproduzione la forma d'onda ha inset NEGATIVI left:-100.51% /
+     right:-174.75%, cioe' e' una pista piu' larga del riquadro che viene
+     traslata, mentre a riposo e' left:0/right:0 a piena larghezza).
+     375.26% = 100.51 + 100 + 174.75, la larghezza reale della pista. */
+  /* "Palco" del blocco marker: coordinate REALI del componente 198x132
+     (44:5489). Forma d'onda 24..108, marker 29..100, staffa BPM RANGE con
+     base a y=100 e trattini che salgono da 87, cursore 28..100 con manopola
+     a 23. Qui il palco parte a y=24, quindi le y sono riportate -24. */
+  /* Palco = forma d'onda del componente: y 24..108 su 132 di card, a piena
+     larghezza (nel reale image 4 e' left:0/right:0). Le y qui sotto sono
+     quelle del componente meno 24. */
+  .bm-stage { position: absolute; left: 0; right: 0; top: 24px; height: 84px; overflow: hidden; }
+  .bm-scroll { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; }
+  /* 1200% e non 375%: a 375 la finestra visibile copriva circa 42 secondi
+     di brano, dentro cui i singoli beat erano indistinguibili e allineare
+     un marker a orecchio era un'illusione. A 1200 se ne vedono circa 13,
+     cioe' una trentina di beat: la griglia si legge e si marca sul colpo.
+     Segnalato dall'utente: "la traccia va zoommata maggiormente cosi' da
+     mostrarne l'allineamento alla rete dei beat". */
+  /* la larghezza da zoomato la scrive applicaZoomPista, dal solo
+     BM_TRACK_PCT: qui resterebbe un secondo numero da tenere allineato */
+  /* forma d'onda SPECULARE attorno all'asse centrale (align-items:center),
+     non barre che crescono dal basso; riempie tutto il palco (24..108) */
+  .bm-wave-track { position: absolute; left: 0; right: 0; top: 0; height: 84px; }
+  .bm-wave-track svg { width: 100%; height: 100%; display: block; }
+  .bm-wave-track polygon { fill: var(--bm-onda); opacity: 0.75; }
+  /* Banda delle zone, solo in «Estendi»: dove hai dettato un ritmo, dove
+     hai messo un accento isolato, e (per assenza) dove genera il tool.
+     Sta sopra i marker, nei 4px che restano liberi in cima al palco: i
+     marker cominciano a 5. Serve perche' con gli stessi colpi la
+     modalita' puo' comportarsi in due modi diversi a seconda di come
+     sono distribuiti - senza vederlo, sembra un capriccio. */
+  .bm-zone-layer { position: absolute; left: 0; right: 0; top: 0; height: 4px; display: none; }
+  .bm-stage.con-zone .bm-zone-layer { display: block; }
+  .bm-zone { position: absolute; top: 0; height: 4px; border-radius: 2px; }
+  .bm-zone.blocco { background: #5100A2; }      /* il viola dei marker, pieno */
+  .bm-zone.accento { background: #C67100; min-width: 3px; }
+  /* marker: 29..100 nel componente = 5..76 nel palco */
+  .bm-marker-layer { position: absolute; left: 0; right: 0; top: 5px; height: 71px; }
+  .bm-marker-layer .marker-tick { position: absolute; top: 0; bottom: 0; width: 1.5px; background: rgba(119,0,255,0.75); }
+  .bm-marker-layer .marker-tick.doomed { background: rgba(170,0,0,0.66); }
+  /* staffa "BPM RANGE": trattini 87..100 = 63..76, base a 100 = 76 */
+  .bm-bpm-ticks { position: absolute; left: 0; right: 0; top: 63px; height: 13px; }
+  /* Due livelli, come il righello di qualunque editor audio: il beat
+     tenue, la battuta (un beat ogni quattro) marcata e piu' alta. Prima
+     c'era un livello solo, e per giunta un trattino ogni SEDICI beat: a
+     131 BPM significa uno ogni sette secondi, cioe' una rete cosi' larga
+     da non dire piu' niente sull'allineamento. */
+  .bm-bpm-ticks .beat-tick { position: absolute; top: 5px; bottom: 0; width: 1px; background: rgba(12,53,92,0.28); }
+  .bm-bpm-ticks .beat-tick.battuta { top: 0; width: 1.5px; background: rgba(12,53,92,0.62); }
+  .bm-bpm-base { position: absolute; left: 8px; right: 8px; top: 76px; height: 1px; background: var(--bm-riga); }
+  .bm-bpm-label {
+    /* 58 e non 69: a 69 il testo occupava 69..82 mentre la linea di base
+       della staffa sta a 76, e la attraversava a meta' altezza (segnalato
+       dall'utente). A 58 finisce a 71 e resta 5px sopra la linea. */
+    position: absolute; left: 0; right: 0; top: 58px; text-align: center;
+    font-family: var(--font-body); font-size: 11px; font-weight: 500;
+    color: var(--bm-etichetta); pointer-events: none;
+  }
+  /* misure reali: pulsante 67x20 raggio 6 (44:5361), riga a y 4..24 con
+     "Marca" a left=19 in registrazione e centrato da fermo (44:5414). */
+  .bm-action-btn {
+    position: relative; border: none; border-radius: 6px; color: white; font-family: var(--font-display);
+    font-weight: 700; font-size: 14px; line-height: 1; height: 20px; padding: 0 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; white-space: nowrap;
+  }
+  .bm-top-row {
+    position: absolute; left: 0; right: 0; top: 4px; height: 20px;
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+  }
+  .bm-top-row.recording { justify-content: flex-start; padding-left: 19px; }
+  .bm-hint { font-size: 13px; color: var(--text-heading); font-weight: 500; white-space: nowrap; }
+  /* Il cursore NON si muove: sta fisso al centro ed e' la pista (spettro +
+     marker + staffa BPM) a scorrergli sotto. Sta FUORI da .bm-stage: il
+     palco ha overflow:hidden per tagliare la pista che scorre, e teneva
+     dentro anche la manopola tagliandola a meta'. Qui e' figlio della card,
+     quindi le y sono quelle vere del componente: colonna 28..100. */
+  .playhead-widget { position: absolute; top: 28px; height: 72px; left: 50%; width: 14px; margin-left: -7px; z-index: 4; }
+  .playhead-widget.hidden { display: none; }
+  .ph-col { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: rgba(51,156,255,0.33); }
+  /* staffe scure sopra e sotto la colonna (44:5606 / 44:5603) */
+  .ph-cap { position: absolute; left: 0; right: 0; background: #0C3D6E; border-radius: 1px; }
+  .ph-cap.top { top: 0; height: 5px; }
+  .ph-cap.bottom { bottom: 0; height: 3px; }
+  /* linea centrale TRATTEGGIATA, non continua */
+  .ph-line {
+    position: absolute; top: 6px; bottom: 5px; left: 50%; width: 0; margin-left: -0.5px;
+    border-left: 1px dashed #0C3D6E;
+  }
+  /* manopola: cerchio BLU PIENO con icona BIANCA (play da fermo, pausa in
+     riproduzione - nel reale le due varianti hanno contenuti diversi) */
+  /* manopola a y=23 del componente: il cursore parte a 28 (=4 nel palco),
+     quindi -5 la porta esattamente a 23, sotto la riga "Marca"/hint che
+     finisce a 23 - prima a -7 ci finiva sopra e si sovrapponevano. */
+  .ph-knob {
+    position: absolute; top: -5px; left: 50%; margin-left: -6.5px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #0071DA; border: 1.5px solid #fff;
+    display: flex; align-items: center; justify-content: center; gap: 1.5px;
+    cursor: pointer; padding: 0; z-index: 5;
+  }
+  .ph-knob i { width: 1.5px; height: 5px; background: #fff; display: block; border-radius: 0.5px; }
+  .ph-knob .tri {
+    width: 0; height: 0; margin-left: 1.5px;
+    border-left: 5px solid #fff;
+    border-top: 3px solid transparent; border-bottom: 3px solid transparent;
+  }
+  /* trasporto a y=104 del componente (inset 78.79% di 132), alto 18 */
+  .bm-transport { position: absolute; left: 0; right: 0; top: 104px; height: 18px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  /* 10px scendevano sotto i 10px FISICI su schermi piu' piccoli del
+     disegno: sotto la soglia che fitPage garantisce. */
+  .bm-transport span { font-family: var(--font-display); font-size: 13px; color: var(--text-body); font-weight: 600; }
+  /* icona rossa di reset/riavvolgimento, presente nel reale accanto a pausa */
+  .bm-reset-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    width: 13px; height: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .bm-reset-btn svg { width: 100%; height: 100%; }
+  /* Indicatore di avanzamento sulla waveform principale - mancava del
+     tutto (segnalato dall'utente), stesso pattern gia' reale del playhead
+     del pannello sidecar sopra, solo su .waveform-wrap invece di
+     .sidecar-ruler. */
+  /* Cursore del brano, MISURATO sull'export: linea NERA da 1px che va da
+     y 51 a 249 (card-relative) - quindi sopra la forma d'onda (top 69) e
+     sotto le marche temporali - con un cerchietto VUOTO da 9px a ogni
+     estremita'. Non era una barra rossa dentro il riquadro dell'onda.
+     La linea vera parte 13px sotto e finisce 13px sopra i due cerchi. */
+  /* top 74 e non 51: la fascia dei comandi arriva a 70, e il cerchietto
+     del cursore le finiva dentro, proprio sopra il pulsante di play
+     (segnalato dall'utente). Ora parte sotto, e arriva fin sotto la
+     mini-struttura. */
+  .genera-fixed .main-playhead {
+    left: 19px; top: 74px; width: 9px; height: 278px;
+    margin-left: -4.5px; pointer-events: none; z-index: 5;
+    background: linear-gradient(#000, #000) no-repeat center / 1px calc(100% - 26px);
+  }
+  .genera-fixed .main-playhead::before,
+  .genera-fixed .main-playhead::after {
+    content: ''; position: absolute; left: 0; width: 9px; height: 9px;
+    border-radius: 50%; border: 1.5px solid #000; background: #fff; box-sizing: border-box;
+  }
+  .genera-fixed .main-playhead::before { top: 0; }
+  .genera-fixed .main-playhead::after { bottom: 0; }
+  body.seeking { cursor: grabbing; user-select: none; }
+  body.seeking .waveform-wrap { cursor: grabbing; }
+
+  /* La traccia dell'interruttore acceso e' il ciano di marca (#09E2E2),
+     che su bianco da' 1.62:1. Il colore NON si tocca: e' misurato dal
+     Figma ed e' identita' del prodotto. Si aggiunge invece un contorno
+     sottile, che da' al controllo un confine discernibile senza cambiare
+     la tinta - la via che WCAG 1.4.11 prevede proprio per questi casi
+     (lo stato resta leggibile anche dalla posizione della manopola). */
+  .toggle { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.28); }
+
+  /* ---- stato "analisi in corso" (29:3526) ----
+     tutto ingrigito e la scritta centrata sopra la forma d'onda. */
+  .preview-analyzing {
+    position: absolute; inset: 0; display: none; z-index: 4;
+    align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    color: #0C355C; pointer-events: none;
+  }
+  .preview-analyzing .status-spinner { width: 20px; height: 20px; border-width: 3px; }
+  .preview-card.analyzing .preview-analyzing { display: flex; }
+  /* MISURATO: durante l'analisi NON ci sono bande colorate - solo la sagoma
+     grigia SFOCATA su fondo bianco. Il grigio #C7C7C7 e' esattamente il
+     bianco meno i 56 del linear burn, quindi basta nascondere le bande e
+     lasciare il layer scurito, che su fondo bianco viene proprio #C7C7C7. */
+  .preview-card.analyzing #waveform { visibility: hidden; }
+  .preview-card.analyzing #waveform-dark .seg { background: #C7C7C7 !important; }
+  .preview-card.analyzing #wave-zoom { filter: blur(3px); }
+  .preview-card.analyzing .mini-structure .seg { background: #C7C7C7; }
+  .preview-card.analyzing .main-playhead { display: none; }
+  .preview-card.analyzing .wave-overlay { display: none; }
+  /* motore e zoom disattivati: grigi, non blu */
+  .preview-card.analyzing #engine-toggle button.active { background: #A7A7A7; }
+  .preview-card.analyzing .zoom-btn.active { background: #A7A7A7; }
+  .preview-card.analyzing .bpm-value { background: #E8E8E8; color: #676767; }
+
+  /* ---- stato "analisi fallita" (29:3650) ----
+     card ROSATA #FDD, nome brano rosso, "Analisi fallita  Riprova" al
+     centro; il resto ingrigito come lo stato di analisi. */
+  .preview-failed {
+    position: absolute; inset: 0; display: none; z-index: 4;
+    align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    color: #0C355C;
+  }
+  .preview-failed .retry-link { font-size: 18px; pointer-events: auto; }
+  .preview-card.failed { background: #FDD; }
+  .preview-card.failed .preview-failed { display: flex; }
+  .preview-card.failed .pv-name { color: #FF3E41; }
+  /* fallita: stessa sagoma sfocata, ma su fondo ROSATO - misurato #FFE4E4
+     per l'area dell'onda, e la sagoma e' quel fondo meno 56 */
+  .preview-card.failed .waveform-wrap { background: #FFE4E4; }
+  .preview-card.failed #waveform { visibility: hidden; }
+  .preview-card.failed #waveform-dark .seg { background: #C7ACAC !important; }
+  .preview-card.failed #wave-zoom { filter: blur(3px); }
+  .preview-card.failed .mini-structure .seg { background: #C7C7C7; }
+  .preview-card.failed .main-playhead { display: none; }
+  .preview-card.failed .wave-overlay { display: none; }
+  .preview-card.failed #engine-toggle button.active { background: #A7A7A7; }
+  .preview-card.failed .zoom-btn.active { background: #A7A7A7; }
+  .preview-card.failed .bpm-value { background: #E8E8E8; color: #676767; }
+  .sidecar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 14px; }
+  .sidecar-controls label { display: flex; align-items: center; gap: 6px; color: var(--text-body); }
+  .sidecar-controls select, .sidecar-controls input[type=number] {
+    border: 1px solid var(--border-soft); border-radius: 6px; padding: 3px 8px; font-family: var(--font-body);
+  }
+  .sidecar-controls input[type=number] { width: 90px; }
+
+  /* Visualizzatore 3D-ish (Visualizzatore.svg, tecnologia scelta da me su
+     delega esplicita dell'utente: "decidi tu... l'importante è che siano ben
+     comprensibili i colpi e la loro posizione" - Canvas 2D con una
+     mappatura tempo-al-colpo -> posizione calibrata sui punti REALI misurati
+     nell'export, non three.js: meno peso/complessità per lo stesso obiettivo
+     di chiarezza dichiarato dall'utente, niente dipendenza nuova). */
+  /* ===================== Visualizzatore workout =====================
+     Rifatto sullo "spec sheet v1.4" (frame 85:10120) e sui 16 componenti
+     collegati. Non e' un ritocco del precedente: cambia il linguaggio
+     visivo. Prima c'era un corridoio fotografico con anelli gialli; ora
+     c'e' una scena prospettica disegnata, con bersagli luminosi blu (mano
+     sinistra) e rossi (destra), scie ad arco per gancio e montante, e
+     barre arancioni per gli ostacoli.
+     Colori misurati sui frame, non scelti: scena #12122A su fondo #0A0A14,
+     linea dei bersagli #E6FEFF, ostacoli #FF6B00, scudo #FF003C. */
+  .visualizer-modal {
+    position: fixed; inset: 0; background: rgba(4, 4, 10, 0.82);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+    backdrop-filter: blur(3px);
+  }
+  .visualizer-modal.visible { display: flex; }
+  .visualizer-box {
+    /* La modale e' un contenitore flex: senza `flex: none` la scatola si
+       restringe sotto la misura del canvas, e la scena perde le
+       proporzioni su cui e' calcolata la prospettiva. */
+    flex: none;
+    background: #0A0A14; border: 1px solid #2A2A55;
+    border-radius: 14px; padding: 16px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  }
+  .visualizer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 12px;
+  }
+  .visualizer-head .viz-titolo {
+    font-family: var(--font-display); font-weight: 700; font-size: 15px;
+    color: #E6FEFF; margin-right: auto;
+  }
+  .visualizer-head select {
+    background: #12122A; color: #E6E6ED; border: 1px solid #2A2A55;
+    border-radius: 8px; padding: 6px 10px; font-family: var(--font-body);
+    font-size: 13px; max-width: 320px;
+  }
+  .visualizer-close {
+    border: 1px solid #2A2A55; background: #12122A; border-radius: 8px;
+    width: 30px; height: 30px; font-size: 14px; cursor: pointer; color: #E6E6ED;
+  }
+  .visualizer-close:hover { background: #1B1B3A; }
+  #visualizer-canvas {
+    display: block; background: #12122A; border-radius: 10px;
+    border: 1px solid #2A2A55;
+    /* Misura fissa: la superficie di disegno viene creata a partire da
+       queste, e senza una misura CSS esplicita il canvas si restringeva
+       secondo il contenitore, cambiando le proporzioni della scena. Nel
+       canvas 1920x1080 della pagina 900x500 ci sta sempre. */
+    width: 900px; height: 500px; flex: none;
+  }
+  /* Barra di trasporto: due controlli audio DISTINTI, come nello spec.
+     Le cuffie governano il suono dei colpi, la nota il volume del brano -
+     erano una richiesta esplicita e nel disegno ci sono entrambi. */
+  .visualizer-transport {
+    display: flex; align-items: center; gap: 12px; margin-top: 12px;
+    background: #12122A; border: 1px solid #2A2A55; border-radius: 10px;
+    padding: 8px 12px; font-family: var(--font-body); font-size: 13px;
+    color: #C9C9E0;
+  }
+  .viz-btn {
+    width: 30px; height: 30px; flex: none; cursor: pointer;
+    border: 1px solid #2A6BAF; border-radius: 8px; background: #142244;
+    color: #4FB4FF; font-size: 14px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .viz-btn:hover { background: #1B2E5C; }
+  /* Il quadrato dello stop ha un'area disegnata piu' piccola del triangolo
+     del play a parita' di corpo, e accanto sembrava rimpicciolito. Non e'
+     il pulsante a cambiare misura - resta 30x30 - ma il glifo. */
+  #visualizer-stop-btn { font-size: 17px; }
+  .viz-btn.spento { color: #6B6B8A; border-color: #2A2A55; background: #12122A; }
+  .visualizer-transport input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
+    background: #2A2A55; outline: none;
+  }
+  .visualizer-transport input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%;
+    background: #4FB4FF; cursor: pointer;
+  }
+  /* Selettore piu' specifico di proposito: il foglio condiviso ha
+     `input[type="range"] { width: 100% }` (specificita' 0,1,1), che batteva
+     `.viz-vol` (0,1,0). Risultato: il cursore del volume veniva largo 874px
+     e sfondava fuori dalla modale, spingendo fuori nome del brano e BPM.
+     Le due regole si combattevano senza dare nessun errore. */
+  .visualizer-transport input.viz-seek { flex: 1 1 auto; width: auto; min-width: 140px; }
+  .visualizer-transport input.viz-vol { flex: 0 0 84px; width: 84px; }
+  .viz-tempo { font-variant-numeric: tabular-nums; color: #9A9AC0; flex: none; }
+  .viz-brano {
+    margin-left: auto; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 260px; color: #C9C9E0;
+  }
+  .viz-bpm {
+    flex: none; background: #2A2A55; color: #7FD0FF; border-radius: 10px;
+    padding: 3px 9px; font-weight: 700; font-size: 12px;
+  }
+
+  /* .wave-toggle-row/.waveform-wrap/.wave-overlay: regole comuni in styles.css
+     (condivise con correggi_real, stesso componente waveform) */
+
+  /* Rimozione per-brano - stesso pattern di correggi_real: X in hover su
+     qualsiasi riga, "selected" (stroke blu, in styles.css) e' un concetto
+     indipendente per il brano aperto nel pannello. */
+  .song-row { position: relative; }
+  /* RI-MISURATA sull'export "Song Info Card@2x.png", stato "On focus"
+     (campionamento pixel sulla terza card): il pulsante NON e' un disco
+     pieno con la X bianca - e' un ANELLO sottile con la X dello stesso
+     blu dentro, sul fondo della card. Misure reali:
+         diametro 13px  (io avevo 18)
+         centro a 16px dal bordo destro, quindi right:10 con 13+3 di bordo
+         centrato in verticale sui 73px di card
+     Da qui la segnalazione "il posizionamento di queste icone e' sbagliato":
+     era troppo grande, troppo vicino al bordo e pieno invece che vuoto. */
+  .song-row .song-remove-x {
+    display: none; position: absolute; top: 50%; right: 10px;
+    transform: translateY(-50%);
+    width: 13px; height: 13px; border-radius: 50%; padding: 0;
+    background: transparent; border: 1.5px solid var(--x-rimuovi);
+    color: var(--x-rimuovi); font-size: 9px; font-weight: 700;
+    line-height: 10px; text-align: center; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .song-row:hover .song-remove-x { display: flex; }
+  /* lo stato "Cancel on focus" del componente non mostra il bordo di
+     selezione: e' la card intera a diventare rosa */
+  .song-row.confirm-remove { background: #FFD5D6 !important; border-color: transparent !important; }
+  .song-row.confirm-remove .row-top, .song-row.confirm-remove .row-bottom {
+    filter: blur(2px); opacity: 0.55;
+  }
+  .song-row.confirm-remove .song-remove-x { display: none; }
+  /* MISURATA: pillola ROSSO PIENO #FF0000 (non #FF3E41), 88x22, a 7px dal
+     bordo destro e centrata verticalmente, con la X in un cerchio bianco. */
+  .remove-confirm-bar {
+    display: none; align-items: center; justify-content: center; gap: 6px;
+    position: absolute; top: 50%; right: 7px; transform: translateY(-50%);
+    width: 88px; height: 22px;
+    background: #FF0000; color: #fff; border: none;
+    border-radius: 4px; padding: 0; font-size: 13px; font-weight: 700;
+    font-family: var(--font-display); cursor: pointer;
+  }
+  .remove-confirm-bar .x-tondo {
+    width: 13px; height: 13px; border-radius: 50%; background: #fff;
+    color: #FF0000; font-size: 9px; line-height: 13px; text-align: center;
+    font-weight: 700; flex: none;
+  }
+  .song-row.confirm-remove .remove-confirm-bar { display: inline-flex; }
+
+  /* Riga inferiore a 2 card ("Pannello generazione" - dati REALI da
+     get_design_context/Figma MCP il 31/08 sera, non piu' stime da
+     screenshot: "Pannello generazione" e' un SINGOLO componente 625px,
+     "Genera" (Group 9) e' 720px - insieme 1345px su 1360 disponibili,
+     combacia). PRIMA di questo fix pensavo fossero 3 colonne separate;
+     erano in realta' 2 card, la prima con una sotto-struttura interna a
+     2 colonne (vedi .gen-tabs-inner sotto). */
+  .genera-layout { display: grid; grid-template-columns: 1fr 440px; gap: 24px; align-items: start; }
+  .genera-layout main { grid-column: 1; grid-row: 1; }
+  .genera-layout .genera-bottom-row { grid-column: 1; grid-row: 2; }
+  .genera-layout .song-panel { grid-column: 2; grid-row: 1 / 3; }
+
+  .genera-bottom-row { display: flex; gap: 24px; align-items: start; margin-top: 10px; }
+
+  /* ------------------------------------------------------------------
+     CANVAS 1920x1080 ESATTO - coordinate ASSOLUTE prese dal frame Figma
+     reale (get_metadata su 29:4407, frame 1920x1080). Non piu' margini
+     "a occhio" nel flusso, che facevano sforare il contenuto sotto la
+     finestra: ogni blocco sta esattamente dove sta nel wireframe.
+
+       header/titolo    x=40  y=33         (29:4510)
+       icona            x=40  y=94  45x45  (31:5827)
+       "Crea Workout"   x=95  y=99         (29:4508)
+       descrizione      x=40  y=154 1301x104 (29:4509)
+       Anteprima brano  x=44  y=313 1360x314 (29:4512)
+       Pannello brani   x=1431 y=338 440x693 (29:4520)
+       Pann. generaz.   x=44  y=651 625x380  (44:5830)
+       Card finalizz.   x=684 y=651 720x380  (29:4521)
+
+     Tutto finisce a y=1031, con 49px di margine sotto: 1080 esatti.
+     L'area di contenuto della finestra viene portata a 1920x1080 veri da
+     _fit_client_to_wireframe in app.py (la finestra esterna e' piu' grande
+     per via di bordo+barra del titolo). ------------------------------- */
+  html, body { height: 100%; overflow: hidden; }
+  /* La pagina e' SEMPRE un canvas di 1920x1080 esatti (le coordinate qui
+     sotto sono quelle del frame Figma). Se la finestra e' piu' piccola -
+     succede per forza su un monitor 1920x1080 con lo scaling di Windows al
+     125%, dove 1920 CSS = 2400 pixel reali - il canvas viene SCALATO
+     (fitPage), non riflusso: le proporzioni del wireframe restano identiche
+     e non compare mai una barra di scorrimento. */
+  /* --extra: quanti px di disegno il canvas guadagna oltre i 1920, quando
+     la finestra e' piu' larga di 16:9. Lo calcola fitPage a ogni
+     ridimensionamento. A --extra:0 tutto torna ESATTAMENTE al wireframe,
+     che e' anche la condizione in cui gira audit_figma. */
+  .page.genera-fixed {
+    --extra: 0px;
+    position: absolute; top: 0; left: 0;
+    width: calc(1920px + var(--extra)); height: 1080px;
+    /* max-width: none SERVE: il foglio condiviso ha .page{max-width:1920px}
+       e senza questa riga il canvas allargato veniva ritagliato a 1920 -
+       --extra risultava 640 ma la larghezza calcolata restava 1920px, cioe'
+       la modifica sembrava non fare niente. */
+    max-width: none;
+    margin: 0; padding: 0; overflow: hidden; transform-origin: top left;
+  }
+  /* "Pattern Scacchiera" (frame 29:4408): campo di icone pugno/guantone
+     sparse su tutto lo sfondo della pagina, sfocate e a bassa opacita'.
+     Nel reale sono ~110 istanze del componente "Icone visualizzatore" su
+     una griglia a scacchiera (passo ~236x118, righe alternate sfalsate)
+     ruotate di 0/13/22.5/45 gradi - i quattro riquadri di ingombro
+     osservati (100 / 122.47 / 136.60 / 141.42) sono esattamente
+     100*(|cos|+|sin|) per quegli angoli. Ricostruito con la stessa griglia
+     e le icone VERE del progetto, colorate via mask-image. */
+  .bg-pattern {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    z-index: 0; filter: blur(1.5px);
+  }
+  .bg-pattern i {
+    position: absolute; display: block;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-position: center; mask-position: center;
+  }
+  /* tutto il contenuto vero sta sopra il pattern */
+  .genera-fixed > *:not(.bg-pattern) { position: relative; z-index: 1; }
+  .genera-fixed .app-header { position: absolute; left: 40px; top: 33px; right: 40px; margin: 0; }
+  /* La pillola della patch e' ancorata a DESTRA, ACCANTO al selettore lingua
+     (segnalato dall'utente). Serve togliere il "margin-left: auto" che il
+     selettore lingua ha nel foglio condiviso, altrimenti spingono entrambi e
+     restano separati da un buco. */
+  /* Il pulsante per la libreria del gioco: spinto a destra insieme alla
+     pillola della patch, cosi' i comandi di servizio stanno tutti da quella
+     parte invece di galleggiare accanto al titolo. */
+  .header-btn {
+    margin-left: auto;
+    font-family: var(--font-display); font-weight: 600; font-size: 13px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--input-border);
+    background: var(--bg-card); color: var(--text-body);
+    cursor: pointer; white-space: nowrap;
+  }
+  .header-btn:hover { border-color: var(--accent-blue-strong); color: var(--accent-blue-strong); }
+  /* con il pulsante presente, e' LUI a prendere lo spazio: la pillola lo
+     seguirebbe con un secondo margin-left:auto e si separerebbero */
+  .genera-fixed .app-header .header-btn ~ #patch-pill-wrap { margin-left: 12px; }
+  .genera-fixed .app-header #patch-pill-wrap { margin-left: auto; }
+  .genera-fixed .app-header .lang-switch { margin-left: 0; }
+  .genera-fixed .section-title { position: absolute; left: 40px; top: 94px; margin: 0; }
+  .genera-fixed .section-desc { position: absolute; left: 40px; top: 154px; width: 1301px; margin: 0; }
+  /* la nota dev non esiste nel wireframe: sta nello spazio libero reale
+     fra la descrizione (finisce a 258) e l'anteprima (inizia a 313). */
+  .genera-fixed > .not-wired-note { position: absolute; left: 40px; top: 266px; width: 1301px; margin: 0; }
+
+  /* .genera-layout e' grande quanto tutta la pagina perche' fa da sistema di
+     riferimento alle coordinate assolute del wireframe, MA cosi' copriva
+     anche header e titolo: i click finivano su di lei invece che sui
+     comandi in alto (lo switch del tema non rispondeva piu'). Non deve
+     intercettare il puntatore: lo riattivano i suoi figli veri. */
+  .genera-fixed .genera-layout {
+    position: absolute; left: 0; top: 0;
+    width: calc(1920px + var(--extra)); height: 1080px;
+    display: block; gap: 0; pointer-events: none;
+  }
+  .genera-fixed .genera-layout > * { pointer-events: auto; }
+  /* l'header resta sopra a tutto il resto del contenuto */
+  .genera-fixed .app-header { z-index: 3; }
+  .genera-fixed .info-popover { z-index: 60; }
+
+  /* ---- "Stati generazione" (30:5648): 5 varianti, valori REALI ----
+     pulsante 192x45 r15 con il testo di stato ACCANTO, non sotto;
+     barra separata a piena larghezza (h15, r7.5, fondo #E5E5E5).
+       non avviata  -> pulsante #F4506B, barra vuota
+       in corso     -> gradiente rosa, barra gradiente #F4506B->#3FA2FF
+       completata   -> #85ACF1 + pulsante bordato "Apri cartella risultati",
+                       barra piena #0071DA
+       fallita      -> #424242 + messaggio rosso #BF0000
+       nome mancante-> #B1B1B1 con testo #737373, barra vuota            */
+  .stati-gen { margin: 10px 0 0; }
+  .sg-row { display: flex; align-items: center; gap: 12px; }
+  .sg-btn {
+    flex: none; width: 192px; height: 45px; border: none; border-radius: 15px;
+    font-family: var(--font-body); font-weight: 700; font-size: 16px;
+    color: #101828; background: #F4506B; cursor: pointer;
+  }
+  .sg-open {
+    flex: none; height: 45px; padding: 0 16px; border-radius: 15px;
+    background: var(--bg-card); border: 1px solid #0071DA; color: #0071DA;
+    font-family: var(--font-body); font-weight: 700; font-size: 16px;
+    cursor: pointer; display: none;
+  }
+  /* #424242 era un grigio del tema CHIARO: sulla card scura dava 1.39:1,
+     praticamente invisibile. E' proprio il messaggio che spiega perche' il
+     pulsante di generazione e' spento ("Nome playlist necessario"), cioe'
+     l'unica cosa che dice all'utente come sbloccarsi. */
+  .sg-msg { font-size: 13px; color: var(--text-body); max-width: 220px; line-height: 1.25; white-space: pre-line; }
+  /* --text-heading, non il suo valore in tema chiaro scritto a mano:
+     #0C355C e' un blu quasi nero, e sul fondo scuro il conteggio
+     "Workout processati" era praticamente invisibile. Il token vale
+     lo stesso colore in tema chiaro e diventa chiaro in tema scuro. */
+  .sg-count { margin-left: auto; font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--text-heading); text-align: right; }
+  .sg-bar { height: 15px; border-radius: 7.5px; background: #E5E5E5; margin-top: 11px; overflow: hidden; }
+  .sg-bar-fill { height: 100%; width: 0; border-radius: 7.5px; transition: width .25s; }
+
+  /* #737373 su #B1B1B1 era 2.21:1: il pulsante principale, da spento,
+     non si leggeva. #434343 e' il grigio piu' chiaro che passa 4.6:1. */
+  .sg-noname .sg-btn { background: #B1B1B1; color: #434343; cursor: not-allowed; }
+  .sg-idle .sg-msg { display: none; }
+  .sg-running .sg-btn {
+    background: linear-gradient(119.5deg, #E38494 25.157%, #FD91A3 70.337%, #DE1132 108.32%);
+    cursor: default;
+  }
+  .sg-running .sg-msg { display: none; }
+  .sg-running .sg-bar-fill { background: linear-gradient(90deg, #F4506B, #3FA2FF); }
+  .sg-done .sg-btn { background: #85ACF1; cursor: default; }
+  .sg-done .sg-open { display: inline-flex; align-items: center; }
+  .sg-done .sg-msg { display: none; }
+  .sg-done .sg-bar-fill { background: #0071DA; width: 100%; }
+  .sg-failed .sg-btn { background: #424242; cursor: default; }
+  .sg-failed .sg-msg { color: #BF0000; display: block; }
+  .sg-failed .sg-count { color: #BF0000; }
+  .sg-failed .sg-bar-fill { background: #424242; }
+  /* La colonna principale assorbe lo spazio in piu': dentro c'e' la forma
+     d'onda, cioe' l'unico elemento che da uno schermo largo ci guadagna
+     davvero (piu' px = piu' dettaglio temporale). */
+  /* Salita di 48px e cresciuta di 56: il paragrafo a tutta larghezza ha
+     liberato quello spazio, e questo era il blocco piu' compresso - la
+     forma d'onda e' l'unica cosa che da piu' altezza ci guadagna davvero. */
+  .genera-fixed .genera-layout main {
+    position: absolute; left: 44px; top: 265px;
+    width: calc(1360px + var(--extra)); height: 385px;
+  }
+  /* Il pannello brani NON si allarga: le righe sono 404px per misura del
+     wireframe e allargarle non aggiunge informazione. Trasla e basta. */
+  .genera-fixed .genera-layout .song-panel {
+    position: absolute; left: calc(1431px + var(--extra)); top: 290px;
+    width: 440px; height: 764px;
+    display: flex; flex-direction: column; margin: 0;
+    /* 14 a sinistra e 22 a destra: e' la misura del wireframe (righe a
+       x=1445 larghe 404 dentro un pannello a 1431 largo 440), dove i 22 a
+       destra sono lo spazio della barra di scorrimento. */
+    padding: 14px;
+  }
+  /* Barra di scorrimento SOTTILE (6px): con quella di sistema (~15px) la
+     riga scendeva sotto i 404 del wireframe. Cosi' restano 412-6=406px di
+     spazio e la riga sta larga esattamente 404. */
+  .genera-fixed .song-list { overflow-x: hidden; }
+  .genera-fixed .song-list::-webkit-scrollbar { width: 6px; }
+  .genera-fixed .song-list::-webkit-scrollbar-thumb {
+    background: var(--border-soft); border-radius: 3px;
+  }
+  /* Righe brano alle misure REALI del wireframe: la Song Info Card e'
+     404x75 e le righe sono spaziate di 9px (rect a x=1445, y=406/490/574/
+     658/742/826/910/994 nel canvas). Prima erano 408x63, cioe' piu' larghe
+     e piu' basse del vero. */
+  .genera-fixed .song-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+  /* niente larghezza fissa: dentro un contenitore piu' stretto faceva
+     comparire le barre di scorrimento nel pannello brani */
+  .genera-fixed .song-list .song-row { width: 404px; height: 75px; flex: none; padding: 12px 16px; }
+  .genera-fixed .song-list .song-row.selected { padding: 10px 14px; }
+  /* stato a elenco vuoto: sostituisce intestazione e lista, centrato */
+  .song-panel-empty {
+    display: none; flex: 1; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; text-align: center;
+  }
+  .song-panel-empty p {
+    font-family: var(--font-display); font-size: 13px; font-weight: 500;
+    color: var(--text-heading); width: 192px; margin: 0;
+  }
+  /* Larghezza AUTOMATICA: con i 146px fissi l'etichetta "Aggiungi brani"
+     riempiva il pulsante e il "+" andava a capo, finendo sotto al bottone
+     (segnalato dall'utente). Il minimo tiene la misura del wireframe
+     quando l'etichetta e' corta, per esempio in inglese. */
+  .song-panel-empty .btn-add {
+    width: auto; min-width: 146px; height: 32px;
+    padding: 0 16px; white-space: nowrap;
+  }
+  .song-panel.is-empty .song-panel-header,
+  .song-panel.is-empty .song-list,
+  .song-panel.is-empty #list-note { display: none; }
+  .song-panel.is-empty .song-panel-empty { display: flex; }
+  /* ---- Disposizione IMPILATA per finestre strette --------------------
+     WCAG 2.2 SC 1.4.10 "Reflow" chiede che il contenuto si possa usare
+     "senza richiedere scorrimento in DUE dimensioni". Misurato prima di
+     questo blocco: a 1138x683 la pagina usciva di 302px a destra e 127px
+     sotto, e per leggere una riga bisognava scorrere sia in orizzontale
+     sia in verticale. Fallimento pieno del criterio.
+     https://www.w3.org/WAI/WCAG22/Understanding/reflow.html
+
+     La causa non e' il pavimento di leggibilita': e' che il canvas chiede
+     SEMPRE 1920px di larghezza. Sotto una certa finestra o si rimpicciolisce
+     il testo sotto la soglia, o si esce dallo schermo. Non c'e' una terza
+     via finche' la larghezza richiesta resta fissa.
+
+     Qui la larghezza richiesta CAMBIA: il pannello dei brani passa da
+     colonna a destra a fascia sotto il resto, e il canvas scende da 1920 a
+     1448. A scala 0.75 sono 1086px, che entrano in una finestra da 1100.
+     Resta lo scorrimento verticale, che e' normale e non viola nulla.
+     Le righe dei brani sono larghe 404 per misura del wireframe: nella
+     fascia si dispongono in griglia su piu' colonne invece di allungarsi. */
+  /* il contenitore .page porta la sua larghezza a 1920: senza questa riga
+     la scala veniva calcolata su 1448 ma il riquadro restava largo 1920 e
+     l'eccedenza usciva comunque dallo schermo - misurato: 452px a destra */
+  /* Invisibile finche' fitPage non ha scelto la fascia: vedi il commento
+     in fitPage. Senza, su schermi piccoli si vedeva per un istante il
+     layout largo sbordare, e poi saltare a posto. */
+  .page { visibility: hidden; }
+
+  .page.stretta { width: 1448px; height: auto; min-height: 1420px; }
+  .page.stretta .genera-layout { width: 1448px; height: auto; min-height: 1420px; }
+  /* L'ORDINE segue il flusso di lavoro, non lo spazio disponibile:
+     si aggiungono i brani, se ne sceglie uno, lo si ascolta in anteprima,
+     poi si genera. Nella prima versione impilata avevo messo il pannello
+     brani IN FONDO, sotto la card di generazione: era la cosa piu' lontana
+     dall'alto proprio mentre e' il punto di partenza, e per aggiungere un
+     brano bisognava scorrere oltre tutto il resto. Ora sta per primo. */
+  /* Le tre quote NON sono fisse: le calcola fitPage misurando quanto e'
+     alta davvero l'intestazione. Con quote fisse il pannello dei brani
+     finiva SOTTO il paragrafo e spariva, appena il testo si e' fatto piu'
+     alto per la larghezza di lettura ridotta - e sarebbe successo di nuovo
+     passando all'inglese, che ha lunghezze diverse. */
+  .page.stretta .genera-layout .song-panel {
+    left: 44px; top: var(--y-brani, 313px); width: 1360px; height: 300px;
+  }
+  .page.stretta .genera-layout main          { top: var(--y-anteprima, 637px); }
+  .page.stretta .genera-layout .genera-bottom-row { top: var(--y-genera, 975px); }
+  .page.stretta .genera-layout .song-list {
+    flex-direction: row; flex-wrap: wrap; align-content: flex-start;
+    gap: 9px 12px; overflow-y: auto;
+  }
+  .page.stretta .genera-layout main,
+  .page.stretta .genera-layout .genera-bottom-row { width: 1360px; }
+  .page.stretta .pv-title,
+  .page.stretta .waveform-wrap,
+  .page.stretta .mini-structure { width: 1322px; }
+  /* Le marche temporali NON sono larghe come l'onda: partono da left:60 e
+     rientrano di 41px per lato (1322 - 82 = 1240). Dandogli 1322 sforavano
+     di ~20px dalla card, misurati a 1352, 1266 e 1138 di finestra. */
+  .page.stretta .pv-times { width: 1240px; }
+  .page.stretta .pv-bpm    { left: 827px; }
+  .page.stretta .pv-engine { left: 790px; }
+  .page.stretta .pv-volume { left: 1008px; }
+  .page.stretta .pv-zoom   { left: 1161px; }
+  .page.stretta .pv-toggles { left: 995px; }
+
+  .genera-fixed .genera-layout .genera-bottom-row {
+    position: absolute; left: 44px; top: 674px;
+    width: calc(1360px + var(--extra)); height: 380px;
+    margin: 0; gap: 15px;
+  }
+  .genera-fixed .generation-tabs-card { flex: none; width: 625px; height: 380px; overflow: hidden; }
+  /* la card di destra e' quella che contiene il LOG: e' la piu' adatta a
+     prendersi la larghezza in avanzo (righe di log piu' lunghe = meno
+     spezzature). flex-basis 720px = misura del wireframe a --extra:0. */
+  .genera-fixed .genera-finalize-card { flex: 1 1 720px; height: 380px; overflow: hidden; }
+
+  /* La colonna destra della card (BloccoMarker + Anteprima workout +
+     Unifica/Annulla) deve stare nei 380px reali: colonna flessibile, il
+     pannello marker assorbe lo spazio che avanza invece di far sforare
+     tutto il resto fuori dalla card. */
+  .genera-fixed .gen-tabs-inner { height: calc(380px - 28px - 43px); }
+  .genera-fixed .sidecar-record-widget {
+    height: 100%; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+  }
+  /* Blocco Marker: 132px REALI (44:5357, 198x132) - altezza fissa, non
+     elastica. Quando c'e' (solo tab Sidecar) la miniatura si stringe;
+     quando non c'e' (tab Automatica) e' la miniatura a prendersi lo spazio,
+     esattamente come nel wireframe (174px vs 93px fra le due varianti). */
+  /* I colori REALI del Blocco Marker (azzurro #DFF0FF, bordo #0071DA)
+     venivano sovrascritti da .sidecar-record-widget .sidecar-panel, che ha
+     specificita' maggiore: il blocco risultava scuro e "oppure premi F/K"
+     quasi illeggibile. Questo componente tiene i suoi colori reali anche in
+     tema scuro, come gia' fatto per la striscia dei tab. */
+  /* il blocco e' un canvas fisso 132px con figli posizionati alle y reali
+     del componente: niente padding, altrimenti tutte le misure slittano. */
+  .genera-fixed .sidecar-record-widget .blocco-marker {
+    flex: none; height: 132px; margin: 0; padding: 0;
+    background: var(--bm-fondo); border: 1px solid var(--bm-bordo);
+  }
+  /* miniatura: 174px in Automatica, 93px con il Blocco Marker presente
+     (44:4984 vs 44:5647) - elastica fra i due, mai schiacciata a zero. */
+  .genera-fixed .sidecar-record-widget .visualizer-thumb-btn {
+    flex: 1 1 auto; min-height: 60px; max-height: 174px; margin: 0;
+  }
+  /* Unifica/Annulla sono ancorate in basso come nel wireframe (267..311 e
+     318..358 di 380), non subito sotto la miniatura. */
+  .genera-fixed .sidecar-record-widget #unify-btn { margin-top: auto; flex: none; padding: 8px; font-size: 14px; }
+  .genera-fixed .sidecar-record-widget #undo-unify-btn { flex: none; padding: 7px; font-size: 14px; }
+  /* una riga sola con ellissi: il testo completo resta nel tooltip. Su due
+     righe faceva sforare la card oltre i 380px reali. */
+  .genera-fixed #sidecar-note {
+    flex: none; font-size: 11px; line-height: 1.4; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .genera-fixed #unify-note { flex: none; font-size: 11px; line-height: 1.3; }
+  /* Cancella/Resetta: piccoli e affiancati, non due barre a piena larghezza
+     (nel wireframe non esistono affatto - sono funzioni reali in piu', vanno
+     messe senza rubare l'altezza che serve al resto della card). */
+  .sidecar-controls { margin-left: auto; display: flex; gap: 10px; }
+  .link-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600;
+    color: var(--accent-blue-strong); text-decoration: underline;
+  }
+  .genera-fixed .gen-tabs-left { flex: 1; min-width: 0; overflow: hidden; }
+  /* Il tab Sidecar ha piu' campi dell'Automatica (marker + modalita' +
+     ostacoli + soglia) e sforava di 43px i 380 reali della card: qui le
+     spaziature verticali della sola colonna sinistra sono compattate,
+     senza toccare quelle del resto dell'app. */
+  .genera-fixed .gen-tabs-left .field-label { margin: 6px 0 3px; }
+  .genera-fixed .gen-tabs-left .fasi-legend { gap: 5px 10px; margin: 2px 0 4px; }
+  .genera-fixed #gen-tab-sidecar-summary,
+  .genera-fixed #p-suspicious { font-size: 11px; line-height: 1.3; margin: 2px 0 0; }
+  .genera-fixed .gen-tabs-left input[type="range"] { margin: 2px 0 0; }
+  /* colonna destra 200px esatti: nel wireframe parte a x=395 dentro una
+     card di 625 e finisce a x=595 (44:5654 inset 63.16% / 4.78%). */
+  .genera-fixed .sidecar-record-widget { flex: none; width: 200px; }
+  /* "Unifica playlist" e' BLU nel wireframe (44:4991/44:5654, #0071DA), non
+     rosso: il rosso di .btn-primary e' il colore di "Avvia generazione". */
+  .sidecar-record-widget .btn-primary { background: var(--accent-blue-strong); }
+
+  /* la card anteprima riempie ESATTAMENTE i 314px del componente reale
+     (25px per l'etichetta sopra + 289 di card): la waveform prende lo
+     spazio che avanza invece di avere un'altezza fissa che sfora. */
+  /* Card anteprima: 1360x289 (il componente e' 314 con l'etichetta sopra),
+     figli posizionati alle coordinate REALI - vedi il commento nel markup. */
+  .genera-fixed main h3.block-title { margin: 0; height: 25px; line-height: 21px; }
+  .genera-fixed .preview-card {
+    position: relative; height: 360px; margin: 0; padding: 0; overflow: visible;
+  }
+  .genera-fixed .preview-card > * { position: absolute; }
+  /* eccezione: il tooltip dei blocchi si posiziona rispetto al canvas
+     1920x1080, non alla card - la regola generica qui sopra lo rendeva
+     absolute dentro la card e finiva sotto la forma d onda invece che
+     sopra il puntatore (segnalato dall utente) */
+  .genera-fixed .preview-card > .seg-tooltip { position: fixed; }
+  .genera-fixed .pv-title { left: 19px; top: 10px; width: calc(780px + var(--extra)); display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
+  /* I tre colori qui sotto erano letterali del tema chiaro e finivano
+     sulle card SCURE: #656565 dava 2.40:1, #676767 2.48:1, #6B7280 2.90:1,
+     tutti sotto il 4.5 richiesto. Non si vedevano perche' l'audit aveva
+     sempre girato in un tema solo. Ora prendono dai token, che cambiano
+     con il tema. */
+  .genera-fixed .pv-title .idx { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--text-muted); }
+  .genera-fixed .pv-title .artist { color: var(--text-muted); }
+  /* Il nome del brano segue SUBITO l artista invece di stare a un left
+     fisso: con artisti corti ("ILIA") restava un buco enorme in mezzo
+     (segnalato dall utente). .pv-title e .pv-name stanno nella stessa
+     riga flex ancorata a left 19. */
+  .genera-fixed .pv-name {
+    position: static; margin-left: 8px; max-width: 620px; font-family: var(--font-display);
+    font-weight: 700; font-size: 14px; color: var(--text-heading);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Le due righe di comandi sopra la forma d'onda si TOCCAVANO: la prima
+     stava a 13..42 (pillola BPM alta 24 da top 18) e la seconda a 38..64,
+     quindi si sovrapponevano di 4px e non c'era un solo pixel d'aria fra
+     "??? BPM" e "Precisa", ne' fra la barra dello zoom e "Curva di carica"
+     - da cui la segnalazione "il layout di questi elementi e' ancora
+     troppo schiacciato". Ora:
+         riga 1 (BPM, volume, zoom)        8 .. 34
+         aria                             34 .. 44
+         riga 2 (analisi, interruttori)   44 .. 70
+         aria                             70 .. 78
+         forma d'onda                     78 .. 216
+     e la forma d'onda perde 6px d'altezza invece di far scendere tutto il
+     resto della card, che e' alta 289 fissi. */
+  .genera-fixed .pv-bpm { left: calc(827px + var(--extra)); top: 8px; width: 167px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  /* fascia libera fra pillola BPM (top 18) e forma d onda (top 69):
+     allineato a destra come la pillola, largo fino a 994 (il volume
+     comincia a 1008) */
+  /* Stessa linea mediana degli interruttori a destra: prima .pv-engine
+     stava a top:45 e .pv-toggles a top:41, e i due gruppi risultavano
+     sfalsati di qualche pixel (segnalato dall'utente). Ora condividono top
+     e altezza, quindi l'allineamento non dipende piu' da quanto e' alto il
+     contenuto di ciascuno. */
+  .genera-fixed .pv-engine {
+    /* Fine a 978 e non a 994: fra "Precisa" e "Base beat" restava UN pixel
+       e le due parole si leggevano come una sola (segnalato dall'utente).
+       Il gruppo e' allineato a destra, quindi accorciarlo lo sposta a
+       sinistra e apre 17px d'aria senza toccare gli interruttori, che a
+       destra non hanno margine. */
+    left: calc(774px + var(--extra)); top: 44px; width: 204px; height: 26px;
+    display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  }
+  .genera-fixed .pv-engine .analisi-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .genera-fixed .pv-engine .segmented.small button { padding: 2px 8px; font-size: 13px; }
+  .genera-fixed .pv-volume { left: calc(1008px + var(--extra)); top: 8px; height: 26px; display: flex; align-items: center; gap: 6px; }
+  .genera-fixed .pv-volume input[type=range] { width: 120px; }
+  /* Il valore accanto al cursore: Material 3 lo chiede, e senza non si
+     sapeva su che volume si fosse. tabular-nums perche' passando da 9% a
+     100% la riga non deve ballare. */
+  /* Le scorciatoie scritte accanto al trasporto, non in un manuale che
+     nessuno apre: cosi' si vedono nel momento in cui servono. Piccole e
+     smorzate perche' sono un promemoria, non un comando. */
+  /* La riga che spiega perche' i comandi sono spenti. Sta accanto al
+     trasporto, dove si prova a premerli, non in cima alla pagina: e' li'
+     che serve. role="status" perche' un lettore di schermo la annunci
+     quando compare, senza rubare il fuoco. */
+  /* Quando la soglia sta scartando qualcosa, l'etichetta lo dice e prende
+     il colore d'avviso: e' un'informazione che costa colpi, non un dettaglio. */
+  .genera-fixed .value.con-scarti { color: var(--accent-red-strong); font-weight: 600; }
+
+  .genera-fixed .avviso-analisi {
+    font-size: 13px; color: var(--text-muted); margin-left: 12px;
+    white-space: nowrap;
+  }
+  /* ---- Comandi spenti perche' l'analisi non e' pronta ----------------
+     Non solo piu' chiari: anche non premibili (applicaStatoAnalisi mette
+     l'attributo disabled vero). Qui c'e' solo l'aspetto. */
+  [data-spento-senza-analisi][aria-disabled="true"] {
+    opacity: 0.42; cursor: not-allowed; filter: grayscale(0.7);
+  }
+  [data-spento-senza-analisi][aria-disabled="true"]:hover { background: inherit; }
+
+  /* «Estendi» quando non ha ancora imparato. Spento all'occhio ma non
+     con l'attributo `disabled`: quello toglie il fuoco e gli eventi del
+     mouse, e con essi la possibilita' di spiegare PERCHE' e' spento -
+     proprio a chi lo sta chiedendo. L'azione la blocca il gestore. */
+  #sidecar-mode-buttons button[aria-disabled="true"] {
+    opacity: 0.42; cursor: not-allowed; filter: grayscale(0.7);
+  }
+  /* il fuoco deve restare ben visibile: e' l'unico modo, da tastiera,
+     per far comparire la spiegazione */
+  #sidecar-mode-buttons button[aria-disabled="true"]:focus-visible {
+    opacity: 1; outline: 2px solid var(--accent-blue-strong); outline-offset: 2px;
+  }
+
+  .genera-fixed .scorciatoie-nota {
+    /* 13 e non 12: a 12px scendeva a 9.6px apparenti, sotto la soglia che
+       questo stesso progetto si e' dato. Il promemoria delle scorciatoie
+       non serve a niente se poi non si legge. */
+    font-size: 13px; color: var(--text-muted); margin-left: 10px;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  /* Il valore NON occupa spazio nella riga: e' sopra il cursore, e compare
+     solo mentre lo si muove. Messo in linea allargava il blocco del volume
+     di 40px e finiva addosso alla lente dello zoom (segnalato dall'utente).
+     Material 3 dice esattamente questo: "A value appears when interacting
+     with the corresponding handle" - non che debba stare li' sempre. */
+  .genera-fixed .pv-volume { position: absolute; }
+  .genera-fixed .pv-volume .vol-valore {
+    position: absolute; right: 0; bottom: 100%; margin-bottom: 2px;
+    font-size: 13px; font-variant-numeric: tabular-nums;
+    color: var(--text-muted); text-align: right; pointer-events: none;
+    opacity: 0; transition: opacity .12s;
+  }
+  .genera-fixed .pv-volume:hover .vol-valore,
+  .genera-fixed .pv-volume:focus-within .vol-valore,
+  .genera-fixed .pv-volume.in-uso .vol-valore { opacity: 1; }
+
+  /* ---- Ricerca nell'elenco brani ------------------------------------ */
+  .genera-fixed .song-search-row { position: relative; display: flex; margin: 8px 0 6px; }
+  .genera-fixed .song-search {
+    flex: 1; height: 28px; padding: 0 26px 0 9px;
+    border: 1px solid var(--input-border); border-radius: 6px;
+    background: var(--input-bg); color: var(--text-heading);
+    font-family: var(--font-body); font-size: 13px;
+  }
+  .genera-fixed .song-search::placeholder { color: var(--text-muted); }
+  .genera-fixed .song-search-x {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border: none; background: none; padding: 0;
+    color: var(--text-muted); font-size: 12px; cursor: pointer; line-height: 1;
+  }
+  .genera-fixed .lista-vuota-ricerca {
+    margin: 12px 4px; font-size: 13px; color: var(--text-muted);
+  }
+  .song-panel.is-empty .song-search-row { display: none; }
+  /* Blocco zoom MISURATO sull'export: non sei bottoni separati ma una
+     BARRA UNICA grigia #D9D9D9 da 158x21 (canvas 1227..1385 -> card-relative
+     1183), con un evidenziatore blu #0071DA che scorre sul valore attivo e
+     ne rende il testo bianco. La lente sta fuori dalla barra, a sinistra. */
+  .genera-fixed .pv-zoom { left: calc(1161px + var(--extra)); top: 8px; height: 26px; display: flex; align-items: center; gap: 7px; }
+  .genera-fixed .pv-zoom .zoom-lente { width: 15px; height: 15px; flex: none; line-height: 1; }
+  .genera-fixed .zoom-bar {
+    /* 24 e non i 21 misurati sull'export: WCAG 2.2 SC 2.5.8 chiede
+       bersagli di almeno 24x24 px CSS, e questi cinque pulsanti sono
+       attaccati fra loro (zero spazio attorno), quindi non possono
+       appoggiarsi all'eccezione dello spazio. La larghezza resta quella
+       del disegno. */
+    width: 158px; height: 24px; border-radius: 5px; background: #D9D9D9;
+    display: flex; align-items: stretch; overflow: hidden; flex: none;
+  }
+  .genera-fixed .zoom-bar .zoom-btn {
+    flex: 1; padding: 0; border: none; background: transparent; border-radius: 5px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 600;
+    color: #000; cursor: pointer; line-height: 24px;
+  }
+  .genera-fixed .zoom-bar .zoom-btn.active { background: #0071DA; color: #fff; }
+  /* Contenitore che si allarga quando si zooma: i livelli dentro
+     continuano a disegnare il brano intero, cambia solo quanta parte se ne
+     vede. Stesso impianto del .bm-scroll del Blocco Marker. */
+  .wave-zoom { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; }
+  /* Con gli switch veri (35px invece di 18) i tre gruppi non entravano piu'
+     nello spazio a destra e la riga andava a capo: partono da 995 e vanno
+     stretti, senza mai spezzare le etichette. */
+  .genera-fixed .pv-toggles {
+    left: calc(995px + var(--extra)); top: 44px; width: 346px; height: 26px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 4px; white-space: nowrap;
+  }
+  /* 12px e non 11: 11px scendevano a ~10px FISICI su schermi piu' piccoli
+     del disegno. Lo spazio recuperato viene dai gap (6->4), non dalla
+     larghezza della riga, cosi' le etichette non vanno a capo - il difetto
+     che aveva richiesto gli 11px in origine. */
+  .genera-fixed .pv-toggles .toggle-label { font-size: 13px; gap: 3px; }
+  .genera-fixed .pv-transport { left: 20px; top: 44px; display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-muted); }
+  .genera-fixed .preview-card .waveform-wrap { left: 19px; top: 88px; width: calc(1322px + var(--extra)); height: 194px; }
+  .genera-fixed .preview-card .waveform { height: 100%; }
+  /* riga delle 12 marche temporali (29:3551): 10px, #6B7280, distribuite */
+  .genera-fixed .pv-times {
+    /* 1240 = 1322 dell'onda meno i 41px di rientro per lato. Con il canvas
+       allargato deve crescere insieme all'onda, altrimenti le marche non
+       stanno piu' sotto il punto che indicano. */
+    left: 60px; top: 292px; width: calc(1240px + var(--extra)); display: flex; justify-content: space-between;
+    /* 12px e non i 10 del wireframe: a 10 scendevano sotto la soglia di
+       leggibilita' su schermi piu' piccoli del disegno. Le 12 marche
+       hanno spazio in abbondanza su 1240px, quindi non si toccano. */
+    font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--text-body);
+  }
+  .genera-fixed .mini-structure-label { left: 19px; top: 320px; margin: 0; }
+  /* margin:0 esplicito - il margine ereditato spostava la striscia a 272
+     invece dei 264 reali */
+  .genera-fixed .mini-structure { left: 19px; top: 337px; width: calc(1322px + var(--extra)); height: 13px; margin: 0; }
+  .generation-tabs-card, .genera-finalize-card {
+    background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px;
+  }
+  .generation-tabs-card { flex: 465; }
+  .genera-finalize-card { flex: 535; }
+
+  /* sotto-struttura interna reale di "Pannello generazione": sinistra
+     tab+impostazioni+statistiche (~62%), destra il widget di registrazione
+     sidecar "BloccoMarker" (~38%) - misurato dal nodo Figma reale
+     (BloccoMarker a left=395px dentro una card di 625px). */
+  .gen-tabs-inner { display: flex; gap: 16px; align-items: start; }
+  .gen-tabs-left { flex: 62; min-width: 0; }
+  .sidecar-record-widget { flex: 38; min-width: 0; }
+
+  .gen-tabs {
+    display: flex; margin: -14px -14px 10px -14px;
+    border-radius: var(--radius-card) var(--radius-card) 0 0; overflow: hidden;
+  }
+  .gen-tabs button {
+    flex: 1; border: none; background: var(--bg-card); color: var(--text-heading);
+    font-family: var(--font-display); font-size: 14px; font-weight: 500;
+    padding: 9px 10px; cursor: pointer; text-align: center;
+  }
+  .gen-tabs button.active { font-weight: 700; background: var(--bg-card); }
+  /* Sfondo grigio chiaro FISSO (dato reale, non segue il tema - Figma non
+     mostra una variante scura di questa striscia) - il testo va quindi
+     forzato scuro qui, altrimenti in tema scuro var(--text-heading) e'
+     chiaro e diventa illeggibile su questo sfondo chiaro (bug reale trovato
+     con uno screenshot vero dell'app in esecuzione, non solo a codice). */
+  .gen-tabs button:not(.active) { background: #E7E7F3; color: #0C355C; }
+  .gen-tab-content.hidden { display: none; }
+  .gen-stats-line { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-heading); margin: 8px 0 0; }
+
+  .sidecar-record-widget .sidecar-panel { background: var(--bg-card-soft); padding: 12px; border-radius: var(--radius-control); margin-bottom: 0; }
+  .sidecar-record-widget .sidecar-panel.hidden { display: none; }
+  .visualizer-thumb-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 90px; margin: 12px 0; border: none; border-radius: var(--radius-card);
+    background: linear-gradient(160deg, #1B2333, #05070C); color: white;
+    font-family: var(--font-display); font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+</style>

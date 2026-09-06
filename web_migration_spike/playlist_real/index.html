@@ -1,0 +1,2477 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>BoxVR Survivor Toolkit - Gestione playlist</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .real-badge {
+    background: #10B981; color: #101828; font-family: var(--font-display);
+    font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 12px;
+    margin-left: 12px; vertical-align: middle;
+  }
+  /* Le note dev (spiegano cosa e' collegato per davvero) non esistono nel
+     wireframe - contribuivano a far sforare la finestra 1920x1080 con lo
+     margin-bottom di default del browser mai azzerato. Font piu' piccolo
+     + niente margine sotto, restano leggibili ma occupano meno spazio
+     verticale reale. */
+  /* 10px erano 10px FISICI sullo schermo del tester (scala 0.75 x dpr
+     1.25): sotto la soglia di leggibilita'. 12px e' il corpo del testo
+     del wireframe, ed e' il minimo che fitPage garantisce. */
+  .not-wired-note { font-size: 13px; line-height: 1.4; color: var(--text-muted); margin: 4px 0 0; }
+  /* BPM: valore/matita/ricerca/riga di modifica - da "Anteprima brano.svg"
+     (componente condiviso Correggi/Genera, ricontrollato dopo un export
+     aggiornato dell'utente). Arancione #FF883E per "incerto" - colore
+     scelto esplicitamente dall'utente per non confonderlo col rosso di
+     un vero errore. */
+  .bpm-control { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+  /* MISURATO sull'export: BPM affidabile = solo testo #676767, nessuna
+     pillola; BPM sospetto = pillola arancione #FF883E con testo BLU SCURO
+     #0C355C (non bianco) e il triangolo di avviso davanti. */
+  .bpm-value {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    color: var(--text-muted); padding: 2px 8px; border-radius: 10px;
+  }
+  .bpm-value.suspicious { background: #FF883E; color: #0C355C; }
+  .bpm-value.suspicious::before { content: '\26A0'; margin-right: 4px; font-size: 12px; }
+  .bpm-edit-btn, .bpm-search-btn, .bpm-confirm-btn, .bpm-cancel-btn {
+    border: none; background: transparent; cursor: pointer;
+    padding: 2px; color: var(--accent-blue-strong);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bpm-edit-btn svg, .bpm-search-btn svg, .bpm-confirm-btn svg, .bpm-cancel-btn svg {
+    width: 15px; height: 15px; display: block;
+  }
+  .bpm-search-btn { color: #FF883E; }
+  .bpm-confirm-btn { color: #5ABE51; }
+  .bpm-cancel-btn { color: #B00000; }
+  .bpm-edit-row { display: inline-flex; align-items: center; gap: 4px; }
+  .bpm-edit-row input {
+    width: 72px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border-soft);
+    font-family: var(--font-display); font-size: 14px;
+  }
+  .analisi-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; }
+  .analisi-row .analisi-label { font-size: 13px; color: var(--text-muted); }
+  .segmented.small button { padding: 3px 10px; font-size: 13px; }
+
+  /* "Blocco Marker.svg" - colori reali: Registra #0071DA, Marca (in ascolto)
+     #7700FF, tick marker gialli #ffd60a (STESSO valore di MARKER_TICK_COLOR
+     in boxvr_fixer_gui.py, non un giallo scelto a occhio). Prima
+     integrazione reale del sidecar nel port. */
+  .sidecar-panel { background: var(--bg-card-soft); border-radius: var(--radius-card); padding: 14px; margin-bottom: 10px; }
+  #sidecar-record-btn { background: #0071DA; }
+  #sidecar-record-btn.recording { background: #7700FF; }
+  /* Blocco Marker ricostruito su dati REALI (get_design_context, 3 stati) -
+     card azzurra con bordo blu, spettro vero del brano come sfondo (non
+     l'immagine decorativa generica del reale, dato vero al suo posto),
+     UN pulsante che cambia testo/colore invece di due (uno disabilitato). */
+  .blocco-marker {
+    position: relative; overflow: hidden; background: var(--bm-fondo); border: 1px solid var(--bm-bordo);
+    border-radius: 15px; padding: 10px 10px 8px; text-align: center; margin-bottom: 0;
+  }
+  /* Spettro e righello scorrono INSIEME sotto un cursore fermo al centro
+     (confermato dall'utente e leggibile nei dati reali: nelle varianti in
+     riproduzione la forma d'onda ha inset NEGATIVI left:-100.51% /
+     right:-174.75%, cioe' e' una pista piu' larga del riquadro che viene
+     traslata, mentre a riposo e' left:0/right:0 a piena larghezza).
+     375.26% = 100.51 + 100 + 174.75, la larghezza reale della pista. */
+  /* "Palco" del blocco marker: coordinate REALI del componente 198x132
+     (44:5489). Forma d'onda 24..108, marker 29..100, staffa BPM RANGE con
+     base a y=100 e trattini che salgono da 87, cursore 28..100 con manopola
+     a 23. Qui il palco parte a y=24, quindi le y sono riportate -24. */
+  /* Palco = forma d'onda del componente: y 24..108 su 132 di card, a piena
+     larghezza (nel reale image 4 e' left:0/right:0). Le y qui sotto sono
+     quelle del componente meno 24. */
+  .bm-stage { position: absolute; left: 0; right: 0; top: 24px; height: 84px; overflow: hidden; }
+  .bm-scroll { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; }
+  /* 1200% e non 375%: a 375 la finestra visibile copriva circa 42 secondi
+     di brano, dentro cui i singoli beat erano indistinguibili e allineare
+     un marker a orecchio era un'illusione. A 1200 se ne vedono circa 13,
+     cioe' una trentina di beat: la griglia si legge e si marca sul colpo.
+     Segnalato dall'utente: "la traccia va zoommata maggiormente cosi' da
+     mostrarne l'allineamento alla rete dei beat". */
+  /* la larghezza da zoomato la scrive applicaZoomPista, dal solo
+     BM_TRACK_PCT: qui resterebbe un secondo numero da tenere allineato */
+  /* forma d'onda SPECULARE attorno all'asse centrale (align-items:center),
+     non barre che crescono dal basso; riempie tutto il palco (24..108) */
+  .bm-wave-track { position: absolute; left: 0; right: 0; top: 0; height: 84px; }
+  .bm-wave-track svg { width: 100%; height: 100%; display: block; }
+  .bm-wave-track polygon { fill: var(--bm-onda); opacity: 0.75; }
+  /* Banda delle zone, solo in «Estendi»: dove hai dettato un ritmo, dove
+     hai messo un accento isolato, e (per assenza) dove genera il tool.
+     Sta sopra i marker, nei 4px che restano liberi in cima al palco: i
+     marker cominciano a 5. Serve perche' con gli stessi colpi la
+     modalita' puo' comportarsi in due modi diversi a seconda di come
+     sono distribuiti - senza vederlo, sembra un capriccio. */
+  .bm-zone-layer { position: absolute; left: 0; right: 0; top: 0; height: 4px; display: none; }
+  .bm-stage.con-zone .bm-zone-layer { display: block; }
+  .bm-zone { position: absolute; top: 0; height: 4px; border-radius: 2px; }
+  .bm-zone.blocco { background: #5100A2; }      /* il viola dei marker, pieno */
+  .bm-zone.accento { background: #C67100; min-width: 3px; }
+  /* marker: 29..100 nel componente = 5..76 nel palco */
+  .bm-marker-layer { position: absolute; left: 0; right: 0; top: 5px; height: 71px; }
+  .bm-marker-layer .marker-tick { position: absolute; top: 0; bottom: 0; width: 1.5px; background: rgba(119,0,255,0.75); }
+  .bm-marker-layer .marker-tick.doomed { background: rgba(170,0,0,0.66); }
+  /* staffa "BPM RANGE": trattini 87..100 = 63..76, base a 100 = 76 */
+  .bm-bpm-ticks { position: absolute; left: 0; right: 0; top: 63px; height: 13px; }
+  /* Due livelli, come il righello di qualunque editor audio: il beat
+     tenue, la battuta (un beat ogni quattro) marcata e piu' alta. Prima
+     c'era un livello solo, e per giunta un trattino ogni SEDICI beat: a
+     131 BPM significa uno ogni sette secondi, cioe' una rete cosi' larga
+     da non dire piu' niente sull'allineamento. */
+  .bm-bpm-ticks .beat-tick { position: absolute; top: 5px; bottom: 0; width: 1px; background: rgba(12,53,92,0.28); }
+  .bm-bpm-ticks .beat-tick.battuta { top: 0; width: 1.5px; background: rgba(12,53,92,0.62); }
+  .bm-bpm-base { position: absolute; left: 8px; right: 8px; top: 76px; height: 1px; background: var(--bm-riga); }
+  .bm-bpm-label {
+    /* 58 e non 69: a 69 il testo occupava 69..82 mentre la linea di base
+       della staffa sta a 76, e la attraversava a meta' altezza (segnalato
+       dall'utente). A 58 finisce a 71 e resta 5px sopra la linea. */
+    position: absolute; left: 0; right: 0; top: 58px; text-align: center;
+    font-family: var(--font-body); font-size: 11px; font-weight: 500;
+    color: var(--bm-etichetta); pointer-events: none;
+  }
+  /* misure reali: pulsante 67x20 raggio 6 (44:5361), riga a y 4..24 con
+     "Marca" a left=19 in registrazione e centrato da fermo (44:5414). */
+  .bm-action-btn {
+    position: relative; border: none; border-radius: 6px; color: white; font-family: var(--font-display);
+    font-weight: 700; font-size: 14px; line-height: 1; height: 20px; padding: 0 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; white-space: nowrap;
+  }
+  .bm-top-row {
+    position: absolute; left: 0; right: 0; top: 4px; height: 20px;
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+  }
+  .bm-top-row.recording { justify-content: flex-start; padding-left: 19px; }
+  .bm-hint { font-size: 13px; color: var(--text-heading); font-weight: 500; white-space: nowrap; }
+  /* Il cursore NON si muove: sta fisso al centro ed e' la pista (spettro +
+     marker + staffa BPM) a scorrergli sotto. Sta FUORI da .bm-stage: il
+     palco ha overflow:hidden per tagliare la pista che scorre, e teneva
+     dentro anche la manopola tagliandola a meta'. Qui e' figlio della card,
+     quindi le y sono quelle vere del componente: colonna 28..100. */
+  .playhead-widget { position: absolute; top: 28px; height: 72px; left: 50%; width: 14px; margin-left: -7px; z-index: 4; }
+  .playhead-widget.hidden { display: none; }
+  .ph-col { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: rgba(51,156,255,0.33); }
+  /* staffe scure sopra e sotto la colonna (44:5606 / 44:5603) */
+  .ph-cap { position: absolute; left: 0; right: 0; background: #0C3D6E; border-radius: 1px; }
+  .ph-cap.top { top: 0; height: 5px; }
+  .ph-cap.bottom { bottom: 0; height: 3px; }
+  /* linea centrale TRATTEGGIATA, non continua */
+  .ph-line {
+    position: absolute; top: 6px; bottom: 5px; left: 50%; width: 0; margin-left: -0.5px;
+    border-left: 1px dashed #0C3D6E;
+  }
+  /* manopola: cerchio BLU PIENO con icona BIANCA (play da fermo, pausa in
+     riproduzione - nel reale le due varianti hanno contenuti diversi) */
+  /* manopola a y=23 del componente: il cursore parte a 28 (=4 nel palco),
+     quindi -5 la porta esattamente a 23, sotto la riga "Marca"/hint che
+     finisce a 23 - prima a -7 ci finiva sopra e si sovrapponevano. */
+  .ph-knob {
+    position: absolute; top: -5px; left: 50%; margin-left: -6.5px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #0071DA; border: 1.5px solid #fff;
+    display: flex; align-items: center; justify-content: center; gap: 1.5px;
+    cursor: pointer; padding: 0; z-index: 5;
+  }
+  .ph-knob i { width: 1.5px; height: 5px; background: #fff; display: block; border-radius: 0.5px; }
+  .ph-knob .tri {
+    width: 0; height: 0; margin-left: 1.5px;
+    border-left: 5px solid #fff;
+    border-top: 3px solid transparent; border-bottom: 3px solid transparent;
+  }
+  /* trasporto a y=104 del componente (inset 78.79% di 132), alto 18 */
+  .bm-transport { position: absolute; left: 0; right: 0; top: 104px; height: 18px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  /* 10px scendevano sotto i 10px FISICI su schermi piu' piccoli del
+     disegno: sotto la soglia che fitPage garantisce. */
+  .bm-transport span { font-family: var(--font-display); font-size: 13px; color: var(--text-body); font-weight: 600; }
+  /* icona rossa di reset/riavvolgimento, presente nel reale accanto a pausa */
+  .bm-reset-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    width: 13px; height: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .bm-reset-btn svg { width: 100%; height: 100%; }
+  /* Indicatore di avanzamento sulla waveform principale - mancava del
+     tutto (segnalato dall'utente), stesso pattern gia' reale del playhead
+     del pannello sidecar sopra, solo su .waveform-wrap invece di
+     .sidecar-ruler. */
+  /* Cursore del brano, MISURATO sull'export: linea NERA da 1px che va da
+     y 51 a 249 (card-relative) - quindi sopra la forma d'onda (top 69) e
+     sotto le marche temporali - con un cerchietto VUOTO da 9px a ogni
+     estremita'. Non era una barra rossa dentro il riquadro dell'onda.
+     La linea vera parte 13px sotto e finisce 13px sopra i due cerchi. */
+  /* top 74 e non 51: la fascia dei comandi arriva a 70, e il cerchietto
+     del cursore le finiva dentro, proprio sopra il pulsante di play
+     (segnalato dall'utente). Ora parte sotto, e arriva fin sotto la
+     mini-struttura. */
+  .genera-fixed .main-playhead {
+    left: 19px; top: 74px; width: 9px; height: 278px;
+    margin-left: -4.5px; pointer-events: none; z-index: 5;
+    background: linear-gradient(#000, #000) no-repeat center / 1px calc(100% - 26px);
+  }
+  .genera-fixed .main-playhead::before,
+  .genera-fixed .main-playhead::after {
+    content: ''; position: absolute; left: 0; width: 9px; height: 9px;
+    border-radius: 50%; border: 1.5px solid #000; background: #fff; box-sizing: border-box;
+  }
+  .genera-fixed .main-playhead::before { top: 0; }
+  .genera-fixed .main-playhead::after { bottom: 0; }
+  body.seeking { cursor: grabbing; user-select: none; }
+  body.seeking .waveform-wrap { cursor: grabbing; }
+
+  /* La traccia dell'interruttore acceso e' il ciano di marca (#09E2E2),
+     che su bianco da' 1.62:1. Il colore NON si tocca: e' misurato dal
+     Figma ed e' identita' del prodotto. Si aggiunge invece un contorno
+     sottile, che da' al controllo un confine discernibile senza cambiare
+     la tinta - la via che WCAG 1.4.11 prevede proprio per questi casi
+     (lo stato resta leggibile anche dalla posizione della manopola). */
+  .toggle { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.28); }
+
+  /* ---- stato "analisi in corso" (29:3526) ----
+     tutto ingrigito e la scritta centrata sopra la forma d'onda. */
+  .preview-analyzing {
+    position: absolute; inset: 0; display: none; z-index: 4;
+    align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    color: #0C355C; pointer-events: none;
+  }
+  .preview-analyzing .status-spinner { width: 20px; height: 20px; border-width: 3px; }
+  .preview-card.analyzing .preview-analyzing { display: flex; }
+  /* MISURATO: durante l'analisi NON ci sono bande colorate - solo la sagoma
+     grigia SFOCATA su fondo bianco. Il grigio #C7C7C7 e' esattamente il
+     bianco meno i 56 del linear burn, quindi basta nascondere le bande e
+     lasciare il layer scurito, che su fondo bianco viene proprio #C7C7C7. */
+  .preview-card.analyzing #waveform { visibility: hidden; }
+  .preview-card.analyzing #waveform-dark .seg { background: #C7C7C7 !important; }
+  .preview-card.analyzing #wave-zoom { filter: blur(3px); }
+  .preview-card.analyzing .mini-structure .seg { background: #C7C7C7; }
+  .preview-card.analyzing .main-playhead { display: none; }
+  .preview-card.analyzing .wave-overlay { display: none; }
+  /* motore e zoom disattivati: grigi, non blu */
+  .preview-card.analyzing #engine-toggle button.active { background: #A7A7A7; }
+  .preview-card.analyzing .zoom-btn.active { background: #A7A7A7; }
+  .preview-card.analyzing .bpm-value { background: #E8E8E8; color: #676767; }
+
+  /* ---- stato "analisi fallita" (29:3650) ----
+     card ROSATA #FDD, nome brano rosso, "Analisi fallita  Riprova" al
+     centro; il resto ingrigito come lo stato di analisi. */
+  .preview-failed {
+    position: absolute; inset: 0; display: none; z-index: 4;
+    align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    color: #0C355C;
+  }
+  .preview-failed .retry-link { font-size: 18px; pointer-events: auto; }
+  .preview-card.failed { background: #FDD; }
+  .preview-card.failed .preview-failed { display: flex; }
+  .preview-card.failed .pv-name { color: #FF3E41; }
+  /* fallita: stessa sagoma sfocata, ma su fondo ROSATO - misurato #FFE4E4
+     per l'area dell'onda, e la sagoma e' quel fondo meno 56 */
+  .preview-card.failed .waveform-wrap { background: #FFE4E4; }
+  .preview-card.failed #waveform { visibility: hidden; }
+  .preview-card.failed #waveform-dark .seg { background: #C7ACAC !important; }
+  .preview-card.failed #wave-zoom { filter: blur(3px); }
+  .preview-card.failed .mini-structure .seg { background: #C7C7C7; }
+  .preview-card.failed .main-playhead { display: none; }
+  .preview-card.failed .wave-overlay { display: none; }
+  .preview-card.failed #engine-toggle button.active { background: #A7A7A7; }
+  .preview-card.failed .zoom-btn.active { background: #A7A7A7; }
+  .preview-card.failed .bpm-value { background: #E8E8E8; color: #676767; }
+  .sidecar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 14px; }
+  .sidecar-controls label { display: flex; align-items: center; gap: 6px; color: var(--text-body); }
+  .sidecar-controls select, .sidecar-controls input[type=number] {
+    border: 1px solid var(--border-soft); border-radius: 6px; padding: 3px 8px; font-family: var(--font-body);
+  }
+  .sidecar-controls input[type=number] { width: 90px; }
+
+  /* Visualizzatore 3D-ish (Visualizzatore.svg, tecnologia scelta da me su
+     delega esplicita dell'utente: "decidi tu... l'importante è che siano ben
+     comprensibili i colpi e la loro posizione" - Canvas 2D con una
+     mappatura tempo-al-colpo -> posizione calibrata sui punti REALI misurati
+     nell'export, non three.js: meno peso/complessità per lo stesso obiettivo
+     di chiarezza dichiarato dall'utente, niente dipendenza nuova). */
+  /* ===================== Visualizzatore workout =====================
+     Rifatto sullo "spec sheet v1.4" (frame 85:10120) e sui 16 componenti
+     collegati. Non e' un ritocco del precedente: cambia il linguaggio
+     visivo. Prima c'era un corridoio fotografico con anelli gialli; ora
+     c'e' una scena prospettica disegnata, con bersagli luminosi blu (mano
+     sinistra) e rossi (destra), scie ad arco per gancio e montante, e
+     barre arancioni per gli ostacoli.
+     Colori misurati sui frame, non scelti: scena #12122A su fondo #0A0A14,
+     linea dei bersagli #E6FEFF, ostacoli #FF6B00, scudo #FF003C. */
+  .visualizer-modal {
+    position: fixed; inset: 0; background: rgba(4, 4, 10, 0.82);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+    backdrop-filter: blur(3px);
+  }
+  .visualizer-modal.visible { display: flex; }
+  .visualizer-box {
+    /* La modale e' un contenitore flex: senza `flex: none` la scatola si
+       restringe sotto la misura del canvas, e la scena perde le
+       proporzioni su cui e' calcolata la prospettiva. */
+    flex: none;
+    background: #0A0A14; border: 1px solid #2A2A55;
+    border-radius: 14px; padding: 16px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  }
+  .visualizer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 12px;
+  }
+  .visualizer-head .viz-titolo {
+    font-family: var(--font-display); font-weight: 700; font-size: 15px;
+    color: #E6FEFF; margin-right: auto;
+  }
+  .visualizer-head select {
+    background: #12122A; color: #E6E6ED; border: 1px solid #2A2A55;
+    border-radius: 8px; padding: 6px 10px; font-family: var(--font-body);
+    font-size: 13px; max-width: 320px;
+  }
+  .visualizer-close {
+    border: 1px solid #2A2A55; background: #12122A; border-radius: 8px;
+    width: 30px; height: 30px; font-size: 14px; cursor: pointer; color: #E6E6ED;
+  }
+  .visualizer-close:hover { background: #1B1B3A; }
+  #visualizer-canvas {
+    display: block; background: #12122A; border-radius: 10px;
+    border: 1px solid #2A2A55;
+    /* Misura fissa: la superficie di disegno viene creata a partire da
+       queste, e senza una misura CSS esplicita il canvas si restringeva
+       secondo il contenitore, cambiando le proporzioni della scena. Nel
+       canvas 1920x1080 della pagina 900x500 ci sta sempre. */
+    width: 900px; height: 500px; flex: none;
+  }
+  /* Barra di trasporto: due controlli audio DISTINTI, come nello spec.
+     Le cuffie governano il suono dei colpi, la nota il volume del brano -
+     erano una richiesta esplicita e nel disegno ci sono entrambi. */
+  .visualizer-transport {
+    display: flex; align-items: center; gap: 12px; margin-top: 12px;
+    background: #12122A; border: 1px solid #2A2A55; border-radius: 10px;
+    padding: 8px 12px; font-family: var(--font-body); font-size: 13px;
+    color: #C9C9E0;
+  }
+  .viz-btn {
+    width: 30px; height: 30px; flex: none; cursor: pointer;
+    border: 1px solid #2A6BAF; border-radius: 8px; background: #142244;
+    color: #4FB4FF; font-size: 14px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .viz-btn:hover { background: #1B2E5C; }
+  /* Il quadrato dello stop ha un'area disegnata piu' piccola del triangolo
+     del play a parita' di corpo, e accanto sembrava rimpicciolito. Non e'
+     il pulsante a cambiare misura - resta 30x30 - ma il glifo. */
+  #visualizer-stop-btn { font-size: 17px; }
+  .viz-btn.spento { color: #6B6B8A; border-color: #2A2A55; background: #12122A; }
+  .visualizer-transport input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
+    background: #2A2A55; outline: none;
+  }
+  .visualizer-transport input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%;
+    background: #4FB4FF; cursor: pointer;
+  }
+  /* Selettore piu' specifico di proposito: il foglio condiviso ha
+     `input[type="range"] { width: 100% }` (specificita' 0,1,1), che batteva
+     `.viz-vol` (0,1,0). Risultato: il cursore del volume veniva largo 874px
+     e sfondava fuori dalla modale, spingendo fuori nome del brano e BPM.
+     Le due regole si combattevano senza dare nessun errore. */
+  .visualizer-transport input.viz-seek { flex: 1 1 auto; width: auto; min-width: 140px; }
+  .visualizer-transport input.viz-vol { flex: 0 0 84px; width: 84px; }
+  .viz-tempo { font-variant-numeric: tabular-nums; color: #9A9AC0; flex: none; }
+  .viz-brano {
+    margin-left: auto; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 260px; color: #C9C9E0;
+  }
+  .viz-bpm {
+    flex: none; background: #2A2A55; color: #7FD0FF; border-radius: 10px;
+    padding: 3px 9px; font-weight: 700; font-size: 12px;
+  }
+
+  /* .wave-toggle-row/.waveform-wrap/.wave-overlay: regole comuni in styles.css
+     (condivise con correggi_real, stesso componente waveform) */
+
+  /* Rimozione per-brano - stesso pattern di correggi_real: X in hover su
+     qualsiasi riga, "selected" (stroke blu, in styles.css) e' un concetto
+     indipendente per il brano aperto nel pannello. */
+  .song-row { position: relative; }
+  /* RI-MISURATA sull'export "Song Info Card@2x.png", stato "On focus"
+     (campionamento pixel sulla terza card): il pulsante NON e' un disco
+     pieno con la X bianca - e' un ANELLO sottile con la X dello stesso
+     blu dentro, sul fondo della card. Misure reali:
+         diametro 13px  (io avevo 18)
+         centro a 16px dal bordo destro, quindi right:10 con 13+3 di bordo
+         centrato in verticale sui 73px di card
+     Da qui la segnalazione "il posizionamento di queste icone e' sbagliato":
+     era troppo grande, troppo vicino al bordo e pieno invece che vuoto. */
+  .song-row .song-remove-x {
+    display: none; position: absolute; top: 50%; right: 10px;
+    transform: translateY(-50%);
+    width: 13px; height: 13px; border-radius: 50%; padding: 0;
+    background: transparent; border: 1.5px solid var(--x-rimuovi);
+    color: var(--x-rimuovi); font-size: 9px; font-weight: 700;
+    line-height: 10px; text-align: center; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .song-row:hover .song-remove-x { display: flex; }
+  /* lo stato "Cancel on focus" del componente non mostra il bordo di
+     selezione: e' la card intera a diventare rosa */
+  .song-row.confirm-remove { background: #FFD5D6 !important; border-color: transparent !important; }
+  .song-row.confirm-remove .row-top, .song-row.confirm-remove .row-bottom {
+    filter: blur(2px); opacity: 0.55;
+  }
+  .song-row.confirm-remove .song-remove-x { display: none; }
+  /* MISURATA: pillola ROSSO PIENO #FF0000 (non #FF3E41), 88x22, a 7px dal
+     bordo destro e centrata verticalmente, con la X in un cerchio bianco. */
+  .remove-confirm-bar {
+    display: none; align-items: center; justify-content: center; gap: 6px;
+    position: absolute; top: 50%; right: 7px; transform: translateY(-50%);
+    width: 88px; height: 22px;
+    background: #FF0000; color: #fff; border: none;
+    border-radius: 4px; padding: 0; font-size: 13px; font-weight: 700;
+    font-family: var(--font-display); cursor: pointer;
+  }
+  .remove-confirm-bar .x-tondo {
+    width: 13px; height: 13px; border-radius: 50%; background: #fff;
+    color: #FF0000; font-size: 9px; line-height: 13px; text-align: center;
+    font-weight: 700; flex: none;
+  }
+  .song-row.confirm-remove .remove-confirm-bar { display: inline-flex; }
+
+  /* Riga inferiore a 2 card ("Pannello generazione" - dati REALI da
+     get_design_context/Figma MCP il 31/08 sera, non piu' stime da
+     screenshot: "Pannello generazione" e' un SINGOLO componente 625px,
+     "Genera" (Group 9) e' 720px - insieme 1345px su 1360 disponibili,
+     combacia). PRIMA di questo fix pensavo fossero 3 colonne separate;
+     erano in realta' 2 card, la prima con una sotto-struttura interna a
+     2 colonne (vedi .gen-tabs-inner sotto). */
+  .genera-layout { display: grid; grid-template-columns: 1fr 440px; gap: 24px; align-items: start; }
+  .genera-layout main { grid-column: 1; grid-row: 1; }
+  .genera-layout .genera-bottom-row { grid-column: 1; grid-row: 2; }
+  .genera-layout .song-panel { grid-column: 2; grid-row: 1 / 3; }
+
+  .genera-bottom-row { display: flex; gap: 24px; align-items: start; margin-top: 10px; }
+
+  /* ------------------------------------------------------------------
+     CANVAS 1920x1080 ESATTO - coordinate ASSOLUTE prese dal frame Figma
+     reale (get_metadata su 29:4407, frame 1920x1080). Non piu' margini
+     "a occhio" nel flusso, che facevano sforare il contenuto sotto la
+     finestra: ogni blocco sta esattamente dove sta nel wireframe.
+
+       header/titolo    x=40  y=33         (29:4510)
+       icona            x=40  y=94  45x45  (31:5827)
+       "Crea Workout"   x=95  y=99         (29:4508)
+       descrizione      x=40  y=154 1301x104 (29:4509)
+       Anteprima brano  x=44  y=313 1360x314 (29:4512)
+       Pannello brani   x=1431 y=338 440x693 (29:4520)
+       Pann. generaz.   x=44  y=651 625x380  (44:5830)
+       Card finalizz.   x=684 y=651 720x380  (29:4521)
+
+     Tutto finisce a y=1031, con 49px di margine sotto: 1080 esatti.
+     L'area di contenuto della finestra viene portata a 1920x1080 veri da
+     _fit_client_to_wireframe in app.py (la finestra esterna e' piu' grande
+     per via di bordo+barra del titolo). ------------------------------- */
+  html, body { height: 100%; overflow: hidden; }
+  /* La pagina e' SEMPRE un canvas di 1920x1080 esatti (le coordinate qui
+     sotto sono quelle del frame Figma). Se la finestra e' piu' piccola -
+     succede per forza su un monitor 1920x1080 con lo scaling di Windows al
+     125%, dove 1920 CSS = 2400 pixel reali - il canvas viene SCALATO
+     (fitPage), non riflusso: le proporzioni del wireframe restano identiche
+     e non compare mai una barra di scorrimento. */
+  /* --extra: quanti px di disegno il canvas guadagna oltre i 1920, quando
+     la finestra e' piu' larga di 16:9. Lo calcola fitPage a ogni
+     ridimensionamento. A --extra:0 tutto torna ESATTAMENTE al wireframe,
+     che e' anche la condizione in cui gira audit_figma. */
+  .page.genera-fixed {
+    --extra: 0px;
+    position: absolute; top: 0; left: 0;
+    width: calc(1920px + var(--extra)); height: 1080px;
+    /* max-width: none SERVE: il foglio condiviso ha .page{max-width:1920px}
+       e senza questa riga il canvas allargato veniva ritagliato a 1920 -
+       --extra risultava 640 ma la larghezza calcolata restava 1920px, cioe'
+       la modifica sembrava non fare niente. */
+    max-width: none;
+    margin: 0; padding: 0; overflow: hidden; transform-origin: top left;
+  }
+  /* "Pattern Scacchiera" (frame 29:4408): campo di icone pugno/guantone
+     sparse su tutto lo sfondo della pagina, sfocate e a bassa opacita'.
+     Nel reale sono ~110 istanze del componente "Icone visualizzatore" su
+     una griglia a scacchiera (passo ~236x118, righe alternate sfalsate)
+     ruotate di 0/13/22.5/45 gradi - i quattro riquadri di ingombro
+     osservati (100 / 122.47 / 136.60 / 141.42) sono esattamente
+     100*(|cos|+|sin|) per quegli angoli. Ricostruito con la stessa griglia
+     e le icone VERE del progetto, colorate via mask-image. */
+  .bg-pattern {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    z-index: 0; filter: blur(1.5px);
+  }
+  .bg-pattern i {
+    position: absolute; display: block;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-position: center; mask-position: center;
+  }
+  /* tutto il contenuto vero sta sopra il pattern */
+  .genera-fixed > *:not(.bg-pattern) { position: relative; z-index: 1; }
+  .genera-fixed .app-header { position: absolute; left: 40px; top: 33px; right: 40px; margin: 0; }
+  /* La pillola della patch e' ancorata a DESTRA, ACCANTO al selettore lingua
+     (segnalato dall'utente). Serve togliere il "margin-left: auto" che il
+     selettore lingua ha nel foglio condiviso, altrimenti spingono entrambi e
+     restano separati da un buco. */
+  /* Il pulsante per la libreria del gioco: spinto a destra insieme alla
+     pillola della patch, cosi' i comandi di servizio stanno tutti da quella
+     parte invece di galleggiare accanto al titolo. */
+  .header-btn {
+    margin-left: auto;
+    font-family: var(--font-display); font-weight: 600; font-size: 13px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--input-border);
+    background: var(--bg-card); color: var(--text-body);
+    cursor: pointer; white-space: nowrap;
+  }
+  .header-btn:hover { border-color: var(--accent-blue-strong); color: var(--accent-blue-strong); }
+  /* con il pulsante presente, e' LUI a prendere lo spazio: la pillola lo
+     seguirebbe con un secondo margin-left:auto e si separerebbero */
+  .genera-fixed .app-header .header-btn ~ #patch-pill-wrap { margin-left: 12px; }
+  .genera-fixed .app-header #patch-pill-wrap { margin-left: auto; }
+  .genera-fixed .app-header .lang-switch { margin-left: 0; }
+  .genera-fixed .section-title { position: absolute; left: 40px; top: 94px; margin: 0; }
+  .genera-fixed .section-desc { position: absolute; left: 40px; top: 154px; width: 1301px; margin: 0; }
+  /* la nota dev non esiste nel wireframe: sta nello spazio libero reale
+     fra la descrizione (finisce a 258) e l'anteprima (inizia a 313). */
+  .genera-fixed > .not-wired-note { position: absolute; left: 40px; top: 266px; width: 1301px; margin: 0; }
+
+  /* .genera-layout e' grande quanto tutta la pagina perche' fa da sistema di
+     riferimento alle coordinate assolute del wireframe, MA cosi' copriva
+     anche header e titolo: i click finivano su di lei invece che sui
+     comandi in alto (lo switch del tema non rispondeva piu'). Non deve
+     intercettare il puntatore: lo riattivano i suoi figli veri. */
+  .genera-fixed .genera-layout {
+    position: absolute; left: 0; top: 0;
+    width: calc(1920px + var(--extra)); height: 1080px;
+    display: block; gap: 0; pointer-events: none;
+  }
+  .genera-fixed .genera-layout > * { pointer-events: auto; }
+  /* l'header resta sopra a tutto il resto del contenuto */
+  .genera-fixed .app-header { z-index: 3; }
+  .genera-fixed .info-popover { z-index: 60; }
+
+  /* ---- "Stati generazione" (30:5648): 5 varianti, valori REALI ----
+     pulsante 192x45 r15 con il testo di stato ACCANTO, non sotto;
+     barra separata a piena larghezza (h15, r7.5, fondo #E5E5E5).
+       non avviata  -> pulsante #F4506B, barra vuota
+       in corso     -> gradiente rosa, barra gradiente #F4506B->#3FA2FF
+       completata   -> #85ACF1 + pulsante bordato "Apri cartella risultati",
+                       barra piena #0071DA
+       fallita      -> #424242 + messaggio rosso #BF0000
+       nome mancante-> #B1B1B1 con testo #737373, barra vuota            */
+  .stati-gen { margin: 10px 0 0; }
+  .sg-row { display: flex; align-items: center; gap: 12px; }
+  .sg-btn {
+    flex: none; width: 192px; height: 45px; border: none; border-radius: 15px;
+    font-family: var(--font-body); font-weight: 700; font-size: 16px;
+    color: #101828; background: #F4506B; cursor: pointer;
+  }
+  .sg-open {
+    flex: none; height: 45px; padding: 0 16px; border-radius: 15px;
+    background: var(--bg-card); border: 1px solid #0071DA; color: #0071DA;
+    font-family: var(--font-body); font-weight: 700; font-size: 16px;
+    cursor: pointer; display: none;
+  }
+  /* #424242 era un grigio del tema CHIARO: sulla card scura dava 1.39:1,
+     praticamente invisibile. E' proprio il messaggio che spiega perche' il
+     pulsante di generazione e' spento ("Nome playlist necessario"), cioe'
+     l'unica cosa che dice all'utente come sbloccarsi. */
+  .sg-msg { font-size: 13px; color: var(--text-body); max-width: 220px; line-height: 1.25; white-space: pre-line; }
+  /* --text-heading, non il suo valore in tema chiaro scritto a mano:
+     #0C355C e' un blu quasi nero, e sul fondo scuro il conteggio
+     "Workout processati" era praticamente invisibile. Il token vale
+     lo stesso colore in tema chiaro e diventa chiaro in tema scuro. */
+  .sg-count { margin-left: auto; font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--text-heading); text-align: right; }
+  .sg-bar { height: 15px; border-radius: 7.5px; background: #E5E5E5; margin-top: 11px; overflow: hidden; }
+  .sg-bar-fill { height: 100%; width: 0; border-radius: 7.5px; transition: width .25s; }
+
+  /* #737373 su #B1B1B1 era 2.21:1: il pulsante principale, da spento,
+     non si leggeva. #434343 e' il grigio piu' chiaro che passa 4.6:1. */
+  .sg-noname .sg-btn { background: #B1B1B1; color: #434343; cursor: not-allowed; }
+  .sg-idle .sg-msg { display: none; }
+  .sg-running .sg-btn {
+    background: linear-gradient(119.5deg, #E38494 25.157%, #FD91A3 70.337%, #DE1132 108.32%);
+    cursor: default;
+  }
+  .sg-running .sg-msg { display: none; }
+  .sg-running .sg-bar-fill { background: linear-gradient(90deg, #F4506B, #3FA2FF); }
+  .sg-done .sg-btn { background: #85ACF1; cursor: default; }
+  .sg-done .sg-open { display: inline-flex; align-items: center; }
+  .sg-done .sg-msg { display: none; }
+  .sg-done .sg-bar-fill { background: #0071DA; width: 100%; }
+  .sg-failed .sg-btn { background: #424242; cursor: default; }
+  .sg-failed .sg-msg { color: #BF0000; display: block; }
+  .sg-failed .sg-count { color: #BF0000; }
+  .sg-failed .sg-bar-fill { background: #424242; }
+  /* La colonna principale assorbe lo spazio in piu': dentro c'e' la forma
+     d'onda, cioe' l'unico elemento che da uno schermo largo ci guadagna
+     davvero (piu' px = piu' dettaglio temporale). */
+  /* Salita di 48px e cresciuta di 56: il paragrafo a tutta larghezza ha
+     liberato quello spazio, e questo era il blocco piu' compresso - la
+     forma d'onda e' l'unica cosa che da piu' altezza ci guadagna davvero. */
+  .genera-fixed .genera-layout main {
+    position: absolute; left: 44px; top: 265px;
+    width: calc(1360px + var(--extra)); height: 385px;
+  }
+  /* Il pannello brani NON si allarga: le righe sono 404px per misura del
+     wireframe e allargarle non aggiunge informazione. Trasla e basta. */
+  .genera-fixed .genera-layout .song-panel {
+    position: absolute; left: calc(1431px + var(--extra)); top: 290px;
+    width: 440px; height: 764px;
+    display: flex; flex-direction: column; margin: 0;
+    /* 14 a sinistra e 22 a destra: e' la misura del wireframe (righe a
+       x=1445 larghe 404 dentro un pannello a 1431 largo 440), dove i 22 a
+       destra sono lo spazio della barra di scorrimento. */
+    padding: 14px;
+  }
+  /* Barra di scorrimento SOTTILE (6px): con quella di sistema (~15px) la
+     riga scendeva sotto i 404 del wireframe. Cosi' restano 412-6=406px di
+     spazio e la riga sta larga esattamente 404. */
+  .genera-fixed .song-list { overflow-x: hidden; }
+  .genera-fixed .song-list::-webkit-scrollbar { width: 6px; }
+  .genera-fixed .song-list::-webkit-scrollbar-thumb {
+    background: var(--border-soft); border-radius: 3px;
+  }
+  /* Righe brano alle misure REALI del wireframe: la Song Info Card e'
+     404x75 e le righe sono spaziate di 9px (rect a x=1445, y=406/490/574/
+     658/742/826/910/994 nel canvas). Prima erano 408x63, cioe' piu' larghe
+     e piu' basse del vero. */
+  .genera-fixed .song-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+  /* niente larghezza fissa: dentro un contenitore piu' stretto faceva
+     comparire le barre di scorrimento nel pannello brani */
+  .genera-fixed .song-list .song-row { width: 404px; height: 75px; flex: none; padding: 12px 16px; }
+  .genera-fixed .song-list .song-row.selected { padding: 10px 14px; }
+  /* stato a elenco vuoto: sostituisce intestazione e lista, centrato */
+  .song-panel-empty {
+    display: none; flex: 1; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; text-align: center;
+  }
+  .song-panel-empty p {
+    font-family: var(--font-display); font-size: 13px; font-weight: 500;
+    color: var(--text-heading); width: 192px; margin: 0;
+  }
+  /* Larghezza AUTOMATICA: con i 146px fissi l'etichetta "Aggiungi brani"
+     riempiva il pulsante e il "+" andava a capo, finendo sotto al bottone
+     (segnalato dall'utente). Il minimo tiene la misura del wireframe
+     quando l'etichetta e' corta, per esempio in inglese. */
+  .song-panel-empty .btn-add {
+    width: auto; min-width: 146px; height: 32px;
+    padding: 0 16px; white-space: nowrap;
+  }
+  .song-panel.is-empty .song-panel-header,
+  .song-panel.is-empty .song-list,
+  .song-panel.is-empty #list-note { display: none; }
+  .song-panel.is-empty .song-panel-empty { display: flex; }
+  /* ---- Disposizione IMPILATA per finestre strette --------------------
+     WCAG 2.2 SC 1.4.10 "Reflow" chiede che il contenuto si possa usare
+     "senza richiedere scorrimento in DUE dimensioni". Misurato prima di
+     questo blocco: a 1138x683 la pagina usciva di 302px a destra e 127px
+     sotto, e per leggere una riga bisognava scorrere sia in orizzontale
+     sia in verticale. Fallimento pieno del criterio.
+     https://www.w3.org/WAI/WCAG22/Understanding/reflow.html
+
+     La causa non e' il pavimento di leggibilita': e' che il canvas chiede
+     SEMPRE 1920px di larghezza. Sotto una certa finestra o si rimpicciolisce
+     il testo sotto la soglia, o si esce dallo schermo. Non c'e' una terza
+     via finche' la larghezza richiesta resta fissa.
+
+     Qui la larghezza richiesta CAMBIA: il pannello dei brani passa da
+     colonna a destra a fascia sotto il resto, e il canvas scende da 1920 a
+     1448. A scala 0.75 sono 1086px, che entrano in una finestra da 1100.
+     Resta lo scorrimento verticale, che e' normale e non viola nulla.
+     Le righe dei brani sono larghe 404 per misura del wireframe: nella
+     fascia si dispongono in griglia su piu' colonne invece di allungarsi. */
+  /* il contenitore .page porta la sua larghezza a 1920: senza questa riga
+     la scala veniva calcolata su 1448 ma il riquadro restava largo 1920 e
+     l'eccedenza usciva comunque dallo schermo - misurato: 452px a destra */
+  /* Invisibile finche' fitPage non ha scelto la fascia: vedi il commento
+     in fitPage. Senza, su schermi piccoli si vedeva per un istante il
+     layout largo sbordare, e poi saltare a posto. */
+  .page { visibility: hidden; }
+
+  .page.stretta { width: 1448px; height: auto; min-height: 1420px; }
+  .page.stretta .genera-layout { width: 1448px; height: auto; min-height: 1420px; }
+  /* L'ORDINE segue il flusso di lavoro, non lo spazio disponibile:
+     si aggiungono i brani, se ne sceglie uno, lo si ascolta in anteprima,
+     poi si genera. Nella prima versione impilata avevo messo il pannello
+     brani IN FONDO, sotto la card di generazione: era la cosa piu' lontana
+     dall'alto proprio mentre e' il punto di partenza, e per aggiungere un
+     brano bisognava scorrere oltre tutto il resto. Ora sta per primo. */
+  /* Le tre quote NON sono fisse: le calcola fitPage misurando quanto e'
+     alta davvero l'intestazione. Con quote fisse il pannello dei brani
+     finiva SOTTO il paragrafo e spariva, appena il testo si e' fatto piu'
+     alto per la larghezza di lettura ridotta - e sarebbe successo di nuovo
+     passando all'inglese, che ha lunghezze diverse. */
+  .page.stretta .genera-layout .song-panel {
+    left: 44px; top: var(--y-brani, 313px); width: 1360px; height: 300px;
+  }
+  .page.stretta .genera-layout main          { top: var(--y-anteprima, 637px); }
+  .page.stretta .genera-layout .genera-bottom-row { top: var(--y-genera, 975px); }
+  .page.stretta .genera-layout .song-list {
+    flex-direction: row; flex-wrap: wrap; align-content: flex-start;
+    gap: 9px 12px; overflow-y: auto;
+  }
+  .page.stretta .genera-layout main,
+  .page.stretta .genera-layout .genera-bottom-row { width: 1360px; }
+  .page.stretta .pv-title,
+  .page.stretta .waveform-wrap,
+  .page.stretta .mini-structure { width: 1322px; }
+  /* Le marche temporali NON sono larghe come l'onda: partono da left:60 e
+     rientrano di 41px per lato (1322 - 82 = 1240). Dandogli 1322 sforavano
+     di ~20px dalla card, misurati a 1352, 1266 e 1138 di finestra. */
+  .page.stretta .pv-times { width: 1240px; }
+  .page.stretta .pv-bpm    { left: 827px; }
+  .page.stretta .pv-engine { left: 790px; }
+  .page.stretta .pv-volume { left: 1008px; }
+  .page.stretta .pv-zoom   { left: 1161px; }
+  .page.stretta .pv-toggles { left: 995px; }
+
+  .genera-fixed .genera-layout .genera-bottom-row {
+    position: absolute; left: 44px; top: 674px;
+    width: calc(1360px + var(--extra)); height: 380px;
+    margin: 0; gap: 15px;
+  }
+  .genera-fixed .generation-tabs-card { flex: none; width: 625px; height: 380px; overflow: hidden; }
+  /* la card di destra e' quella che contiene il LOG: e' la piu' adatta a
+     prendersi la larghezza in avanzo (righe di log piu' lunghe = meno
+     spezzature). flex-basis 720px = misura del wireframe a --extra:0. */
+  .genera-fixed .genera-finalize-card { flex: 1 1 720px; height: 380px; overflow: hidden; }
+
+  /* La colonna destra della card (BloccoMarker + Anteprima workout +
+     Unifica/Annulla) deve stare nei 380px reali: colonna flessibile, il
+     pannello marker assorbe lo spazio che avanza invece di far sforare
+     tutto il resto fuori dalla card. */
+  .genera-fixed .gen-tabs-inner { height: calc(380px - 28px - 43px); }
+  .genera-fixed .sidecar-record-widget {
+    height: 100%; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+  }
+  /* Blocco Marker: 132px REALI (44:5357, 198x132) - altezza fissa, non
+     elastica. Quando c'e' (solo tab Sidecar) la miniatura si stringe;
+     quando non c'e' (tab Automatica) e' la miniatura a prendersi lo spazio,
+     esattamente come nel wireframe (174px vs 93px fra le due varianti). */
+  /* I colori REALI del Blocco Marker (azzurro #DFF0FF, bordo #0071DA)
+     venivano sovrascritti da .sidecar-record-widget .sidecar-panel, che ha
+     specificita' maggiore: il blocco risultava scuro e "oppure premi F/K"
+     quasi illeggibile. Questo componente tiene i suoi colori reali anche in
+     tema scuro, come gia' fatto per la striscia dei tab. */
+  /* il blocco e' un canvas fisso 132px con figli posizionati alle y reali
+     del componente: niente padding, altrimenti tutte le misure slittano. */
+  .genera-fixed .sidecar-record-widget .blocco-marker {
+    flex: none; height: 132px; margin: 0; padding: 0;
+    background: var(--bm-fondo); border: 1px solid var(--bm-bordo);
+  }
+  /* miniatura: 174px in Automatica, 93px con il Blocco Marker presente
+     (44:4984 vs 44:5647) - elastica fra i due, mai schiacciata a zero. */
+  .genera-fixed .sidecar-record-widget .visualizer-thumb-btn {
+    flex: 1 1 auto; min-height: 60px; max-height: 174px; margin: 0;
+  }
+  /* Unifica/Annulla sono ancorate in basso come nel wireframe (267..311 e
+     318..358 di 380), non subito sotto la miniatura. */
+  .genera-fixed .sidecar-record-widget #unify-btn { margin-top: auto; flex: none; padding: 8px; font-size: 14px; }
+  .genera-fixed .sidecar-record-widget #undo-unify-btn { flex: none; padding: 7px; font-size: 14px; }
+  /* una riga sola con ellissi: il testo completo resta nel tooltip. Su due
+     righe faceva sforare la card oltre i 380px reali. */
+  .genera-fixed #sidecar-note {
+    flex: none; font-size: 11px; line-height: 1.4; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .genera-fixed #unify-note { flex: none; font-size: 11px; line-height: 1.3; }
+  /* Cancella/Resetta: piccoli e affiancati, non due barre a piena larghezza
+     (nel wireframe non esistono affatto - sono funzioni reali in piu', vanno
+     messe senza rubare l'altezza che serve al resto della card). */
+  .sidecar-controls { margin-left: auto; display: flex; gap: 10px; }
+  .link-btn {
+    border: none; background: none; padding: 0; cursor: pointer;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600;
+    color: var(--accent-blue-strong); text-decoration: underline;
+  }
+  .genera-fixed .gen-tabs-left { flex: 1; min-width: 0; overflow: hidden; }
+  /* Il tab Sidecar ha piu' campi dell'Automatica (marker + modalita' +
+     ostacoli + soglia) e sforava di 43px i 380 reali della card: qui le
+     spaziature verticali della sola colonna sinistra sono compattate,
+     senza toccare quelle del resto dell'app. */
+  .genera-fixed .gen-tabs-left .field-label { margin: 6px 0 3px; }
+  .genera-fixed .gen-tabs-left .fasi-legend { gap: 5px 10px; margin: 2px 0 4px; }
+  .genera-fixed #gen-tab-sidecar-summary,
+  .genera-fixed #p-suspicious { font-size: 11px; line-height: 1.3; margin: 2px 0 0; }
+  .genera-fixed .gen-tabs-left input[type="range"] { margin: 2px 0 0; }
+  /* colonna destra 200px esatti: nel wireframe parte a x=395 dentro una
+     card di 625 e finisce a x=595 (44:5654 inset 63.16% / 4.78%). */
+  .genera-fixed .sidecar-record-widget { flex: none; width: 200px; }
+  /* "Unifica playlist" e' BLU nel wireframe (44:4991/44:5654, #0071DA), non
+     rosso: il rosso di .btn-primary e' il colore di "Avvia generazione". */
+  .sidecar-record-widget .btn-primary { background: var(--accent-blue-strong); }
+
+  /* la card anteprima riempie ESATTAMENTE i 314px del componente reale
+     (25px per l'etichetta sopra + 289 di card): la waveform prende lo
+     spazio che avanza invece di avere un'altezza fissa che sfora. */
+  /* Card anteprima: 1360x289 (il componente e' 314 con l'etichetta sopra),
+     figli posizionati alle coordinate REALI - vedi il commento nel markup. */
+  .genera-fixed main h3.block-title { margin: 0; height: 25px; line-height: 21px; }
+  .genera-fixed .preview-card {
+    position: relative; height: 360px; margin: 0; padding: 0; overflow: visible;
+  }
+  .genera-fixed .preview-card > * { position: absolute; }
+  /* eccezione: il tooltip dei blocchi si posiziona rispetto al canvas
+     1920x1080, non alla card - la regola generica qui sopra lo rendeva
+     absolute dentro la card e finiva sotto la forma d onda invece che
+     sopra il puntatore (segnalato dall utente) */
+  .genera-fixed .preview-card > .seg-tooltip { position: fixed; }
+  .genera-fixed .pv-title { left: 19px; top: 10px; width: calc(780px + var(--extra)); display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
+  /* I tre colori qui sotto erano letterali del tema chiaro e finivano
+     sulle card SCURE: #656565 dava 2.40:1, #676767 2.48:1, #6B7280 2.90:1,
+     tutti sotto il 4.5 richiesto. Non si vedevano perche' l'audit aveva
+     sempre girato in un tema solo. Ora prendono dai token, che cambiano
+     con il tema. */
+  .genera-fixed .pv-title .idx { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--text-muted); }
+  .genera-fixed .pv-title .artist { color: var(--text-muted); }
+  /* Il nome del brano segue SUBITO l artista invece di stare a un left
+     fisso: con artisti corti ("ILIA") restava un buco enorme in mezzo
+     (segnalato dall utente). .pv-title e .pv-name stanno nella stessa
+     riga flex ancorata a left 19. */
+  .genera-fixed .pv-name {
+    position: static; margin-left: 8px; max-width: 620px; font-family: var(--font-display);
+    font-weight: 700; font-size: 14px; color: var(--text-heading);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Le due righe di comandi sopra la forma d'onda si TOCCAVANO: la prima
+     stava a 13..42 (pillola BPM alta 24 da top 18) e la seconda a 38..64,
+     quindi si sovrapponevano di 4px e non c'era un solo pixel d'aria fra
+     "??? BPM" e "Precisa", ne' fra la barra dello zoom e "Curva di carica"
+     - da cui la segnalazione "il layout di questi elementi e' ancora
+     troppo schiacciato". Ora:
+         riga 1 (BPM, volume, zoom)        8 .. 34
+         aria                             34 .. 44
+         riga 2 (analisi, interruttori)   44 .. 70
+         aria                             70 .. 78
+         forma d'onda                     78 .. 216
+     e la forma d'onda perde 6px d'altezza invece di far scendere tutto il
+     resto della card, che e' alta 289 fissi. */
+  .genera-fixed .pv-bpm { left: calc(827px + var(--extra)); top: 8px; width: 167px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  /* fascia libera fra pillola BPM (top 18) e forma d onda (top 69):
+     allineato a destra come la pillola, largo fino a 994 (il volume
+     comincia a 1008) */
+  /* Stessa linea mediana degli interruttori a destra: prima .pv-engine
+     stava a top:45 e .pv-toggles a top:41, e i due gruppi risultavano
+     sfalsati di qualche pixel (segnalato dall'utente). Ora condividono top
+     e altezza, quindi l'allineamento non dipende piu' da quanto e' alto il
+     contenuto di ciascuno. */
+  .genera-fixed .pv-engine {
+    /* Fine a 978 e non a 994: fra "Precisa" e "Base beat" restava UN pixel
+       e le due parole si leggevano come una sola (segnalato dall'utente).
+       Il gruppo e' allineato a destra, quindi accorciarlo lo sposta a
+       sinistra e apre 17px d'aria senza toccare gli interruttori, che a
+       destra non hanno margine. */
+    left: calc(774px + var(--extra)); top: 44px; width: 204px; height: 26px;
+    display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  }
+  .genera-fixed .pv-engine .analisi-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .genera-fixed .pv-engine .segmented.small button { padding: 2px 8px; font-size: 13px; }
+  .genera-fixed .pv-volume { left: calc(1008px + var(--extra)); top: 8px; height: 26px; display: flex; align-items: center; gap: 6px; }
+  .genera-fixed .pv-volume input[type=range] { width: 120px; }
+  /* Il valore accanto al cursore: Material 3 lo chiede, e senza non si
+     sapeva su che volume si fosse. tabular-nums perche' passando da 9% a
+     100% la riga non deve ballare. */
+  /* Le scorciatoie scritte accanto al trasporto, non in un manuale che
+     nessuno apre: cosi' si vedono nel momento in cui servono. Piccole e
+     smorzate perche' sono un promemoria, non un comando. */
+  /* La riga che spiega perche' i comandi sono spenti. Sta accanto al
+     trasporto, dove si prova a premerli, non in cima alla pagina: e' li'
+     che serve. role="status" perche' un lettore di schermo la annunci
+     quando compare, senza rubare il fuoco. */
+  /* Quando la soglia sta scartando qualcosa, l'etichetta lo dice e prende
+     il colore d'avviso: e' un'informazione che costa colpi, non un dettaglio. */
+  .genera-fixed .value.con-scarti { color: var(--accent-red-strong); font-weight: 600; }
+
+  .genera-fixed .avviso-analisi {
+    font-size: 13px; color: var(--text-muted); margin-left: 12px;
+    white-space: nowrap;
+  }
+  /* ---- Comandi spenti perche' l'analisi non e' pronta ----------------
+     Non solo piu' chiari: anche non premibili (applicaStatoAnalisi mette
+     l'attributo disabled vero). Qui c'e' solo l'aspetto. */
+  [data-spento-senza-analisi][aria-disabled="true"] {
+    opacity: 0.42; cursor: not-allowed; filter: grayscale(0.7);
+  }
+  [data-spento-senza-analisi][aria-disabled="true"]:hover { background: inherit; }
+
+  /* «Estendi» quando non ha ancora imparato. Spento all'occhio ma non
+     con l'attributo `disabled`: quello toglie il fuoco e gli eventi del
+     mouse, e con essi la possibilita' di spiegare PERCHE' e' spento -
+     proprio a chi lo sta chiedendo. L'azione la blocca il gestore. */
+  #sidecar-mode-buttons button[aria-disabled="true"] {
+    opacity: 0.42; cursor: not-allowed; filter: grayscale(0.7);
+  }
+  /* il fuoco deve restare ben visibile: e' l'unico modo, da tastiera,
+     per far comparire la spiegazione */
+  #sidecar-mode-buttons button[aria-disabled="true"]:focus-visible {
+    opacity: 1; outline: 2px solid var(--accent-blue-strong); outline-offset: 2px;
+  }
+
+  .genera-fixed .scorciatoie-nota {
+    /* 13 e non 12: a 12px scendeva a 9.6px apparenti, sotto la soglia che
+       questo stesso progetto si e' dato. Il promemoria delle scorciatoie
+       non serve a niente se poi non si legge. */
+    font-size: 13px; color: var(--text-muted); margin-left: 10px;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  /* Il valore NON occupa spazio nella riga: e' sopra il cursore, e compare
+     solo mentre lo si muove. Messo in linea allargava il blocco del volume
+     di 40px e finiva addosso alla lente dello zoom (segnalato dall'utente).
+     Material 3 dice esattamente questo: "A value appears when interacting
+     with the corresponding handle" - non che debba stare li' sempre. */
+  .genera-fixed .pv-volume { position: absolute; }
+  .genera-fixed .pv-volume .vol-valore {
+    position: absolute; right: 0; bottom: 100%; margin-bottom: 2px;
+    font-size: 13px; font-variant-numeric: tabular-nums;
+    color: var(--text-muted); text-align: right; pointer-events: none;
+    opacity: 0; transition: opacity .12s;
+  }
+  .genera-fixed .pv-volume:hover .vol-valore,
+  .genera-fixed .pv-volume:focus-within .vol-valore,
+  .genera-fixed .pv-volume.in-uso .vol-valore { opacity: 1; }
+
+  /* ---- Ricerca nell'elenco brani ------------------------------------ */
+  .genera-fixed .song-search-row { position: relative; display: flex; margin: 8px 0 6px; }
+  .genera-fixed .song-search {
+    flex: 1; height: 28px; padding: 0 26px 0 9px;
+    border: 1px solid var(--input-border); border-radius: 6px;
+    background: var(--input-bg); color: var(--text-heading);
+    font-family: var(--font-body); font-size: 13px;
+  }
+  .genera-fixed .song-search::placeholder { color: var(--text-muted); }
+  .genera-fixed .song-search-x {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border: none; background: none; padding: 0;
+    color: var(--text-muted); font-size: 12px; cursor: pointer; line-height: 1;
+  }
+  .genera-fixed .lista-vuota-ricerca {
+    margin: 12px 4px; font-size: 13px; color: var(--text-muted);
+  }
+  .song-panel.is-empty .song-search-row { display: none; }
+  /* Blocco zoom MISURATO sull'export: non sei bottoni separati ma una
+     BARRA UNICA grigia #D9D9D9 da 158x21 (canvas 1227..1385 -> card-relative
+     1183), con un evidenziatore blu #0071DA che scorre sul valore attivo e
+     ne rende il testo bianco. La lente sta fuori dalla barra, a sinistra. */
+  .genera-fixed .pv-zoom { left: calc(1161px + var(--extra)); top: 8px; height: 26px; display: flex; align-items: center; gap: 7px; }
+  .genera-fixed .pv-zoom .zoom-lente { width: 15px; height: 15px; flex: none; line-height: 1; }
+  .genera-fixed .zoom-bar {
+    /* 24 e non i 21 misurati sull'export: WCAG 2.2 SC 2.5.8 chiede
+       bersagli di almeno 24x24 px CSS, e questi cinque pulsanti sono
+       attaccati fra loro (zero spazio attorno), quindi non possono
+       appoggiarsi all'eccezione dello spazio. La larghezza resta quella
+       del disegno. */
+    width: 158px; height: 24px; border-radius: 5px; background: #D9D9D9;
+    display: flex; align-items: stretch; overflow: hidden; flex: none;
+  }
+  .genera-fixed .zoom-bar .zoom-btn {
+    flex: 1; padding: 0; border: none; background: transparent; border-radius: 5px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 600;
+    color: #000; cursor: pointer; line-height: 24px;
+  }
+  .genera-fixed .zoom-bar .zoom-btn.active { background: #0071DA; color: #fff; }
+  /* Contenitore che si allarga quando si zooma: i livelli dentro
+     continuano a disegnare il brano intero, cambia solo quanta parte se ne
+     vede. Stesso impianto del .bm-scroll del Blocco Marker. */
+  .wave-zoom { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; }
+  /* Con gli switch veri (35px invece di 18) i tre gruppi non entravano piu'
+     nello spazio a destra e la riga andava a capo: partono da 995 e vanno
+     stretti, senza mai spezzare le etichette. */
+  .genera-fixed .pv-toggles {
+    left: calc(995px + var(--extra)); top: 44px; width: 346px; height: 26px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 4px; white-space: nowrap;
+  }
+  /* 12px e non 11: 11px scendevano a ~10px FISICI su schermi piu' piccoli
+     del disegno. Lo spazio recuperato viene dai gap (6->4), non dalla
+     larghezza della riga, cosi' le etichette non vanno a capo - il difetto
+     che aveva richiesto gli 11px in origine. */
+  .genera-fixed .pv-toggles .toggle-label { font-size: 13px; gap: 3px; }
+  .genera-fixed .pv-transport { left: 20px; top: 44px; display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-muted); }
+  .genera-fixed .preview-card .waveform-wrap { left: 19px; top: 88px; width: calc(1322px + var(--extra)); height: 194px; }
+  .genera-fixed .preview-card .waveform { height: 100%; }
+  /* riga delle 12 marche temporali (29:3551): 10px, #6B7280, distribuite */
+  .genera-fixed .pv-times {
+    /* 1240 = 1322 dell'onda meno i 41px di rientro per lato. Con il canvas
+       allargato deve crescere insieme all'onda, altrimenti le marche non
+       stanno piu' sotto il punto che indicano. */
+    left: 60px; top: 292px; width: calc(1240px + var(--extra)); display: flex; justify-content: space-between;
+    /* 12px e non i 10 del wireframe: a 10 scendevano sotto la soglia di
+       leggibilita' su schermi piu' piccoli del disegno. Le 12 marche
+       hanno spazio in abbondanza su 1240px, quindi non si toccano. */
+    font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--text-body);
+  }
+  .genera-fixed .mini-structure-label { left: 19px; top: 320px; margin: 0; }
+  /* margin:0 esplicito - il margine ereditato spostava la striscia a 272
+     invece dei 264 reali */
+  .genera-fixed .mini-structure { left: 19px; top: 337px; width: calc(1322px + var(--extra)); height: 13px; margin: 0; }
+  .generation-tabs-card, .genera-finalize-card {
+    background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px;
+  }
+  .generation-tabs-card { flex: 465; }
+  .genera-finalize-card { flex: 535; }
+
+  /* sotto-struttura interna reale di "Pannello generazione": sinistra
+     tab+impostazioni+statistiche (~62%), destra il widget di registrazione
+     sidecar "BloccoMarker" (~38%) - misurato dal nodo Figma reale
+     (BloccoMarker a left=395px dentro una card di 625px). */
+  .gen-tabs-inner { display: flex; gap: 16px; align-items: start; }
+  .gen-tabs-left { flex: 62; min-width: 0; }
+  .sidecar-record-widget { flex: 38; min-width: 0; }
+
+  .gen-tabs {
+    display: flex; margin: -14px -14px 10px -14px;
+    border-radius: var(--radius-card) var(--radius-card) 0 0; overflow: hidden;
+  }
+  .gen-tabs button {
+    flex: 1; border: none; background: var(--bg-card); color: var(--text-heading);
+    font-family: var(--font-display); font-size: 14px; font-weight: 500;
+    padding: 9px 10px; cursor: pointer; text-align: center;
+  }
+  .gen-tabs button.active { font-weight: 700; background: var(--bg-card); }
+  /* Sfondo grigio chiaro FISSO (dato reale, non segue il tema - Figma non
+     mostra una variante scura di questa striscia) - il testo va quindi
+     forzato scuro qui, altrimenti in tema scuro var(--text-heading) e'
+     chiaro e diventa illeggibile su questo sfondo chiaro (bug reale trovato
+     con uno screenshot vero dell'app in esecuzione, non solo a codice). */
+  .gen-tabs button:not(.active) { background: #E7E7F3; color: #0C355C; }
+  .gen-tab-content.hidden { display: none; }
+  .gen-stats-line { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-heading); margin: 8px 0 0; }
+
+  .sidecar-record-widget .sidecar-panel { background: var(--bg-card-soft); padding: 12px; border-radius: var(--radius-control); margin-bottom: 0; }
+  .sidecar-record-widget .sidecar-panel.hidden { display: none; }
+  .visualizer-thumb-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 90px; margin: 12px 0; border: none; border-radius: var(--radius-card);
+    background: linear-gradient(160deg, #1B2333, #05070C); color: white;
+    font-family: var(--font-display); font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+
+  /* ================= blocco inferiore di Correggi =====================
+     Coordinate REALI del frame Figma 1:7 (get_metadata), tutte assolute sul
+     canvas 1920x1080 come il resto della pagina. */
+  .genera-fixed .toolkit-title { position: absolute; left: 49px; top: 653px; margin: 0; }
+  .genera-fixed .toolkit-card {
+    position: absolute; left: 43px; top: 686px; width: 1360px; height: 345px;
+    background: var(--bg-card); border-radius: 8px; box-shadow: var(--shadow-card);
+  }
+  .genera-fixed .toolkit-card > * { position: absolute; }
+  /* separatore fra le due colonne: x=487, da y=710 per 297 (card-relative) */
+  .genera-fixed .tk-sep {
+    left: 444px; top: 24px; width: 1px; height: 297px; background: var(--border-soft);
+  }
+
+  /* --- colonna sinistra --- */
+  .genera-fixed .tk-stats {
+    left: 23px; top: 26px; width: 380px; margin: 0; display: flex; gap: 34px;
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: var(--text-heading);
+  }
+  .genera-fixed .tk-preset-label {
+    left: 23px; top: 65px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-heading); display: flex; align-items: center; gap: 6px;
+  }
+  /* barra 324x24 (rect 30:5705) con i tre bottoni distribuiti: senza flex:1
+     restavano incollati a sinistra dentro la barra */
+  .genera-fixed #preset-buttons { left: 23px; top: 91px; width: 324px; height: 24px; display: flex; }
+  .genera-fixed #preset-buttons button {
+    flex: 1; padding: 0; font-size: 13px; line-height: 24px; height: 24px;
+  }
+
+  .genera-fixed .tk-slider-label {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: var(--text-heading); display: flex; align-items: center; gap: 6px;
+  }
+  .genera-fixed .tk-slider-value {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-slider { width: 393px; margin: 0; }
+  .genera-fixed .tk-ratio-label  { left: 22px;  top: 145px; }
+  .genera-fixed .tk-ratio-value  { left: 183px; top: 145px; }
+  .genera-fixed .tk-ratio-slider { left: 23px;  top: 171px; }
+  .genera-fixed .tk-margin-label  { left: 22px;  top: 209px; }
+  .genera-fixed .tk-margin-value  { left: 217px; top: 209px; }
+  .genera-fixed .tk-margin-slider { left: 23px;  top: 235px; }
+  /* bottone "Copia su tutti i brani": 192x34 a (66,965) = card-relative (23,279) */
+  .genera-fixed .btn-copy-all {
+    left: 23px; top: 279px; width: 192px; height: 34px;
+    border: none; border-radius: 15px; background: var(--accent-blue-strong);
+    color: #fff; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* --- colonna destra --- */
+  .genera-fixed .tk-fasi-label {
+    left: 466px; top: 26px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-fasi-row { left: 466px; top: 53px; display: flex; gap: 12px; }
+  .genera-fixed .tk-fasi-row .pill b { font-weight: 700; }
+  .genera-fixed .tk-backup {
+    left: 466px; top: 99px; display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 500;
+    color: var(--text-heading); cursor: pointer;
+  }
+  /* "Stati correzione" (510,827) 881x71 -> card-relative (467,141) */
+  .genera-fixed #stati-gen { left: 467px; top: 141px; width: 881px; margin: 0; }
+  /* riquadro Log (510,915) 880x93 -> card-relative (467,229) */
+  .genera-fixed .tk-log {
+    left: 467px; top: 229px; width: 880px; height: 93px;
+    /* Era #F1F0F0 fisso: al tema scuro il riquadro del log restava CHIARO
+       mentre il testo dentro seguiva i token e diventava chiaro anche lui,
+       1.09:1 - praticamente invisibile. Il fondo deve venire dallo stesso
+       insieme di token del testo che ci sta sopra, altrimenti la coppia si
+       rompe appena si cambia tema. */
+    background: var(--inset-bg); border-radius: 4px; overflow: hidden;
+  }
+  .genera-fixed .tk-log::before {
+    content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 4px;
+    background: var(--accent-blue-strong);
+  }
+  .genera-fixed .tk-log-head {
+    position: absolute; left: 21px; top: 8px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-heading);
+  }
+  .genera-fixed .tk-log-body {
+    position: absolute; left: 21px; top: 25px; right: 30px; bottom: 6px;
+    margin: 0; overflow: auto; white-space: pre-wrap;
+    font-family: var(--font-body); font-size: 12px; line-height: 1.35; color: var(--text-body);
+  }
+
+  /* ============ Gestione playlist installate ============================
+     Nessun wireframe Figma per questa pagina: riuso le STESSE coordinate e
+     gli STESSI componenti di Correggi, cosi' resta coerente col resto. */
+  .genera-fixed .pl-card .pv-title { width: 900px; }
+  .genera-fixed .pl-durata {
+    left: 19px; top: 44px; font-family: var(--font-display); font-size: 14px;
+    font-weight: 600; color: var(--text-body);
+  }
+  .genera-fixed .pl-azioni {
+    left: 19px; top: 78px; width: 1322px; display: flex; align-items: center; gap: 12px;
+  }
+  .genera-fixed .pl-nome-input { width: 340px; }
+  .genera-fixed .btn-pericolo {
+    border: none; border-radius: 15px; background: var(--accent-red);
+    color: #fff; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    padding: 8px 18px; cursor: pointer; margin-left: auto;
+  }
+  .genera-fixed .pl-card .mini-structure-label { top: 150px; }
+  .genera-fixed .pl-card .mini-structure { top: 167px; }
+
+  /* elenco dei brani: righe riordinabili */
+  .genera-fixed .pl-toolkit .pl-songs {
+    left: 23px; top: 60px; width: 1314px; height: 250px;
+    overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 6px;
+  }
+  .genera-fixed .pl-songs::-webkit-scrollbar { width: 6px; }
+  .genera-fixed .pl-songs::-webkit-scrollbar-thumb {
+    background: var(--border-soft); border-radius: 3px;
+  }
+  .genera-fixed .pl-riga {
+    display: flex; align-items: center; gap: 14px; flex: none;
+    height: 44px; padding: 0 14px; border-radius: 8px;
+    background: var(--bg-card-soft); font-size: 14px; color: var(--text-heading);
+  }
+  .genera-fixed .pl-riga:hover { background: #E7F3FF; }
+  .genera-fixed .pl-riga .pl-pos {
+    font-family: var(--font-display); font-weight: 700; color: var(--text-muted);
+    width: 28px; flex: none;
+  }
+  .genera-fixed .pl-riga .pl-titolo {
+    flex: 1; font-family: var(--font-display); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .genera-fixed .pl-riga .pl-dur { color: var(--text-body); flex: none; }
+  .genera-fixed .pl-riga button {
+    border: none; background: transparent; cursor: pointer; flex: none;
+    width: 26px; height: 26px; border-radius: 50%;
+    color: var(--accent-blue-strong); font-size: 14px; line-height: 26px;
+  }
+  .genera-fixed .pl-riga button:hover { background: #DFF0FF; }
+  .genera-fixed .pl-riga button.pl-togli { color: var(--accent-red); }
+  .genera-fixed .pl-riga button.pl-togli:hover { background: #FFD5D6; }
+  .genera-fixed .pl-riga button:disabled { color: var(--border-soft); cursor: default; background: none; }
+  .genera-fixed .pl-nota { left: 23px; top: 318px; width: 1314px; margin: 0; }
+  .genera-fixed .pl-toolkit .tk-stats { width: 600px; }
+</style>
+</head>
+<body>
+<div class="page genera-fixed">
+  <div class="bg-pattern" id="bg-pattern"></div>
+
+<div class="info-popover" id="info-popover">
+  <div class="info-popover-head">
+    <img class="info-popover-icon" src="assets/icons/tooltip_info.svg" alt="">Info aggiuntive
+    <button class="info-popover-close" onclick="hideInfoPopover()" title="Chiudi"><img src="assets/icons/tooltip_close.svg" alt=""></button>
+  </div>
+  <div class="info-popover-body" id="info-popover-body"></div>
+</div>
+
+  <header class="app-header">
+    <h1>BoxVR Survivor Toolkit</h1>
+    <span class="app-version" id="app-version"></span>
+    <span class="real-badge nota-dev">DATI REALI — primo port, non un mockup</span>
+    <!-- Sempre raggiungibile, non solo dopo un'operazione riuscita: prima
+         stava dentro il blocco degli stati di generazione, che compare a
+         cose fatte. Ma "vado a vedere cosa c'e' nella libreria" e' una
+         cosa che si vuole fare PRIMA. -->
+    <div id="patch-pill-wrap"></div>
+    <div class="lang-switch" title="Cambia la lingua dell'interfaccia">
+      <!-- role/tabindex/tastiera: erano <span onclick>, cioe' cliccabili
+           col mouse e IRRAGGIUNGIBILI da tastiera - non e' che mancasse
+           l'anello di fuoco, e' che non prendevano affatto il fuoco.
+           Con role="button" e tabindex="0" entrano nell'ordine di
+           tabulazione, e attivaConTastiera aggiunge Invio e Spazio, che
+           un <span> non gestisce da solo come farebbe un <button>. -->
+      <span class="lang-pill active" role="button" tabindex="0"
+            onclick="setLang('it')" onkeydown="attivaConTastiera(event)">IT</span>
+      <span class="lang-pill" role="button" tabindex="0"
+            onclick="setLang('en')" onkeydown="attivaConTastiera(event)">EN</span>
+    </div>
+    <button class="theme-switch" id="theme-switch" onclick="toggleTheme()" title="Tema chiaro/scuro"><span class="theme-switch-knob"></span></button>
+  </header>
+
+  <div class="section-title playlist">
+    <span class="icon"><img src="assets/icons/big_icona_correggi.svg" alt="" width="45" height="45"></span>
+    <h2>Gestione playlist installate</h2>
+  </div>
+  <!-- Questa pagina NON ha un wireframe Figma (il Playlist Manager non e'
+       mai stato disegnato): la struttura e' un'IPOTESI costruita con gli
+       stessi componenti e le stesse coordinate delle altre pagine, cosi'
+       resta coerente e sara' facile allinearla se un giorno il wireframe
+       arrivera'. Griglia riusata da Correggi:
+         card in alto     (44,338)  1360x289  -> playlist selezionata
+         pannello destro (1431,338) 440x693   -> elenco delle playlist
+         card in basso    (43,686)  1360x345  -> brani della playlist -->
+  <p class="section-desc">
+    Qui vedi le playlist gia' installate nella libreria di BoxVR e puoi rimetterle in ordine, togliere un brano,
+    rinominarle o eliminarle. Le modifiche sono scritte davvero sui file della libreria, con un backup automatico
+    prima di ogni scrittura.
+    <b>Tieni presente: agisce sulle playlist installate, non sui brani — per generare nuovi workout serve Genera.</b>
+  </p>
+  <p class="not-wired-note nota-dev" style="margin:4px 0 0; max-width:1301px">
+    (nota dev, non esiste un wireframe per questa pagina) Riusa <code>boxvr_playlist_manager</code>, lo stesso
+    modulo dell'exe gia' distribuito - nessuna riscrittura della logica.
+  </p>
+
+  <div class="genera-layout">
+    <aside class="song-panel" id="song-panel">
+      <div class="song-panel-header">
+        <span class="song-count" id="pl-count">caricamento…</span>
+        <button class="btn-clear" onclick="apriBackup()">Backup 🗂</button>
+      </div>
+      <div class="song-list" id="playlist-list"></div>
+      <div class="song-panel-empty" id="song-panel-empty">
+        <img src="assets/icons/empty_folder.svg" alt="" width="60" height="60">
+        <p>Nessuna playlist installata nella libreria di BoxVR.</p>
+      </div>
+    </aside>
+
+    <main>
+      <h3 class="block-title">Playlist selezionata</h3>
+      <div class="preview-card pl-card">
+        <div class="pv-title">
+          <span class="idx" id="pl-idx">—</span>
+          <span class="artist" id="pl-brani">—</span>
+          <span class="pv-name" id="pl-nome">Seleziona una playlist…</span>
+        </div>
+        <div class="pl-durata" id="pl-durata">—</div>
+        <div class="pl-azioni">
+          <input class="text-input pl-nome-input" id="pl-name-input" aria-label="Nome playlist" placeholder="Nome playlist">
+          <button class="btn-secondary" onclick="rinominaPlaylist()">Rinomina</button>
+          <button class="btn-pericolo" onclick="eliminaPlaylist()">Elimina playlist</button>
+        </div>
+        <!-- striscia dei brani: stessa mini-struttura dell'anteprima, ma qui
+             ogni banda e' un brano, larga quanto la sua durata -->
+        <div class="mini-structure-label">Composizione della playlist <span id="pl-mix-legenda"></span></div>
+        <div class="mini-structure" id="pl-strip"></div>
+        <audio id="pl-audio" preload="none"></audio>
+      </div>
+    </main>
+
+    <h3 class="block-title toolkit-title">Brani della playlist</h3>
+    <div class="toolkit-card pl-toolkit">
+      <p class="tk-stats" id="pl-stats">
+        <span>Brani: <b id="pl-n">0</b></span>
+        <span>Durata totale: <b id="pl-tot">—</b></span>
+      </p>
+      <div class="pl-songs" id="pl-songs"></div>
+      <p class="pl-nota not-wired-note" id="pl-nota"></p>
+    </div>
+  </div>
+
+</div>
+<script>
+  window.__errs = [];
+  window.addEventListener('error', (e) => window.__errs.push(String(e.message)));
+  window.addEventListener('unhandledrejection',
+    (e) => window.__errs.push('promise: ' + (e.reason && e.reason.message || e.reason)));
+
+  // ===================== Traduzione IT/EN =====================
+  // Lo switch IT/EN del wireframe fino ad ora cambiava solo il proprio stato
+  // visivo. Qui traduce per davvero.
+  //
+  // Impianto: dizionario ITALIANO -> INGLESE applicato ai nodi di testo, non
+  // attributi data-i18n sparsi per il markup. Motivo pratico: i testi
+  // arrivano in parte dall'HTML e in parte da render JS (righe brano, stati,
+  // pillole), e marcarli tutti a mano avrebbe lasciato buchi silenziosi.
+  // Cosi' invece una stringa senza traduzione resta in italiano ed e'
+  // ELENCABILE a runtime con stringheNonTradotte().
+  //
+  // Le voci marcate [GUI] sono le traduzioni GIA' ESISTENTI in
+  // boxvr_fixer_gui.py (STRINGS['en']): stessa terminologia della GUI
+  // Tkinter, non una seconda versione inventata. Le altre sono traduzioni
+  // dei testi del wireframe, che su Figma esiste solo in italiano.
+  const TRAD = {
+    'File audio del brano non trovato': 'Track audio file not found',
+    'File audio non raggiungibile': 'Audio file unreachable',
+    'Audio non decodificabile': 'Audio could not be decoded',
+    'Formato audio non supportato': 'Audio format not supported',
+    'Marca': 'Mark',
+    'Calibrazione persa': 'Calibration lost',
+    'Nessuna playlist installata nella libreria di BoxVR.': 'No playlists installed in the BoxVR library.',
+    'brano': 'track',
+    'brani': 'tracks',
+    'Analisi in corso — i comandi si attivano appena è pronta.': 'Analysis in progress — the controls turn on as soon as it is ready.',
+    'Analisi non riuscita: i comandi del brano restano spenti.': 'Analysis failed: the track\'s controls stay disabled.',
+    'Disponibile appena finisce l’analisi del brano.': 'Available as soon as the track analysis finishes.',
+    'Analisi del brano non riuscita: usa «Riprova».': 'Track analysis failed: use «Retry».',
+    'Aggiungi un brano per usare questo comando.': 'Add a track to use this control.',
+    'Seleziona un brano.': 'Select a track.',
+    'Nessun marker registrato: la generazione userà solo l\'algoritmo automatico.': 'No markers recorded: generation will use the automatic algorithm only.',
+    'Audio del brano': 'Track audio',
+    'Suono dei colpi': 'Punch sound',
+    'Suono dei colpi attivo': 'Punch sound on',
+    'Suono dei colpi muto': 'Punch sound muted',
+    'Posizione nel brano': 'Position in the track',
+    'Volume del brano': 'Track volume',
+    'Riproduci / pausa': 'Play / pause',
+    'Ferma e torna all\'inizio': 'Stop and return to the start',
+    'marcati': 'marked',
+    'su': 'of',
+    'più': 'plus',
+    // --- aggiunte al controllo traduzione del 06/09: testi scritti
+    //     dal codice (alert, title, stati) che il dizionario non
+    //     conosceva, quindi restavano in italiano a lingua inglese ---
+    'spazio · ←→ 5s · M muto': 'space · ←→ 5s · M mute',
+    'Play/Pausa — barra spaziatrice': 'Play/Pause — spacebar',
+    'Play o pausa, barra spaziatrice': 'Play or pause, spacebar',
+    'Disattiva l\'audio (M)': 'Mute (M)',
+    'Riattiva l\'audio (M)': 'Unmute (M)',
+    'Azzera la ricerca': 'Clear search',
+    'Stop — Home riporta all\'inizio': 'Stop — Home returns to the start',
+    'In corso…': 'In progress…',
+    'Selezione file in corso…': 'Choosing files…',
+    'Seleziona un brano…': 'Select a track…',
+    'Seleziona una playlist…': 'Select a playlist…',
+    'Nessun brano': 'No tracks',
+    'Nessun brano generato in questa sessione': 'No tracks generated in this session',
+    'audio non disponibile': 'audio unavailable',
+    'Ricalcolo con BPM forzato… (rianalizza da zero)': 'Recalculating with forced BPM… (full re-analysis)',
+    'Ricalcolo con motore': 'Recalculating with engine',
+    '(rianalizza da zero)': '(full re-analysis)',
+    'non trovata in': 'not found in',
+    '- il gioco è stato spostato o disinstallato?': '- has the game been moved or uninstalled?',
+    'Cerca per titolo, artista o BPM': 'Search by title, artist or BPM',
+    'Installazione non riuscita:': 'Installation failed:',
+    'Operazione non riuscita:': 'Operation failed:',
+    'Qualcosa non ha funzionato:': 'Something went wrong:',
+    'errori - vedi il log': 'errors - see the log',
+    'La cartella scelta non sembra una vera installazione di BoxVR (manca Assembly-CSharp.dll).': 'The chosen folder does not look like a real BoxVR installation (Assembly-CSharp.dll is missing).',
+    'Byte della DLL non riconosciuti - questa build del gioco è diversa da quella attesa. Nessuna azione automatica.': 'Unrecognised DLL bytes - this build of the game differs from the expected one. No automatic action taken.',
+    'marker piazzato/i.': 'marker(s) placed.',
+    'marker registrato/i - la generazione userà anche i tuoi marker, secondo la modalità scelta.': 'marker(s) recorded - generation will also use your markers, according to the chosen mode.',
+    'brano/i aggiunto/i': 'track(s) added',
+    'brano corretto,': 'track fixed,',
+    'modifiche scritte.': 'changes written.',
+    'Impostazioni copiate su': 'Settings copied to',
+    'brani.': 'tracks.',
+    'Unificazione annullata su': 'Merge undone on',
+    'brano/i.': 'track(s).',
+    'allineata su': 'aligned on',
+    'Intensità': 'Intensity',
+    'Calibrazione personale:': 'Personal calibration:',
+    'tap appresi.': 'taps learned.',
+    'Non riuscito:': 'Failed:',
+    'Generazione in corso...': 'Generating...',
+    'Generazione completata': 'Generation complete',
+    'Generazione fallita': 'Generation failed',
+    'Workout processati :': 'Workouts processed:',
+    'In corso…': 'In progress…',
+    '(nessuna riga di log prodotta)': '(no log output)',
+    'brano/i generato/i - playlist scritta in': 'track(s) generated - playlist written to',
+    'Qualcosa non ha funzionato:': 'Something went wrong:',
+    'errori - vedi il log': 'errors - see the log',
+    'Blocco': 'Block',
+    'colpi/min': 'punches/min',
+    'BoxVR ufficiale': 'official BoxVR',
+    'blocco ritmico': 'rhythmic block',
+    'blocchi ritmici': 'rhythmic blocks',
+    'accento isolato': 'isolated accent',
+    'accenti isolati': 'isolated accents',
+    's marcati': 's marked',
+    'Estendi imiterà la tua cadenza e il tuo ritmo nel resto del brano.': 'Extend will imitate your cadence and rhythm through the rest of the track.',
+    'ancora pochi perché Estendi impari il tuo ritmo, il resto resta automatico.': 'still too little for Extend to learn your rhythm; the rest stays automatic.',
+    'i tuoi colpi restano dove sono e il resto del brano lo genera l\'algoritmo.': 'your punches stay where they are and the algorithm generates the rest of the track.',
+    'Nessun marker: la generazione userà solo l\'algoritmo automatico.': 'No markers: generation will use the automatic algorithm only.',
+    'colpi marcati su': 'marked punches out of',
+    'Estendi impara il tuo ritmo dai colpi che marchi: senza abbastanza materiale non ha niente da imitare.':
+      'Extend learns your rhythm from the punches you mark: without enough material it has nothing to imitate.',
+    'Gli servono almeno:': 'It needs at least:',
+    'Finora hai marcato:': 'So far you have marked:',
+    'colpi': 'punches',
+    'di ritmo continuo': 'of continuous rhythm',
+    'marker in tutto: quelli isolati restano dove sono, ma da soli non fanno un ritmo da imparare.':
+      'markers in total: isolated ones stay where they are, but on their own they do not make a rhythm to learn from.',
+    'Analisi del brano non ancora pronta: Estendi si sblocca quando è finita.':
+      'Track analysis not ready yet: Extend unlocks when it finishes.',
+    'Seleziona un brano e registra qualche colpo: Estendi impara da quelli.':
+      'Select a track and record some punches: Extend learns from those.',
+    'sono troppo pochi perché Estendi ricavi una cadenza, il resto del brano resta una coreografia automatica.': 'too few for Extend to derive a cadence; the rest of the track stays an automatic choreography.',
+    'marker ignorato': 'marker ignored',
+    'marker ignorati': 'markers ignored',
+    // --- intestazione e comuni ---
+    'Patch installata': 'Patch installed',
+    'Patch non rilevata': 'Patch not detected',
+    'Disabilita': 'Disable',
+    'Tema chiaro/scuro': 'Light/dark theme',
+    'Anteprima brano': 'Track preview',                       // [GUI] preview
+    'Struttura BoxVR di partenza': 'Event structure from BoxVR',  // [GUI]
+    'Aggiungi brani +': 'Add tracks +',
+    'Svuota': 'Clear list',                                   // [GUI]
+    'Base beat': 'Base beat',
+    'Marker visibili': 'Show markers',
+    'Curva di carica': 'Energy curve',
+    'Analisi': 'Analysis',
+    'Veloce': 'Fast',
+    'Precisa': 'Accurate',
+    'Correggi BPM': 'Fix BPM',
+    'Cerca BPM online': 'Search BPM online',
+    'Inserire BPM': 'Enter BPM',
+    'Analisi in corso': 'Analyzing...',                       // [GUI]
+    'Analisi fallita': 'Analysis failed',
+    'Riprova': 'Retry',
+    'Rimuovi': 'Remove',
+    'Rimuovi brano': 'Remove track',
+    'Play/Pausa': 'Play/Pause',
+    'Stop': 'Stop',
+    'Preset Leggero': 'Light preset',                         // [GUI] choreo_light
+    'Preset Medio': 'Medium preset',                          // [GUI] choreo_medium
+    'Preset Aggressivo': 'Intense preset',                    // [GUI] choreo_high
+    'Silenzio': 'Silence',                                    // [GUI] legend_0
+    'Leggero': 'Light',                                       // [GUI] legend_1
+    'Solo pugni': 'Punches',                                  // [GUI] legend_2
+    'Solo Pugni': 'Punches',                                  // [GUI] legend_2
+    'Misto': 'Mixed',                                         // [GUI] legend_3
+    'Blocco Silenzio': 'Silence block',
+    'Blocco Leggero': 'Light block',
+    'Blocco Solo pugni': 'Punches block',
+    'Blocco Misto': 'Mixed block',
+    'Sezioni consecutive:': 'Consecutive sections:',
+    'Colpi totali:': 'Total punches:',
+    'Preset': 'Preset',
+    'Intensità workout': 'Only punch events',                 // [GUI] punch_ratio_label
+    'Margine di confidenza': 'Confidence margin',             // [GUI] margin_label
+    'Info aggiuntive': 'More info',
+    'Chiudi': 'Close',
+
+    // --- pagina Correggi ---
+    'Correggi Workout esistenti': 'Fix existing workouts',
+    'Toolkit': 'Toolkit',
+    'Fasi del brano dopo la correzione': 'Track phases after correction',
+    'Crea backup nella cartella Trackdata': 'Create a backup in the Trackdata folder',
+    'Avvia correzione': 'Start correction',
+    'Correzione in corso…': 'Correcting...',
+    'Copia su tutti i brani': 'Apply to all tracks',
+    'Apri cartella risultati ›': 'Open results folder ›',
+    'Log': 'Log',
+
+    // --- pagina Genera ---
+    'Crea Workout da Mp3': 'Create workout from MP3',
+    'Generazione Automatica': 'Automatic generation',
+    'Generazione Sidecar (beta)': 'Sidecar generation (beta)',
+    'Preset dei colpi': 'Choreography intensity',             // [GUI] choreo_preset_label
+    'Aggressivo': 'Intense',                                  // [GUI] choreo_high
+    'Medio': 'Medium',                                        // [GUI] choreo_medium
+    'Ipotesi fasi totali generate': 'Estimated generated phases',
+    'Fasi totali generate': 'Generated phases',
+    // --- Gestione playlist (pagina mai passata dal dizionario finora) ---
+    'Gestione playlist installate': 'Manage installed playlists',
+    'Conferma': 'Confirm',
+    'Annulla': 'Cancel',
+    '??? BPM': '??? BPM',   // BPM non ancora rilevato: niente da tradurre
+
+    'Backup 🗂': 'Backup 🗂',
+    "Qui vedi le playlist gia' installate nella libreria di BoxVR e puoi rimetterle in ordine, togliere un brano, rinominarle o eliminarle. Le modifiche sono scritte davvero sui file della libreria, con un backup automatico prima di ogni scrittura.":
+      'Here you see the playlists already installed in your BoxVR library, and you can reorder them, remove a track, rename them or delete them. The changes are really written to the library files, with an automatic backup before every write.',
+    'Playlist selezionata': 'Selected playlist',
+    'Brani della playlist': 'Playlist tracks',
+    'Durata totale:': 'Total length:',
+    'Elimina playlist': 'Delete playlist',
+    'Rinomina': 'Rename',
+    'Brani:': 'Tracks:',
+    'Togli dalla playlist': 'Remove from playlist',
+    'Sposta su': 'Move up',
+    'Sposta gi\u00f9': 'Move down',
+    'Silenzio': 'Silence',
+    'Leggero': 'Light',
+    'Solo pugni': 'Punches only',
+    'Misto': 'Mixed',
+    'Senza fasi': 'No phases',
+    'Tieni presente: agisce sulle playlist installate, non sui brani \u2014 per generare nuovi workout serve Genera.':
+      'Note: this acts on installed playlists, not on the tracks \u2014 to generate new workouts use Generate.',
+    // --- barra di stato della Dashboard ---
+    'Cartella di gioco:': 'Game folder:',
+    'stato:': 'state:',
+    'Installa in BoxVR': 'Install in BoxVR',
+    'Cartella BoxVR ›': 'BoxVR folder ›',
+    'Disponibile solo dopo la correzione vera': 'Available only after an actual correction',
+    "Disattiva/riattiva l'audio": 'Mute / unmute',
+    'Salva una copia dei brani che verranno sostituiti, prima di sostituirli':
+      'Saves a copy of the tracks that are about to be replaced, before replacing them',
+    'Ascolta questo brano': 'Play this track',
+    'Composizione della playlist': 'Playlist make-up',
+    // Tooltip (attributo title). Il meccanismo di traduzione li gestiva
+    // gia', ma nessuna di queste frasi era nel dizionario: restavano in
+    // italiano con l'interfaccia in inglese.
+    'Cambia la lingua dell\'interfaccia': 'Change the interface language',
+    'Guarda i colpi del workout appena generato, prima di provarlo in VR. Disponibile dopo "Avvia generazione".':
+      'See the punches of the workout you just generated, before trying it in VR. Available after "Start generation".',
+    'D\u00e0 a tutti i brani dell\'elenco la stessa intensit\u00e0 di quello selezionato. Non genera niente: cambia solo le impostazioni.':
+      'Gives every track in the list the same intensity as the selected one. It generates nothing: it only changes settings.',
+    'Stima basata sull\'intensit\u00e0 scelta. Il numero esatto si vede dopo la generazione.':
+      'An estimate based on the chosen intensity. The exact number shows after generation.',
+    'Disponibile dopo "Unifica playlist": rimette a ogni brano l\'intensit\u00e0 che aveva prima.':
+      'Available after "Merge playlist": puts back the intensity each track had before.',
+    'Ricomincia: cancella i marker registrati e riporta il brano all\'inizio':
+      'Start over: clears the recorded markers and rewinds the track',
+    'Zoom sulla timeline - la rotellina scorre quando sei ingrandito':
+      'Zoom the timeline \u2014 the wheel scrolls when you are zoomed in',
+    'Copia i file nella libreria di BoxVR': 'Copy the files into the BoxVR library',
+    'Apri la cartella della libreria': 'Open the library folder',
+    'Play/Pausa': 'Play/Pause',
+    'Stop': 'Stop',
+    'Nome playlist': 'Playlist name',
+    'Durata massima': 'Maximum duration',
+    'Nessun limite': 'No limit',
+    'Avvia generazione': 'Start generation',
+    'Nome playlist necessario per la generazione': 'A playlist name is required to generate',
+    'Anteprima workout': 'Workout preview',                   // [GUI] visual_btn
+    'Gestione dei marker': 'Marker management',
+    'Modalità': 'Mode',
+    'Armonizza': 'Harmonize',
+    'Nessun ostacolo': 'No obstacles',
+    'Soglia minima fra i colpi': 'Minimum gap between punches',
+    'Registra': 'Record',
+    'oppure premi F/K': 'or press F/K',
+    'Suono colpi attivo': 'Punch sound on',
+    'Suono colpi muto': 'Punch sound muted',
+
+    // --- pagina Dashboard / start page ---
+    'Benvenuto/a su': 'Welcome to',
+    'Accetta e continua ›': 'Accept and continue ›',
+    'Semplice ma poco controllo': 'Simple, but little control',
+    'Più complesso, più divertente': 'More complex, more fun',
+    'Richiede BoxVR Patchato': 'Requires a patched BoxVR',
+    'Vai al tool ›': 'Go to the tool ›',
+    'Vai al tool 🔒': 'Go to the tool 🔒',
+    'Rilevata Patch.': 'Patch detected.',
+    'Cartella BoxVR ›': 'BoxVR folder ›',
+    'Apri la cartella TrackData di BoxVR': 'Open the BoxVR TrackData folder',
+    'playlist in:': 'playlist(s) in:',
+    'Installati': 'Installed',
+    'file': 'files',
+    'brano/i': 'track(s)',
+    'playlist': 'playlist(s)',
+    'Riavvia BoxVR per vederli nella libreria.': 'Restart BoxVR to see them in the library.',
+    'Patch non installata.': 'Patch not installed.',
+    'Serve la cartella di BoxVR.': 'BoxVR folder required.',
+    'Installa': 'Install',
+    'Scegli': 'Choose',
+    '«Crea Workout da Mp3» scrive coreografie che il gioco legge solo con la patch attiva: senza, i workout generati non arriverebbero mai in VR.':
+      '«Create Workout from Mp3» writes choreographies the game only reads with the patch active: without it, the workouts you generate would never reach VR.',
+    'Per creare workout da mp3 serve BoxVR patchato, e la cartella del gioco non è stata ancora trovata. Indicala qui sotto e poi installa la patch.':
+      'Creating workouts from mp3 needs a patched BoxVR, and the game folder has not been found yet. Point to it below, then install the patch.',
+    'Gestione playlist installate →': 'Manage installed playlists →',
+    'Scegli cartella…': 'Choose folder...',                   // [GUI] browse_btn
+    'Nessuna cartella di gioco impostata': 'No game folder set',
+    'Rilevamento cartella di gioco…': 'Detecting game folder...',
+    'brano nell’elenco': 'track in the list',
+    'brani nell’elenco': 'tracks in the list',
+    'playlist installata': 'playlist installed',
+    'playlist installate': 'playlists installed',
+
+    // --- aggiunte dopo l'inventario a tappeto (stringheNonTradotte) ---
+    'caricamento\u2026': 'loading...',
+    'Svuota \ud83d\uddd1': 'Clear list \ud83d\uddd1',
+    'Seleziona un brano\u2026': 'Select a track...',            // [GUI] select_song_prompt
+    'Trascina qui le cartelle o i file per generare un workout o aggiungi un percorso.':
+      'Drop folders or files here to generate a workout, or add a path.',
+    'Trascina qui le cartelle o i file da correggere o aggiungi un percorso.':
+      'Drop folders or files to fix here, or add a path.',
+    'Sezioni totali:': 'Total sections:',
+    'Sezioni individuate:': 'Sections found:',
+    'Solo marker': 'Markers only',
+    'Estendi': 'Extend',
+    '\u25b6 Anteprima workout': '\u25b6 Workout preview',       // [GUI] visual_btn
+    'Unifica playlist': 'Merge playlist',
+    'Annulla unificazione': 'Undo merge',
+    '\u25be Log': '\u25be Log',
+    'In attesa di avvio\u2026': 'Waiting to start...',
+    'Tieni presente: scrive file nuovi che il gioco riconosce solo con la patch installata.':
+      'Note: it writes new files that the game only recognises with the patch installed.',
+    'Questa parte del tool crea un workout completamente nuovo a partire da un mp3: analizza l\u2019audio con lo stesso tipo di rilevamento del ritmo usato da BoxVR e costruisce fasi che coprono l\u2019intero brano, senza i vuoti di silenzio che i workout originali a volte lasciano. Puoi scegliere un preset di intensit\u00e0, vedere in anteprima come verrebbe suddiviso il workout prima di generarlo, ascoltarlo con un click a tempo, e dare un nome alla playlist per generare pi\u00f9 brani insieme e unificarli in un unico allenamento continuo.':
+      'This part of the tool builds a completely new workout from an mp3: it analyses the audio with the same kind of beat detection BoxVR uses, and builds phases that cover the whole track, without the silent gaps the original workouts sometimes leave. You can pick an intensity preset, preview how the workout would be split before generating it, listen to it with a click track, and name the playlist to generate several tracks together and merge them into one continuous session.',
+    'Questa parte del tool migliora i livelli di intensit\u00e0 che BoxVR ha gi\u00e0 assegnato a un workout esistente: analizza l\u2019audio reale, li confronta con l\u2019originale e ti propone una versione pi\u00f9 coerente col ritmo del brano. Puoi scegliere quanti eventi trattare come pugni puri, quanto margine di sicurezza tenere nelle correzioni, ascoltare il risultato con un click a tempo, e decidere se salvare solo un report o sostituire i file (con backup automatico).':
+      'This part of the tool improves the intensity levels BoxVR already assigned to an existing workout: it analyses the real audio, compares them with the original and proposes a version more consistent with the track\u2019s rhythm. You can choose how many events to treat as pure punches, how much safety margin to keep in the corrections, listen to the result with a click track, and decide whether to save just a report or replace the files (with an automatic backup).',
+    'Tieni presente: agisce solo dove BoxVR ha gi\u00e0 creato dei segmenti \u2014 non riempie i vuoti dove il gioco non ha messo nulla. Per quello serve Genera.':
+      'Note: it only acts where BoxVR already created segments \u2014 it does not fill the gaps the game left empty. Use Generate for that.',
+
+    // --- start page / disclaimer ---
+    'Prima di iniziare': 'Before you start',
+    'Cosa fa questo tool?': 'What does this tool do?',
+    'Come \u00e8 stato creato?': 'How was it made?',
+    '(si, un altro)': '(yes, another one)',
+    'BoxVR \u00e8 stato abbandonato, ma la sua community no.':
+      'BoxVR was abandoned, but its community was not.',
+    'Questo toolkit nasce per tutti gli appassionati che vogliono continuare a allenarsi senza essere\n      costretti a passare a modelli in abbonamento.':
+      'This toolkit is for everyone who wants to keep training without being forced onto a subscription model.',
+    'Il tool non raccoglie alcun dato personale': 'The tool collects no personal data',
+    'Il tool \u00e8 stato principalmente testato con workout ad alti BPM':
+      'The tool has mostly been tested with high-BPM workouts',
+    'Pillola azzurra': 'Blue pill',
+    'Pillola rossa': 'Red pill',
+    'Correggi': 'Fix',
+    'Workout esistenti': 'existing workouts',
+    'Crea Workout': 'Create a workout',
+    'da Mp3': 'from MP3',
+    '\u26a0 Rilevata Patch.': '\u26a0 Patch detected.',
+
+    // --- chiavi prese direttamente dal markup (vedi
+    //     _build_correggi/genera_chiavi_mancanti.py) ---
+    "Svuota 🗑":
+      "Clear list",
+    ": fine della storia. Domani ti svegli in camera tua, e credi a quello che vuoi.":
+      ": end of story. Tomorrow you wake up in your bed and believe whatever you want to believe.",
+    ": resti nel paese delle meraviglie, e quant'è profonda la tana del bianconiglio te lo mostro io.\"":
+      ": you stay in Wonderland, and I show you how deep the rabbit hole goes.\"",
+    "Tieni presente: agisce solo dove BoxVR ha già creato dei segmenti — non riempie i vuoti dove il gioco\n    non ha messo nulla. Per quello serve Genera.":
+      "Note: it only acts where BoxVR already created segments - it does not fill the gaps the game left empty. Use Generate for that.",
+    "(Brani\n      dance/EDM/Techno), c'è da aspettarsi eventuali bug o desync con\n      altre tipologie di brani, segnalateli e saranno fixate appena possibile.":
+      "(dance/EDM/Techno tracks), so expect occasional bugs or desync with other kinds of music - report them and they will be fixed as soon as possible.",
+    "Crea allenamenti nuovi da zero, con colpi precisi su beat/drop che non cambiano ogni volta che giocate il\n        workout. Richiede una piccola modifica al gioco, reversibile.":
+      "Create brand new workouts from scratch, with punches placed precisely on beats and drops that do not change every time you play the workout. Requires a small, reversible change to the game.",
+    "Ti permette di migliorare i workout custom importati tramite il processing\n      ufficiale di BoxVR e creare nuovi livelli custom (per davvero) gestendo i tuoi file audio personali.":
+      "It lets you improve custom workouts imported through BoxVR's official processing, and create genuinely new custom levels from your own audio files.",
+    "È un progetto amatoriale a quattro mani: design, flussi UX/UI e testing curati\n      da un utente come te; programmazione e build sviluppate con l'ausilio dell'Intelligenza Artificiale.":
+      "It is an amateur project made by two pairs of hands: design, UX/UI flows and testing by a user like you; programming and builds developed with the help of Artificial Intelligence.",
+    "Disclaimer Legale: Questo è un progetto fan-made e no-profit, privo di affiliazione con i creatori\n      originali di BoxVR. L'utilizzo del software avviene a proprio rischio e sotto la propria responsabilità.":
+      "Legal disclaimer: this is a fan-made, non-profit project with no affiliation to the original creators of BoxVR. You use the software at your own risk and under your own responsibility.",
+    "Basilare, tenta di migliorare il più possibile i livelli di intensità dei workout che BoxVR ha già creato.\n        Può essere necessario correggere e testare un workout prima di arrivare alla qualità desiderata.":
+      "Basic: it tries to improve as much as possible the intensity levels BoxVR has already created. You may need to fix and test a workout a few times before reaching the quality you want.",
+    ", integra API e librerie locali\n      per la gestione di tutte le sue componenti, nel caso in cui avesse\n      difficoltà a decodificare i BPM di una canzone potrebbe chiederti se TU\n      vuoi cercare su internet dei valori esatti.":
+      ", it integrates local APIs and libraries to manage all of its parts; if it struggles to detect a track's BPM it may ask whether YOU want to look up the exact values online.",
+    "Questa parte del tool migliora i livelli di intensità che BoxVR ha già assegnato a un workout esistente:\n    analizza l'audio reale, li confronta con l'originale e ti propone una versione più coerente col ritmo del\n    brano. Puoi scegliere quanti eventi trattare come pugni puri, quanto margine di sicurezza tenere nelle\n    correzioni, ascoltare il risultato con un click a tempo, e decidere se salvare solo un report o sostituire\n    i file (con backup automatico).":
+      "This part of the tool improves the intensity levels BoxVR already assigned to an existing workout: it analyses the real audio, compares them with the original and proposes a version more consistent with the track's rhythm. You can choose how many events to treat as pure punches, how much safety margin to keep in the corrections, listen to the result with a click track, and decide whether to save just a report or replace the files (with an automatic backup).",
+    "Questa parte del tool crea un workout completamente nuovo a partire da un mp3: analizza l'audio con lo stesso\n    tipo di rilevamento del ritmo usato da BoxVR e costruisce fasi che coprono l'intero brano, senza i vuoti di\n    silenzio che i workout originali a volte lasciano. Puoi scegliere un preset di intensità, vedere in anteprima\n    come verrebbe suddiviso il workout prima di generarlo, ascoltarlo con un click a tempo, e dare un nome alla\n    playlist per generare più brani insieme e unificarli in un unico allenamento continuo.":
+      "This part of the tool builds a completely new workout from an mp3: it analyses the audio with the same kind of beat detection BoxVR uses, and builds phases that cover the whole track, without the silent gaps the original workouts sometimes leave. You can pick an intensity preset, preview how the workout would be split before generating it, listen to it with a click track, and name the playlist to generate several tracks together and merge them into one continuous session.",
+
+  };
+
+  // I nodi tradotti vengono ricordati col loro testo italiano, cosi' tornare
+  // a IT non richiede un secondo dizionario EN->IT.
+  const _originali = new WeakMap();
+  let _lingua = 'it';
+
+  // Nel markup i testi lunghi sono spezzati su piu' righe con
+  // l'indentazione: senza normalizzare gli spazi non combaciano MAI con la
+  // chiave del dizionario (era il motivo per cui i copy restavano in
+  // italiano). L'indice normalizzato si costruisce una volta sola.
+  const _TRAD_NORM = {};
+  for (const k in TRAD) _TRAD_NORM[k.replace(/\s+/g, ' ').trim()] = TRAD[k];
+
+  // I suggerimenti (`title`) e i testi grigi delle caselle (`placeholder`)
+  // NON sono nodi di testo: il TreeWalker qui sotto non li incontra mai, e
+  // restavano in italiano anche a lingua cambiata. Si traducono a parte.
+  function traduciAttributi() {
+    for (const el of document.querySelectorAll('[title], [placeholder], [aria-label]')) {
+      for (const attr of ['title', 'placeholder', 'aria-label']) {
+        const v = el.getAttribute(attr);
+        if (!v) continue;
+        // Si conserva l'originale (ritradurre una traduzione non funziona, e
+        // la lingua si puo' cambiare avanti e indietro) MA anche il valore
+        // che abbiamo scritto noi: se al giro dopo l'attributo e' diverso da
+        // quello, l'ha cambiato il codice, e il nuovo valore e' il nuovo
+        // originale. Senza questo confronto un `title` aggiornato a runtime
+        // restava per sempre quello del primo giro - si vedeva sul segno di
+        // "Estendi", che raccontava sempre la stessa cosa.
+        const chiave = 'i18n' + attr.replace('-', '');
+        const chiaveScritta = chiave + 'Out';
+        if (!el.dataset[chiave] || el.dataset[chiaveScritta] !== v) {
+          el.dataset[chiave] = v;
+        }
+        const tradotto = T(el.dataset[chiave]);
+        if (tradotto !== v) el.setAttribute(attr, tradotto);
+        el.dataset[chiaveScritta] = tradotto;
+      }
+    }
+  }
+
+  function traduciPagina() {
+    if (_lingua === 'it') return;
+    traduciAttributi();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      const grezzo = n.nodeValue;
+      const testo = grezzo.trim();
+      if (!testo) continue;
+      // "8 brani nell'elenco" e simili: la parte variabile e' il numero
+      // davanti, che va lasciato com'e' traducendo solo il resto. Senza
+      // questo, un testo composto a runtime resta in italiano per sempre.
+      let tr = TRAD[testo] || _TRAD_NORM[testo.replace(/\s+/g, ' ')];
+      if (!tr) {
+        const m = testo.match(/^(\d+)\s+(.+)$/);
+        if (m) {
+          const coda = TRAD[m[2]] || _TRAD_NORM[m[2].replace(/\s+/g, ' ')];
+          if (coda) tr = m[1] + ' ' + coda;
+        }
+      }
+      if (tr && tr !== testo) {
+        if (!_originali.has(n)) _originali.set(n, grezzo);
+        // gli spazi INTORNO al testo vanno conservati: sostituendo l'intero
+        // nodo, "Silenzio 2" diventava "Silence2" (lo spazio prima del
+        // numero stava in coda al nodo tradotto).
+        const pre = grezzo.match(/^\s*/)[0], post = grezzo.match(/\s*$/)[0];
+        n.nodeValue = pre + tr + post;
+      }
+    }
+    // anche title/placeholder, che il TreeWalker non vede
+    document.querySelectorAll('[title]').forEach((e) => {
+      const t = TRAD[e.getAttribute('title').trim()];
+      if (t) { if (!e.dataset.titleIt) e.dataset.titleIt = e.getAttribute('title'); e.title = t; }
+    });
+    document.querySelectorAll('[placeholder]').forEach((e) => {
+      const t = TRAD[e.getAttribute('placeholder').trim()];
+      if (t) { if (!e.dataset.phIt) e.dataset.phIt = e.getAttribute('placeholder'); e.placeholder = t; }
+    });
+  }
+
+  function ripristinaItaliano() {
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      if (_originali.has(n)) n.nodeValue = _originali.get(n);
+    }
+    document.querySelectorAll('[data-title-it]').forEach((e) => { e.title = e.dataset.titleIt; });
+    document.querySelectorAll('[data-ph-it]').forEach((e) => { e.placeholder = e.dataset.phIt; });
+  }
+
+  // Elenca i testi visibili SENZA traduzione: serve a sapere cosa manca
+  // davvero, invece di dare per scontato che la pagina sia tutta tradotta.
+  function stringheNonTradotte() {
+    const fuori = new Set();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      const t = n.nodeValue.trim();
+      if (!t || t.length < 3 || /^[\d\s:.,%\/·—–-]+$/.test(t)) continue;
+      if (n.parentElement && n.parentElement.closest('.not-wired-note, script, style')) continue;
+      const norm = t.replace(/\s+/g, ' ');
+      if (!TRAD[t] && !_TRAD_NORM[norm] && !Object.values(TRAD).includes(t)) fuori.add(t);
+    }
+    return Array.from(fuori);
+  }
+
+  // "8 brani nell'elenco" e' costruito per concatenazione: il dizionario
+  // lavora su testi interi e non lo intercetterebbe mai. Qui la parte
+  // variabile (il numero) resta fuori e si traduce solo la parola.
+  // Traduzione di UNA stringa, per i testi che non passano dal DOM e che
+  // quindi il MutationObserver non puo' vedere: il contenuto degli
+  // `alert()`, e i `title` che il codice scrive a mano.
+  function T(testo) {
+    if (_lingua === 'it' || !testo) return testo;
+    const norm = String(testo).replace(/\s+/g, ' ').trim();
+    return TRAD[testo] || TRAD[norm] || _TRAD_NORM[norm] || testo;
+  }
+  window.T = T;
+
+  function conConteggio(n, singolare, plurale) {
+    const parola = n === 1 ? singolare : plurale;
+    const tr = (_lingua === 'it') ? parola : (TRAD[parola] || parola);
+    return n + ' ' + tr;
+  }
+  window.conConteggio = conConteggio;
+
+  window.stringheNonTradotte = stringheNonTradotte;
+
+  // Molti testi nascono da render JS (righe brano, pillole, stati, log):
+  // invece di ricordarsi di ritradurre in ognuno di quei punti - dove prima
+  // o poi se ne dimentica uno - la pagina si ritraduce da sola quando il DOM
+  // cambia. Il lavoro e' nullo finche' la lingua e italiano.
+  let _pendente = false;
+  new MutationObserver(() => {
+    if (_lingua === 'it' || _pendente) return;
+    _pendente = true;
+    requestAnimationFrame(() => { _pendente = false; traduciPagina(); });
+  }).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
+
+  // Standalone (genera_real/app.py) espone i metodi senza prefisso
+  // (list_songs, recompute, ...). Dentro dashboard_real, invece, lo stesso
+  // js_api della finestra porta ANCHE i metodi di Correggi con gli stessi
+  // nomi (list_songs, recompute, ...) - per evitare la collisione li'
+  // vengono esposti col prefisso "genera_" (vedi dashboard_real/app.py).
+  // Questo proxy prova prima il nome con prefisso e ripiega su quello nudo,
+  // cosi' TUTTO il resto di questo file chiama sempre api().list_songs()
+  // ecc. senza sapere in quale dei due contesti sta girando.
+  const api = () => new Proxy({}, {
+    get(_, prop) {
+      const real = window.pywebview.api;
+      const prefixed = real['playlist_' + prop];
+      const fn = typeof prefixed === 'function' ? prefixed : real[prop];
+      // Se il metodo non esiste, il messaggio del browser sarebbe
+      // "Cannot read properties of undefined (reading 'bind')": inutile.
+      // Meglio dire QUALE metodo manca.
+      if (typeof fn !== 'function') {
+        return () => Promise.reject(new Error("metodo assente nell'API: " + prop));
+      }
+      return fn.bind(real);
+    }
+  });
+
+  // La pagina e' un canvas 1920x1080 scalato con transform (fitPage): i
+  // popover ci stanno DENTRO, quindi vanno posizionati in coordinate del
+  // canvas, non del viewport. Usando clientX/clientY grezzi finivano
+  // spostati in basso a destra rispetto al puntatore (segnalato
+  // dall utente sul tooltip dei blocchi).
+  function toPageCoords(clientX, clientY) {
+    const page = document.querySelector('.page.genera-fixed');
+    if (!page) return {x: clientX, y: clientY, s: 1};
+    const r = page.getBoundingClientRect();
+    // NON r.width/1920: con --extra il canvas e' piu' largo di 1920 e la
+    // divisione darebbe una scala gonfiata, spostando i popover.
+    const s = r.width / (1920 + extraCorrente()) || 1;
+    return {x: (clientX - r.left) / s, y: (clientY - r.top) / s, s: s};
+  }
+
+  // Quando il layout e' DAVVERO aggiornato. Non basta leggere subito dopo
+  // aver scritto, e non basta nemmeno un requestAnimationFrame: la
+  // richiamata gira prima del calcolo del frame e restituisce la geometria
+  // precedente. Due frame, e la misura e' quella vera.
+  function dopoIlLayout(fn) {
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+  }
+
+  // Il riquadro dei suggerimenti, aperto su un TESTO gia' pronto invece che
+  // su una chiave di dizionario. Serve a chi ha qualcosa da dire che cambia
+  // mentre il tool e' aperto - «Estendi» e il suo conteggio di marker - e
+  // che quindi non puo' stare in una tabella di testi fissi. Stessa
+  // apparizione, stesso allargamento, stesso posizionamento di tutti gli
+  // altri: un secondo riquadro sarebbe divergiuto al primo ritocco.
+  function mostraSuggerimento(bersaglio, testo, chiave) {
+    const pop = document.getElementById('info-popover');
+    document.getElementById('info-popover-body').textContent = testo;
+    pop.classList.remove('largo-2', 'largo-3', 'largo-4');
+    // invisibile ma gia' misurabile: la larghezza definitiva si sa solo dopo
+    // aver misurato, e il salto non deve vedersi
+    pop.style.visibility = 'hidden';
+    pop.classList.add('visible');
+    // il riquadro del bersaglio si prende ADESSO, prima che il mouse vada altrove
+    const rect = bersaglio.getBoundingClientRect();
+    pop.dataset.tipChiave = chiave;           // per abbandonare i giri sorpassati
+    adattaLarghezzaSuggerimento(pop, rect, chiave, 0);
+  }
+  window.mostraSuggerimento = mostraSuggerimento;
+
+  function showInfoPopover(event, key) {
+    event.stopPropagation();
+    const dizionario = (_lingua === 'en') ? TOOLTIPS_EN : TOOLTIPS;
+    mostraSuggerimento(event.target,
+      dizionario[key] || TOOLTIPS[key] || '(testo non disponibile)', key);
+  }
+  window.showInfoPopover = showInfoPopover;
+
+  function adattaLarghezzaSuggerimento(pop, rect, key, giro) {
+    dopoIlLayout(() => {
+      // se nel frattempo si e' passati a un altro pallino, questo giro non
+      // conta piu': starebbe misurando un testo che non c'e' piu'
+      if (pop.dataset.tipChiave !== key) return;
+      const alta = pop.offsetHeight;
+      let i = TIP_CLASSI.findIndex((c) => c && pop.classList.contains(c));
+      if (i < 0) i = 0;
+      if (alta > TIP_ALTEZZA_MAX && i < TIP_LARGHEZZE.length - 1 && giro < 3) {
+        // il testo occupa "alta - testa" alla larghezza di adesso: per stare
+        // dentro TIP_ALTEZZA_MAX serve, in proporzione, questa larghezza
+        const servono = TIP_LARGHEZZE[i] * (alta - TIP_TESTA) /
+                        Math.max(1, TIP_ALTEZZA_MAX - TIP_TESTA);
+        let j = i;
+        while (j < TIP_LARGHEZZE.length - 1 && TIP_LARGHEZZE[j] < servono) j++;
+        if (j === i) j = i + 1;        // e' ancora alto: almeno un passo
+        pop.classList.remove('largo-2', 'largo-3', 'largo-4');
+        if (TIP_CLASSI[j]) pop.classList.add(TIP_CLASSI[j]);
+        adattaLarghezzaSuggerimento(pop, rect, key, giro + 1);
+        return;
+      }
+      posizionaInfoPopover(pop, rect);
+      pop.style.visibility = '';
+    });
+  }
+
+  // Dove si apre: sotto il pallino, dentro i bordi del canvas. In coordinate
+  // del canvas, non del viewport - la pagina e' scalata (vedi toPageCoords).
+  function posizionaInfoPopover(pop, rect) {
+    const a = toPageCoords(rect.left, rect.bottom);
+    const largh = pop.offsetWidth || 260;
+    const bordoDestro = 1920 + extraCorrente() - 10;
+    pop.style.left = Math.max(10, Math.min(a.x, bordoDestro - largh)) + 'px';
+    // e se sfora in basso si apre SOPRA il pallino invece che sotto: prima
+    // usciva dal fondo e il testo restava irraggiungibile
+    const alt = pop.offsetHeight;
+    let top = a.y + 6;
+    if (top + alt > 1080 - 10) top = Math.max(10, a.y - alt - 24);
+    pop.style.top = top + 'px';
+  }
+
+  function hideInfoPopover() {
+    const pop = document.getElementById('info-popover');
+    pop.classList.remove('visible');
+    pop.style.visibility = '';   // se si chiude mentre si misurava
+  }
+  window.hideInfoPopover = hideInfoPopover;
+
+  function fmt(s) {
+    s = Math.max(0, s || 0);
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  }
+
+  async function loadAppInfo() {
+    const info = await api().get_app_info();
+    document.getElementById('app-version').textContent = 'Ver ' + info.version;
+    renderPatchPill(info.patch_state);
+  }
+
+  // Tema chiaro/scuro ("Light switch.svg") - STESSA chiave/default della GUI
+  // Tkinter vera (settings.json['theme'], default 'dark'), condivisa fra le
+  // pagine. applyTheme imposta data-theme sulla radice - styles.css legge
+  // quell'attributo per sovrascrivere prefers-color-scheme (vedi commento
+  // nella palette scura).
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    aggiornaInterruttoreTema(theme);
+  }
+
+  function initTheme() {
+    // Non si stampa data-theme: lasciandolo assente il CSS segue il
+    // sistema da solo, anche se l'utente lo cambia mentre il programma e'
+    // aperto. Si aggiorna solo l'aspetto dell'interruttore.
+    aggiornaInterruttoreTema(temaDiSistema());
+    if (window.matchMedia) {
+      const q = window.matchMedia('(prefers-color-scheme: dark)');
+      const seguiSistema = () => {
+        if (!document.documentElement.dataset.theme) {
+          aggiornaInterruttoreTema(temaDiSistema());
+        }
+      };
+      if (q.addEventListener) q.addEventListener('change', seguiSistema);
+    }
+  }
+
+  function toggleTheme() {
+    // solo per questa sessione: niente set_theme, niente da ricordare
+    applyTheme(temaCorrente() === 'dark' ? 'light' : 'dark');
+  }
+  window.toggleTheme = toggleTheme;
+
+  // Selettore lingua: per ora commuta solo lo stato visivo (quale pillola e'
+  // attiva). La traduzione vera dei testi non c'e' ancora - il tool ha gia'
+  // le sue STRINGS it/en nella GUI Tkinter, andranno portate qui in un giro
+  // dedicato invece di duplicarle a mano.
+  // Cambio lingua VERO (prima cambiava solo la pillola attiva). La scelta e'
+  // ricordata in settings.json come tema e cartella di gioco.
+  async function setLang(code) {
+    document.querySelectorAll('.lang-pill').forEach(p =>
+      p.classList.toggle('active', p.textContent.trim().toLowerCase() === code));
+    _lingua = code;
+    if (code === 'it') ripristinaItaliano(); else traduciPagina();
+    try { await api().set_lang(code); } catch (e) { /* pagina aperta fuori da pywebview */ }
+  }
+  window.setLang = setLang;
+
+  async function initLang() {
+    let code = 'it';
+    try { code = await api().get_lang(); } catch (e) { /* default italiano */ }
+    setLang(code);
+  }
+
+  // Il tema SEGUE IL SISTEMA. Non si legge e non si scrive nessuna
+  // impostazione salvata: la radice resta senza data-theme, e in quello
+  // stato comanda prefers-color-scheme - cioe' il tema di Windows, che e'
+  // quello che l'utente ha gia' scelto una volta per tutte le sue
+  // applicazioni. L'interruttore serve a guardare l'altra versione al volo,
+  // e la scelta vale solo per questa sessione: alla riapertura si torna a
+  // seguire il sistema.
+  function temaDiSistema() {
+    return window.matchMedia &&
+           window.matchMedia('(prefers-color-scheme: dark)').matches
+           ? 'dark' : 'light';
+  }
+
+  function temaCorrente() {
+    // se nessuno ha ancora toccato l'interruttore, e' quello del sistema
+    return document.documentElement.dataset.theme || temaDiSistema();
+  }
+
+  // L'interruttore mostra il tema verso cui si VA, non quello attuale:
+  // con la pagina chiara si vede la versione blu notte (clicchi -> scuro),
+  // con la pagina scura la versione arancio (clicchi -> chiaro).
+  // data-on="true" = variante scura del componente.
+  function aggiornaInterruttoreTema(theme) {
+    const sw = document.getElementById('theme-switch');
+    if (sw) sw.dataset.on = theme === 'light' ? 'true' : 'false';
+  }
+
+  function renderPatchPill(state) {
+    const wrap = document.getElementById('patch-pill-wrap');
+    if (state === 'patched') {
+      wrap.innerHTML = `<div class="patch-pill installed"><span class="patch-icon">${PATCH_CHECK_ICON}</span>Patch installata</div>`;
+    } else if (state === 'original') {
+      wrap.innerHTML = `<div class="patch-pill not-detected"><span class="patch-icon">${PATCH_DOWNLOAD_ICON}</span>Patch non rilevata</div>`;
+    } else {
+      wrap.innerHTML = '';
+    }
+  }
+
+  const PATCH_CHECK_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M6.5 11.5L10.0714 15L16.5 8" stroke="#267448" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const PATCH_DOWNLOAD_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M11 6V15.091M6 11.455L11 16L16 11.455" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // "Pattern Scacchiera": griglia a scacchiera di icone vere del progetto,
+  // stessi passo/rotazioni/ingombri misurati sul frame reale (29:4408).
+  // Deterministica (nessun Math.random): stesso disegno a ogni avvio.
+  function renderBgPattern() {
+    const el = document.getElementById('bg-pattern');
+    if (!el) return;
+    const ICONS = ['jab_sx', 'jab_dx', 'hook_sx', 'hook_dx', 'uppercut_sx', 'uppercut_dx', 'block'];
+    // rosa e azzurri in piu' intensita', come nel pattern reale
+    const COLORS = ['#FF3E9D', '#FF8CC6', '#FFC2E0', '#3B9BFF', '#8FC4FF', '#C2DEFF'];
+    const ROT = [0, 13.3, 22.5, 45];      // -> ingombri 100/122.47/136.60/141.42
+    const DX = 236, DY = 118;
+    let html = '', k = 0;
+    for (let row = -1; row * DY < 1080 + DY; row++) {
+      for (let col = -1; col * DX < 1920 + extraMax() + DX; col++) {
+        const off = (row % 2) ? DX / 2 : 0;
+        // scostamento deterministico, per non sembrare una griglia perfetta
+        const jx = ((k * 37) % 41) - 20, jy = ((k * 61) % 29) - 14;
+        const x = col * DX + off + jx, y = row * DY + jy;
+        const rot = ROT[k % ROT.length];
+        const size = 100;
+        const isBlock = (k % 11) === 0;   // qualche "block" rosso come nel reale
+        const color = isBlock ? '#FF2D2D' : COLORS[k % COLORS.length];
+        const icon = isBlock ? 'block' : ICONS[k % ICONS.length];
+        const op = 0.10 + ((k * 13) % 7) * 0.025;   // 0.10 - 0.25
+        html += `<i style="left:${x}px;top:${y}px;width:${size}px;height:${size}px;` +
+                `transform:rotate(${rot}deg);background:${color};opacity:${op.toFixed(3)};` +
+                `-webkit-mask-image:url(assets/icons/${icon}.svg);mask-image:url(assets/icons/${icon}.svg)"></i>`;
+        k++;
+      }
+    }
+    el.innerHTML = html;
+  }
+  renderBgPattern();
+
+  function fitPage() {
+    const page = document.querySelector('.page.genera-fixed');
+    if (!page) return;
+    // Si sceglie la FORMA prima della scala: se la finestra non regge i
+    // 1920 alla scala minima leggibile, si passa alla disposizione
+    // impilata, che ne chiede 1448. Deciderlo dopo significherebbe
+    // calcolare la scala su una larghezza e disegnare su un'altra.
+    const fascia = fasciaCanvas();
+    page.classList.toggle('stretta', fascia !== 'intera');
+    page.classList.toggle('compatta', fascia === 'compatta');
+    if (page.classList.contains('stretta')) impilaDalContenuto(page);
+    const W = canvasW(), H = canvasH();
+    // Solo la LARGHEZZA vincola la scala. Vincolarla anche all'altezza
+    // faceva rimpicciolire tutto per far entrare 1080px verticali, mentre
+    // scorrere in verticale e' normale e il criterio lo consente: e'
+    // l'orizzontale che non deve mai servire.
+    let s = Math.min(1, window.innerWidth / W);
+    s = Math.max(s, scalaMinimaLeggibile());
+    const extra = Math.max(0, Math.min(extraMax(),
+                           Math.round(window.innerWidth / s - W)));
+    window.__scalaCanvas = s; window.__extraCanvas = extra;
+    // prima decisione presa: la pagina si puo' mostrare
+    page.style.visibility = 'visible';
+    page.style.setProperty('--extra', extra + 'px');
+    page.style.transform = `scale(${s})`;
+    page.style.left = Math.max(0, (window.innerWidth - (W + extra) * s) / 2) + 'px';
+    page.style.top = Math.max(0, (window.innerHeight - H * s) / 2) + 'px';
+    // col pavimento attivo il canvas puo' sforare: meglio scorrere che
+    // rendere illeggibile, ma la barra deve comparire solo quando serve
+    const sfora = (W + extra) * s > window.innerWidth + 1 ||
+                  H * s > window.innerHeight + 1;
+    document.body.style.overflow = sfora ? 'auto' : 'hidden';
+    document.dispatchEvent(new CustomEvent('canvas-ridimensionato'));
+  }
+
+  function canvasW() { return impilata() ? 1448 : 1920; }
+
+  function canvasH() {
+    return impilata() ? (window.__altezzaImpilata || 1420) : 1080;
+  }
+
+  function extraMax() { return 640; }   // oltre, l'onda diventa una striscia
+
+  function scalaMinimaLeggibile() {
+    // Quanto puo' rimpicciolirsi il canvas prima che il testo corrente
+    // diventi troppo piccolo da leggere.
+    //
+    // La versione precedente divideva per il devicePixelRatio, ed era
+    // ROVESCIATA: su uno schermo a 125% (dpr 1.25) il pavimento diventava
+    // 11/(12*1.25) = 0.73, cioe' la pagina poteva scendere al 73% e il
+    // testo da 12px si vedeva come 8.8. Chi ha lo schermo piu' denso - e
+    // ha chiesto a Windows caratteri piu' grandi - si ritrovava il testo
+    // PIU' piccolo. E' l'origine del "in generale sono piccoli".
+    //
+    // La densita' non c'entra: quello che si percepisce e' la dimensione
+    // APPARENTE, e Windows la tiene gia' costante scalando tutto. Quindi
+    // il pavimento e' semplicemente "px dichiarati x scala", senza dpr.
+    //
+    // 0.75 e non 11/13 (=0.85): a 0.85 il canvas 1920x1080 diventa
+    // 1632x918 e su un'area di lavoro 1536x824 comparirebbero le barre di
+    // scorrimento dove oggi non ci sono. 0.75 e' il punto in cui il testo
+    // corrente (ora 13px, era 12) resta sopra i 9.75px apparenti senza
+    // introdurre scorrimento su nessuno schermo comune.
+    // Il pavimento cede solo nella fascia compatta, dove tenerlo a 0.75
+    // significherebbe sbordare in orizzontale: misurato, a 1010px di
+    // finestra il canvas impilato a 0.75 esce di 76px. A 0.68 entra.
+    // Il testo corrente scende a ~8.8px apparenti: e' il compromesso
+    // dichiarato per le finestre piu' piccole, non una svista.
+    return Math.min(1, fasciaCanvas() === 'compatta' ? 0.68 : 0.75);
+  }
+
+  function extraCorrente() { return window.__extraCanvas || 0; }
+
+  // Raccoglitore di errori: senza questo un errore JS (o una promise
+  // rifiutata, il caso piu' frequente qui perche' quasi tutte le chiamate
+  // all'API sono async) sparisce in silenzio e la pagina resta a meta'.
+  // ---- geometria del canvas -------------------------------------------
+  // FUNZIONI e non costanti, per due motivi concreti e non di stile.
+  // Primo: Correggi e Playlist sono composte prendendo da questa pagina i
+  // blocchi elencati per NOME, e un blocco di `const` non ha un nome da
+  // mettere in quella lista - restava indietro, e quelle pagine morivano
+  // con "EXTRA_MAX is not defined". Secondo: le dichiarazioni di funzione
+  // sono hoisted, quindi renderBgPattern() puo' usarle anche se sta prima,
+  // mentre con const sarebbe un errore di accesso anticipato.
+  // Lo stato mutabile (scala ed extra correnti) sta su window per la stessa
+  // ragione: nessuna dichiarazione da far viaggiare.
+  // Il canvas ha DUE forme, non una. Quale sia in uso lo dice la classe
+  // "stretta" sulla pagina, che fitPage mette e toglie: cosi' canvasW e
+  // canvasH restano la sola fonte della geometria e non c'e' il rischio
+  // che la scala venga calcolata su una larghezza e il layout disegnato
+  // su un'altra.
+  // ---- Le tre fasce di adattamento ------------------------------------
+  // Soglie RICAVATE dalle misure, non scelte a intuito: a 1138px di finestra
+  // la disposizione impilata regge senza sbordare, a 1010 no. Le due quote
+  // stanno un po' sopra quei numeri per avere margine.
+  //
+  //   intera    >= 1440   il wireframe com'e' disegnato
+  //   impilata  1100-1440 pannello brani sotto, canvas 1920 -> 1448
+  //   compatta  < 1100    stessa forma, ma il pavimento della scala cede
+  //                       fino a 0.68: sotto quella larghezza l'alternativa
+  //                       sarebbe scorrere in orizzontale, che e' peggio
+  //                       di un testo un po' piu' piccolo.
+  function SOGLIA_IMPILATA() { return 1440; }
+
+  function SOGLIA_COMPATTA() { return 1100; }
+
+  function fasciaCanvas() {
+    const w = window.innerWidth;
+    if (w >= SOGLIA_IMPILATA()) return 'intera';
+    if (w >= SOGLIA_COMPATTA()) return 'impilata';
+    return 'compatta';
+  }
+
+  function impilata() {
+    const p = document.querySelector('.page');
+    return !!(p && p.classList.contains('stretta'));
+  }
+
+  // Quote della disposizione impilata, prese dal CONTENUTO vero: si misura
+  // il fondo dell'intestazione e da li' si impilano i tre blocchi, ciascuno
+  // con la sua altezza piu' un respiro. Cosi' un paragrafo piu' lungo (o
+  // una traduzione piu' lunga) sposta tutto invece di finirci sopra.
+  // offsetTop/offsetHeight sono misure di LAYOUT: la scala non le tocca.
+  function impilaDalContenuto(page) {
+    const RESPIRO = 24, ALTEZZA_BRANI = 300, ALTEZZA_ANTEPRIMA = 339;
+    const testa = page.querySelector('.section-desc') ||
+                  page.querySelector('.app-header');
+    if (!testa) return;
+    const yBrani = Math.round(testa.offsetTop + testa.offsetHeight + RESPIRO * 2);
+    const yAnteprima = yBrani + ALTEZZA_BRANI + RESPIRO;
+    const yGenera = yAnteprima + ALTEZZA_ANTEPRIMA + RESPIRO;
+    page.style.setProperty('--y-brani', yBrani + 'px');
+    page.style.setProperty('--y-anteprima', yAnteprima + 'px');
+    page.style.setProperty('--y-genera', yGenera + 'px');
+    window.__altezzaImpilata = yGenera + 380 + 44;
+  }
+
+  // ---- trascinamento di file e cartelle ---------------------------------
+  // Due cose necessarie, entrambe non ovvie:
+  // 1. senza preventDefault su dragover/drop il webview NAVIGA sul file
+  //    trascinato, buttando via la pagina;
+  // 2. i percorsi veri non li vede il JavaScript - li fornisce pywebview al
+  //    gestore registrato dal lato Python (vedi trascina.py). Qui si fa solo
+  //    la parte visiva.
+  // Funzione con un NOME, non anonima: le pagine composte prendono da
+  // qui i blocchi elencati per nome, e un blocco anonimo non puo'
+  // essere elencato - restava in Genera e non arrivava in Correggi.
+  // Invio e Spazio su un elemento reso interattivo con role+tabindex.
+  // Un <button> lo fa da solo; uno <span role="button"> no, e senza questo
+  // resterebbe azionabile solo col mouse.
+  // Funzione con un NOME perche' le pagine composte prendono da qui i
+  // blocchi elencati per nome: una anonima non arriverebbe.
+  function attivaConTastiera(e) {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();          // lo Spazio farebbe scorrere la pagina
+    e.currentTarget.click();
+  }
+
+  // Il testo, reso innocuo dentro un attributo HTML. L'identificativo di un
+  // brano in Genera e' il NOME DEL FILE: puo' contenere apostrofi,
+  // virgolette, e commerciali. Metterlo dentro un attributo senza protezione
+  // rompeva l'HTML (e, quando finiva in un gestore evento, il JavaScript).
+  function perAttributo(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  window.perAttributo = perAttributo;
+
+  // ================= parte specifica del Playlist Manager =================
+  // Tutto quello che sta sopra e' estratto da genera_real, come per Correggi.
+  // Qui solo la logica di questa pagina, appoggiata alle API gia' esistenti
+  // di playlist_real/app.py (che a loro volta riusano boxvr_playlist_manager,
+  // lo stesso modulo dell'exe gia' distribuito).
+
+  let confirmingRemoveId = null;
+  const sidecarState = null;
+  function updateSidecarCursor() { /* nessun pannello marker qui */ }
+
+  const TOOLTIPS = {};
+
+  let playlists = [], corrente = null;
+
+  function durata(sec) {
+    sec = Math.round(sec || 0);
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function rigaPlaylistHtml(p, i) {
+    return `
+      <div class="song-row" data-path="${perAttributo(p.path)}" role="button" tabindex="0"
+           onkeydown="attivaConTastiera(event)"
+           onclick="apriPlaylist(this.dataset.path)">
+        <div class="row-top"><span class="idx">${String(i + 1).padStart(2, '0')}</span>
+          <span>${p.num_songs} brani</span>
+          <span class="bpm"><span class="bpm-status">${durata(p.duration)}</span></span></div>
+        <div class="row-bottom"><span class="track-name">${p.workout_name || '(senza nome)'}</span></div>
+      </div>`;
+  }
+
+  async function caricaElenco() {
+    playlists = await api().list_playlists();
+    const vuoto = playlists.length === 0;
+    document.getElementById('song-panel').classList.toggle('is-empty', vuoto);
+    document.getElementById('pl-count').textContent =
+      conConteggio(playlists.length, 'playlist installata', 'playlist installate');
+    document.getElementById('playlist-list').innerHTML =
+      playlists.map(rigaPlaylistHtml).join('');
+    if (!vuoto && !corrente) apriPlaylist(playlists[0].path);
+  }
+  window.caricaElenco = caricaElenco;
+
+  async function apriPlaylist(path) {
+    const r = await api().get_playlist(path);
+    if (!r.ok) { nota(r.error); return; }
+    corrente = r;
+    document.querySelectorAll('.song-row').forEach(x =>
+      x.classList.toggle('selected', x.dataset.path === path));
+    const i = playlists.findIndex(p => p.path === path);
+    document.getElementById('pl-idx').textContent = String(i + 1).padStart(2, '0');
+    document.getElementById('pl-nome').textContent = r.workout_name || '(senza nome)';
+    document.getElementById('pl-brani').textContent = conConteggio(r.songs.length, 'brano', 'brani');
+    // etichetta e valore in due nodi: "Durata totale: 2:58" come stringa
+    // unica non e' traducibile (il valore cambia a ogni playlist)
+    document.getElementById('pl-durata').innerHTML =
+      '<span>Durata totale:</span> ' + durata(r.duration);
+    document.getElementById('pl-name-input').value = r.workout_name || '';
+    renderBrani();
+    nota('');
+  }
+  window.apriPlaylist = apriPlaylist;
+
+  function renderBrani() {
+    const songs = corrente.songs || [];
+    document.getElementById('pl-n').textContent = songs.length;
+    document.getElementById('pl-tot').textContent = durata(corrente.duration);
+    document.getElementById('pl-songs').innerHTML = songs.map((s, i) => `
+      <div class="pl-riga">
+        <span class="pl-pos">${String(i + 1).padStart(2, '0')}</span>
+        <button class="pl-ascolta" id="pl-ascolta-${i}" title="Ascolta questo brano"
+                onclick="ascolta(${i})">&#9654;</button>
+        <span class="pl-titolo">${s.display_name || s.track_id}</span>
+        <span class="pl-dur">${durata(s.duration)}</span>
+        <button title="Sposta su" onclick="sposta(${i}, ${i - 1})" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+        <button title="Sposta giù" onclick="sposta(${i}, ${i + 1})" ${i === songs.length - 1 ? 'disabled' : ''}>&darr;</button>
+        <button class="pl-togli" title="Togli dalla playlist" onclick="togli(${i})">&#10005;</button>
+      </div>`).join('');
+    renderComposizione();
+  }
+
+  // La striscia mostra COM'E' FATTA la playlist: quanta parte e' silenzio,
+  // leggera, solo pugni, mista. Prima coloravano i brani a rotazione
+  // (classi[i % 4]) - sembrava un'informazione e non lo era: il colore non
+  // diceva niente sul brano che stava sotto.
+  // Le percentuali sono pesate sul TEMPO e arrivano dal backend, che le
+  // legge dai trackdata veri della libreria.
+  // Nei tooltip il nome della fase e' dentro un ATTRIBUTO, e li' il
+  // meccanismo generale non arriva: un attributo non e' un nodo di testo.
+  // Quindi la traduzione la si chiede qui, al dizionario gia' caricato.
+  function nomeFase(k) {
+    const it = NOMI_FASE[k] || k;
+    return (_lingua === 'en' && TRAD[it]) ? TRAD[it] : it;
+  }
+
+  const NOMI_FASE = {silenzio: 'Silenzio', leggero: 'Leggero',
+                     pugni: 'Solo pugni', misto: 'Misto',
+                     non_coperto: 'Senza fasi'};
+
+  function renderComposizione() {
+    const mix = (corrente && corrente.phase_mix) || {};
+    const strip = document.getElementById('pl-strip');
+    const legenda = document.getElementById('pl-mix-legenda');
+    const voci = ['silenzio', 'leggero', 'pugni', 'misto', 'non_coperto']
+      .map(k => [k, mix[k] || 0]).filter(([, v]) => v > 0);
+    if (!voci.length) {
+      strip.innerHTML = '';
+      if (legenda) legenda.textContent = '';
+      return;
+    }
+    strip.innerHTML = voci.map(([k, v]) =>
+      `<div class="seg ${k === 'non_coperto' ? 'silenzio' : k}"
+            style="flex-grow:${v}${k === 'non_coperto' ? ';opacity:.45' : ''}"
+            title="${nomeFase(k)} — ${v}%"></div>`).join('');
+    if (legenda) {
+      // Ogni nome di fase e' un nodo suo: un'unica stringa composta
+      // ("Leggero 11.8%, Solo pugni 54.3%...") non sarebbe traducibile,
+      // perche' come voce di dizionario non puo' esistere - contiene
+      // numeri che cambiano a ogni playlist.
+      legenda.innerHTML = '— ' + voci.map(([k, v]) =>
+        `<span>${NOMI_FASE[k]}</span> ${v}%`).join(', ');
+    }
+  }
+
+  // Ascolto di un singolo brano. Il wav sta nella libreria del gioco, che
+  // NON viene toccata: il backend ne fa una copia nella cartella di
+  // servizio solo quando serve davvero.
+  let ascoltoIndice = -1;
+
+  async function ascolta(i) {
+    const s = (corrente.songs || [])[i];
+    if (!s) return;
+    const audio = document.getElementById('pl-audio');
+    if (ascoltoIndice === i && !audio.paused) { audio.pause(); segnaAscolto(-1); return; }
+    const r = await api().get_track_audio(s.track_id);
+    if (!r.ok) { nota(r.error); return; }
+    audio.src = r.file;
+    audio.currentTime = 0;
+    audio.play();
+    segnaAscolto(i);
+  }
+  window.ascolta = ascolta;
+
+  function segnaAscolto(i) {
+    ascoltoIndice = i;
+    document.querySelectorAll('.pl-ascolta').forEach((b, k) => {
+      b.innerHTML = (k === i) ? '&#10073;&#10073;' : '&#9654;';
+      b.classList.toggle('in-ascolto', k === i);
+    });
+  }
+
+  function nota(testo) { document.getElementById('pl-nota').textContent = testo || ''; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const a = document.getElementById('pl-audio');
+    if (a) { a.addEventListener('ended', () => segnaAscolto(-1));
+             a.addEventListener('pause', () => segnaAscolto(-1)); }
+  });
+
+  async function sposta(da, a) {
+    const r = await api().move_song(corrente.path, da, a);
+    if (!r.ok) { nota(r.error); return; }
+    corrente.songs = r.songs;
+    renderBrani();
+    nota('Ordine salvato nel file della playlist (backup creato prima della scrittura).');
+  }
+  window.sposta = sposta;
+
+  async function togli(i) {
+    const s = corrente.songs[i];
+    if (!confirm('Togliere "' + (s.name || s.track_id) + '" dalla playlist?\n\n' +
+                 'Scrive davvero nel file della libreria di BoxVR (con backup automatico).')) return;
+    const r = await api().remove_song(corrente.path, i);
+    if (!r.ok) { nota(r.error); return; }
+    corrente.songs = r.songs;
+    if (r.duration !== undefined) corrente.duration = r.duration;
+    renderBrani();
+    await caricaElenco();
+    nota('Brano tolto e playlist salvata.');
+  }
+  window.togli = togli;
+
+  async function rinominaPlaylist() {
+    const nome = document.getElementById('pl-name-input').value.trim();
+    if (!nome) { nota('Serve un nome.'); return; }
+    const r = await api().rename_playlist(corrente.path, nome);
+    if (!r.ok) { nota(r.error); return; }
+    if (r.path) corrente.path = r.path;
+    await caricaElenco();
+    nota('Playlist rinominata.');
+  }
+  window.rinominaPlaylist = rinominaPlaylist;
+
+  async function eliminaPlaylist() {
+    if (!corrente) return;
+    if (!confirm('Eliminare la playlist "' + (corrente.workout_name || '') + '"?\n\n' +
+                 'Il file viene rimosso dalla libreria di BoxVR. Una copia resta nella ' +
+                 'cartella di backup.')) return;
+    const r = await api().delete_playlist(corrente.path);
+    if (!r.ok) { nota(r.error); return; }
+    corrente = null;
+    document.getElementById('pl-nome').textContent = 'Seleziona una playlist…';
+    document.getElementById('pl-songs').innerHTML = '';
+    document.getElementById('pl-strip').innerHTML = '';
+    await caricaElenco();
+    nota('Playlist eliminata (copia conservata nel backup).');
+  }
+  window.eliminaPlaylist = eliminaPlaylist;
+
+  async function apriBackup() { await api().open_backup_folder(); }
+  window.apriBackup = apriBackup;
+
+  // --- avvio ---
+  renderBgPattern();
+  window.addEventListener('resize', fitPage);
+  fitPage();
+
+  function avvio() { caricaElenco(); loadAppInfo(); initTheme(); initLang(); }
+  if (window.pywebview) avvio();
+  else window.addEventListener('pywebviewready', avvio);
+
+</script>
+</body>
+</html>

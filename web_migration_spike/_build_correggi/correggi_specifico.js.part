@@ -1,0 +1,290 @@
+
+  // ===================== parte specifica di Correggi =====================
+  // Tutto quello che sta SOPRA e' estratto tale e quale da genera_real (vedi
+  // scratchpad/estrai_js_condiviso.py): stessa identica logica per forma
+  // d'onda, zoom, cursore, click a tempo, tooltip, tema, lingua, pattern di
+  // sfondo. Qui sotto solo cio' che cambia davvero fra le due pagine.
+
+  // 'songs'/'current' e 'audio' sono gia' dichiarati nel blocco condiviso
+  // qui sopra; qui serve solo lo stato della conferma di rimozione.
+  let confirmingRemoveId = null;
+
+  // In Correggi non esistono i marker sidecar (sono una funzione di Genera):
+  // resta dichiarato perche' il codice condiviso della forma d'onda lo
+  // interroga, ma vale sempre null, quindi lo switch "Marker visibili" del
+  // wireframe qui non ha nulla da mostrare.
+  const sidecarState = null;
+  function updateSidecarCursor() { /* niente pannello marker in Correggi */ }
+
+  const TOOLTIPS = {
+    preset: "Leggero/Medio/Aggressivo sono scorciatoie che impostano l'intensità " +
+            "(punch_ratio) al 20/50/80%. Nella GUI Tkinter è uno slider continuo: " +
+            "i tre bottoni sono un'interpretazione del wireframe, non un valore " +
+            "già codificato altrove nel progetto.",
+    ratio: "Quanta parte degli eventi trattare come pugni puri invece che come fasi " +
+           "miste. È lo stesso punch_ratio di boxvr_fixer.classify_segments_with_preset.",
+    margin_info: "Margine di sicurezza sulle soglie di energia: più è alto, meno " +
+                 "correzioni vengono proposte (solo quelle su cui l'analisi è più sicura).",
+  };
+
+  // Riga brano: qui non c'e' analisi in background (il backend di Correggi
+  // legge solo l'intestazione del trackdata, l'analisi parte all'apertura del
+  // brano), quindi niente stato "in corso"/"fallita" per riga - il BPM c'e'
+  // sempre gia' dal file.
+  function songRowHtml(s) {
+    const dot = `<span class="status-dot" style="background:${PRESET_DOT_COLOR[s.preset]}" title="${PRESET_DOT_TITLE[s.preset]}"></span>`;
+    return `
+      <div class="song-row${s.id === confirmingRemoveId ? ' confirm-remove' : ''}" data-id="${perAttributo(s.id)}"
+           onclick="selectSong(this.closest('.song-row').dataset.id)" onmouseleave="chiudiConfermaRimozione(this.closest('.song-row').dataset.id)"
+           onmousemove="forseChiudiRimozione(event, this.closest('.song-row').dataset.id)">
+        <button class="song-remove-x" title="Rimuovi brano"
+                onmouseenter="apriConfermaRimozione(this.closest('.song-row').dataset.id)"
+                onfocus="apriConfermaRimozione(this.closest('.song-row').dataset.id)"
+                onclick="event.stopPropagation(); apriConfermaRimozione(this.closest('.song-row').dataset.id)">✕</button>
+        <button class="remove-confirm-bar" onmouseleave="chiudiConfermaRimozione(this.closest('.song-row').dataset.id)" onblur="chiudiConfermaRimozione(this.closest('.song-row').dataset.id)" onclick="event.stopPropagation(); confirmRemove(this.closest('.song-row').dataset.id)">Rimuovi <span class="x-tondo">✕</span></button>
+        <div class="row-top"><span class="idx">${s.idx}</span><span>${s.artist}</span><span class="bpm"><span class="bpm-status">${s.bpm} BPM</span></span></div>
+        <div class="row-bottom"><span class="track-name">${s.name}</span><span class="row-pugni">${dot}<b>${s.ratio_pct}%</b><i class="icona-pugno" aria-hidden="true"></i></span></div>
+      </div>`;
+  }
+
+  async function loadList() {
+    songs = await api().list_songs();
+    const vuoto = songs.length === 0;
+    document.getElementById('song-panel').classList.toggle('is-empty', vuoto);
+    document.getElementById('song-count').textContent =
+      conConteggio(songs.length, 'brano nell’elenco', 'brani nell’elenco');
+    document.getElementById('song-list').innerHTML = songs.map(songRowHtml).join('');
+    altezzaListaInteraRighe();
+    if (!vuoto && !current) selectSong(songs[0].id);
+  }
+  window.loadList = loadList;
+
+  async function selectSong(id) {
+    document.querySelectorAll('.song-row').forEach(r =>
+      r.classList.toggle('selected', r.dataset.id === id));
+    const d = await api().get_song_detail(id);
+    current = d;
+    // zoom azzerato al cambio brano, come fa la GUI Tkinter
+    zoomFactor = 1; zoomLabel = 0; viewStartFrac = 0;
+    const s = songs.find(x => x.id === id) || {};
+    document.getElementById('p-idx').textContent = s.idx || '';
+    document.getElementById('p-artist').textContent = d.artist;
+    document.getElementById('p-name').textContent = d.name;
+    document.getElementById('p-bpm').textContent = d.bpm + ' BPM';
+    renderWaveShape();
+    renderWaveform(d.segments);
+    renderWaveOverlay();
+    renderMiniStructure(d.original_segments);
+    setCounts(d);
+    applyZoom();
+    document.getElementById('ratio-slider').value = d.ratio_pct;
+    document.getElementById('ratio-value').textContent = d.ratio_pct + '%';
+    document.getElementById('margin-slider').value = d.margin_pct;
+    document.getElementById('margin-value').textContent = d.margin_pct + '%';
+    const presetMap = { 20: 0, 50: 1, 80: 2 };
+    document.querySelectorAll('#preset-buttons button').forEach((b, i) =>
+      b.classList.toggle('active', presetMap[d.ratio_pct] === i));
+    audio.src = d.wav;
+    audio.volume = document.getElementById('volume-slider').value / 100;
+    audio.pause();
+    setTransportIcons(false);
+    document.getElementById('p-time').textContent = `0:00 / ${fmt(d.duration)}`;
+    setStato('idle', {msg: '', progress: 0});
+  }
+  window.selectSong = selectSong;
+
+  // "Fasi del brano dopo la correzione": pillole PRIMA > DOPO. Il "prima" e'
+  // il livello ORIGINALE scritto nel trackdata dal gioco (original_segments,
+  // mai passato da classify_segments_with_preset); il "dopo" e' la proposta
+  // coi controlli correnti. E' questa la differenza vera col pannello di
+  // Genera, dove un "prima" non esiste.
+  function setCounts(d) {
+    document.getElementById('p-n-segments').textContent = d.n_segments;
+    const prima = {silenzio: 0, leggero: 0, pugni: 0, misto: 0};
+    (d.original_segments || []).forEach(s => { prima[s.level] = (prima[s.level] || 0) + 1; });
+    ['silenzio', 'leggero', 'pugni', 'misto'].forEach(k => {
+      document.getElementById('pc-' + k + '-prima').textContent = prima[k] || 0;
+      document.getElementById('pc-' + k).textContent = (d.counts || {})[k] || 0;
+    });
+  }
+
+  function setPreset(pct) {
+    document.getElementById('ratio-slider').value = pct;
+    document.getElementById('ratio-value').textContent = pct + '%';
+    const presetMap = { 20: 0, 50: 1, 80: 2 };
+    document.querySelectorAll('#preset-buttons button').forEach((b, i) =>
+      b.classList.toggle('active', presetMap[pct] === i));
+    onControlsChanged();
+  }
+  window.setPreset = setPreset;
+
+  // Ricalcolo VERO (boxvr_fixer.classify_segments_with_preset lato Python),
+  // non un'animazione: muovendo gli slider la forma d'onda cambia davvero.
+  // Una richiesta alla volta, con l'ultima in coda, per non accodarne una per
+  // ogni pixel di trascinamento.
+  let recomputeInFlight = false, recomputePending = false;
+  async function onControlsChanged() {
+    if (!current) return;
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+    document.getElementById('ratio-value').textContent = ratio + '%';
+    document.getElementById('margin-value').textContent = margin + '%';
+    if (recomputeInFlight) { recomputePending = true; return; }
+    recomputeInFlight = true;
+    const r = await api().recompute(current.id, margin, ratio);
+    recomputeInFlight = false;
+    current.segments = r.segments;
+    current.counts = r.counts;
+    renderWaveform(r.segments);
+    renderWaveOverlay();
+    setCounts(current);
+    if (recomputePending) { recomputePending = false; onControlsChanged(); }
+  }
+  window.onControlsChanged = onControlsChanged;
+
+  async function copyToAll() {
+    if (!current) return;
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+    const r = await api().copy_to_all(margin, ratio);
+    setStato('idle', {msg: `Impostazioni copiate su ${r.n_songs} brani.`});
+    await loadList();
+  }
+  window.copyToAll = copyToAll;
+
+  // I 4 stati di "Stati correzione" (27:3459) su un'esecuzione VERA di
+  // Api.run_correction (che riusa process_songs_with_presets, la stessa
+  // funzione di CLI e GUI), non un ciclo dimostrativo.
+  function setStato(stato, opts) {
+    opts = opts || {};
+    const box = document.getElementById('stati-gen');
+    box.className = 'stati-gen sg-' + stato;
+    const btn = document.getElementById('run-btn');
+    btn.textContent = opts.label || 'Avvia correzione';
+    btn.disabled = stato !== 'idle';
+    document.getElementById('run-count').textContent = opts.count || '';
+    if (opts.msg !== undefined) document.getElementById('run-helper').textContent = opts.msg;
+    if (opts.progress !== undefined)
+      document.getElementById('run-bar-fill').style.width = opts.progress + '%';
+  }
+
+  let lastOutputFolder = null;
+  async function runCorrection() {
+    if (!current) return;
+    const ratio = +document.getElementById('ratio-slider').value;
+    const margin = +document.getElementById('margin-slider').value;
+    // La barra non puo' mostrare un avanzamento vero: run_correction e' una
+    // sola chiamata bloccante su un brano. Resta indeterminata invece di
+    // fingere una percentuale.
+    setStato('running', {label: 'Correzione in corso…', msg: '', progress: 100});
+    const r = await api().run_correction(current.id, margin, ratio);
+    document.getElementById('tk-log-body').textContent = r.log || '';
+    if (r.ok) {
+      lastOutputFolder = r.output_folder;
+      setStato('done', {
+        msg: `${r.n_changed} brano corretto, ${r.n_total_changes} modifiche scritte.`,
+        progress: 100});
+    } else {
+      setStato('failed', {msg: r.error || 'Correzione fallita', progress: 100});
+    }
+  }
+  window.runCorrection = runCorrection;
+
+  async function openResultFolder() {
+    if (lastOutputFolder) await api().open_folder(lastOutputFolder);
+  }
+  window.openResultFolder = openResultFolder;
+
+  // ---- installazione nella libreria di BoxVR ----
+  // Era la funzione che mancava per poter abbandonare la GUI Tkinter: senza,
+  // il tool produce file corretti/generati che poi vanno copiati a mano.
+  // Due passi: l'anteprima NON scrive nulla e serve a mostrare destinazione e
+  // conflitti; la conferma scrive, e dice sempre dove.
+  async function installaInBoxVR() {
+    const a = await api().install_preview();
+    if (!a.ok) { alert(a.error || 'Niente da installare.'); return; }
+
+    const righe = [];
+    righe.push('Installare ' + a.n_brani + ' brano/i nella libreria di BoxVR?');
+    righe.push('');
+    righe.push(a.n_data + ' file in:');
+    righe.push(a.trackdata_dir);
+    if (a.n_wdef) {
+      righe.push(a.n_wdef + ' file in:');
+      righe.push(a.trackdefs_dir);
+    }
+    if (a.gioco_aperto) {
+      righe.push('');
+      righe.push('ATTENZIONE: BoxVR risulta APERTO. I file copiati adesso');
+      righe.push('potrebbero non essere letti finche non lo riavvii.');
+    }
+
+    // I conflitti si scelgono per BRANO, non per singolo file: chi installa
+    // ragiona per canzone (stessa scelta del dialogo della GUI Tkinter).
+    let salta = [];
+    if (a.conflitti && a.conflitti.length) {
+      const elenco = a.conflitti.map(function (c) { return '  - ' + c.nome; }).join('\n');
+      const sovrascrivi = confirm(
+        a.conflitti.length + ' brano/i sono GIA presenti nella libreria:\n' +
+        elenco + '\n\nOK = sovrascrivili\nAnnulla = installa solo i brani nuovi');
+      if (!sovrascrivi) salta = a.conflitti.map(function (c) { return c.tid; });
+    }
+
+    righe.push('');
+    righe.push('Procedo?');
+    if (!confirm(righe.join('\n'))) return;
+
+    // Interruttore "Crea backup nella cartella Trackdata": fino al 03/09
+    // era solo grafica. Ora arriva davvero fino alla copia dei file.
+    const bk = document.getElementById('toggle-backup');
+    // ?. e ?? : l'interruttore esiste solo in Correggi, e dove non c'e' il
+    // backup si fa comunque (predefinito prudente)
+    const r = await api().install_run(salta, bk?.classList.contains('on') ?? true);
+    if (r.ok) {
+      alert('Installati ' + r.n_file + ' file (' + r.n_brani + ' brano/i).\n\n' +
+            'Riavvia BoxVR per vederli nella libreria.');
+    } else {
+      alert('Installazione non riuscita: ' + (r.error || '?'));
+    }
+  }
+  window.installaInBoxVR = installaInBoxVR;
+
+  async function apriCartellaGioco() {
+    const r = await api().open_game_folder();
+    if (!r.ok) alert(r.error);
+  }
+  window.apriCartellaGioco = apriCartellaGioco;
+
+
+  // --- riproduzione: stessi agganci di Genera, senza le parti sidecar ---
+  document.getElementById('play-btn').onclick = () => {
+    if (!current) return;
+    if (audio.paused) { audio.play(); setTransportIcons(true); }
+    else { audio.pause(); setTransportIcons(false); }
+  };
+  audio.addEventListener('timeupdate', () => {
+    if (current && current.duration) {
+      document.getElementById('p-time').textContent =
+        `${fmt(audio.currentTime)} / ${fmt(current.duration)}`;
+    }
+    renderMainPlayhead();
+  });
+  audio.addEventListener('seeked', resyncBeatClicks);
+  audio.addEventListener('loadedmetadata', resyncBeatClicks);
+  audio.addEventListener('ended', () => setTransportIcons(false));
+  (function beatClickLoop() {
+    pumpBeatClicks();
+    requestAnimationFrame(beatClickLoop);
+  })();
+
+  // --- avvio ---
+  // Le chiamate all'API vanno fatte solo quando il ponte pywebview esiste:
+  // partendo subito fallivano tutte in silenzio (lista ferma su
+  // "caricamento...", versione e pillola patch mai popolate).
+  renderBgPattern();
+  window.addEventListener('resize', fitPage);
+  fitPage();
+
+  function avvio() { loadList(); loadAppInfo(); initTheme(); initLang(); }
+  if (window.pywebview) avvio();
+  else window.addEventListener('pywebviewready', avvio);

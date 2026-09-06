@@ -1,0 +1,222 @@
+
+  // ================= parte specifica del Playlist Manager =================
+  // Tutto quello che sta sopra e' estratto da genera_real, come per Correggi.
+  // Qui solo la logica di questa pagina, appoggiata alle API gia' esistenti
+  // di playlist_real/app.py (che a loro volta riusano boxvr_playlist_manager,
+  // lo stesso modulo dell'exe gia' distribuito).
+
+  let confirmingRemoveId = null;
+  const sidecarState = null;
+  function updateSidecarCursor() { /* nessun pannello marker qui */ }
+
+  const TOOLTIPS = {};
+
+  let playlists = [], corrente = null;
+
+  function durata(sec) {
+    sec = Math.round(sec || 0);
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function rigaPlaylistHtml(p, i) {
+    return `
+      <div class="song-row" data-path="${perAttributo(p.path)}" role="button" tabindex="0"
+           onkeydown="attivaConTastiera(event)"
+           onclick="apriPlaylist(this.dataset.path)">
+        <div class="row-top"><span class="idx">${String(i + 1).padStart(2, '0')}</span>
+          <span>${p.num_songs} brani</span>
+          <span class="bpm"><span class="bpm-status">${durata(p.duration)}</span></span></div>
+        <div class="row-bottom"><span class="track-name">${p.workout_name || '(senza nome)'}</span></div>
+      </div>`;
+  }
+
+  async function caricaElenco() {
+    playlists = await api().list_playlists();
+    const vuoto = playlists.length === 0;
+    document.getElementById('song-panel').classList.toggle('is-empty', vuoto);
+    document.getElementById('pl-count').textContent =
+      conConteggio(playlists.length, 'playlist installata', 'playlist installate');
+    document.getElementById('playlist-list').innerHTML =
+      playlists.map(rigaPlaylistHtml).join('');
+    if (!vuoto && !corrente) apriPlaylist(playlists[0].path);
+  }
+  window.caricaElenco = caricaElenco;
+
+  async function apriPlaylist(path) {
+    const r = await api().get_playlist(path);
+    if (!r.ok) { nota(r.error); return; }
+    corrente = r;
+    document.querySelectorAll('.song-row').forEach(x =>
+      x.classList.toggle('selected', x.dataset.path === path));
+    const i = playlists.findIndex(p => p.path === path);
+    document.getElementById('pl-idx').textContent = String(i + 1).padStart(2, '0');
+    document.getElementById('pl-nome').textContent = r.workout_name || '(senza nome)';
+    document.getElementById('pl-brani').textContent = conConteggio(r.songs.length, 'brano', 'brani');
+    // etichetta e valore in due nodi: "Durata totale: 2:58" come stringa
+    // unica non e' traducibile (il valore cambia a ogni playlist)
+    document.getElementById('pl-durata').innerHTML =
+      '<span>Durata totale:</span> ' + durata(r.duration);
+    document.getElementById('pl-name-input').value = r.workout_name || '';
+    renderBrani();
+    nota('');
+  }
+  window.apriPlaylist = apriPlaylist;
+
+  function renderBrani() {
+    const songs = corrente.songs || [];
+    document.getElementById('pl-n').textContent = songs.length;
+    document.getElementById('pl-tot').textContent = durata(corrente.duration);
+    document.getElementById('pl-songs').innerHTML = songs.map((s, i) => `
+      <div class="pl-riga">
+        <span class="pl-pos">${String(i + 1).padStart(2, '0')}</span>
+        <button class="pl-ascolta" id="pl-ascolta-${i}" title="Ascolta questo brano"
+                onclick="ascolta(${i})">&#9654;</button>
+        <span class="pl-titolo">${s.display_name || s.track_id}</span>
+        <span class="pl-dur">${durata(s.duration)}</span>
+        <button title="Sposta su" onclick="sposta(${i}, ${i - 1})" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+        <button title="Sposta giù" onclick="sposta(${i}, ${i + 1})" ${i === songs.length - 1 ? 'disabled' : ''}>&darr;</button>
+        <button class="pl-togli" title="Togli dalla playlist" onclick="togli(${i})">&#10005;</button>
+      </div>`).join('');
+    renderComposizione();
+  }
+
+  // La striscia mostra COM'E' FATTA la playlist: quanta parte e' silenzio,
+  // leggera, solo pugni, mista. Prima coloravano i brani a rotazione
+  // (classi[i % 4]) - sembrava un'informazione e non lo era: il colore non
+  // diceva niente sul brano che stava sotto.
+  // Le percentuali sono pesate sul TEMPO e arrivano dal backend, che le
+  // legge dai trackdata veri della libreria.
+  // Nei tooltip il nome della fase e' dentro un ATTRIBUTO, e li' il
+  // meccanismo generale non arriva: un attributo non e' un nodo di testo.
+  // Quindi la traduzione la si chiede qui, al dizionario gia' caricato.
+  function nomeFase(k) {
+    const it = NOMI_FASE[k] || k;
+    return (_lingua === 'en' && TRAD[it]) ? TRAD[it] : it;
+  }
+
+  const NOMI_FASE = {silenzio: 'Silenzio', leggero: 'Leggero',
+                     pugni: 'Solo pugni', misto: 'Misto',
+                     non_coperto: 'Senza fasi'};
+
+  function renderComposizione() {
+    const mix = (corrente && corrente.phase_mix) || {};
+    const strip = document.getElementById('pl-strip');
+    const legenda = document.getElementById('pl-mix-legenda');
+    const voci = ['silenzio', 'leggero', 'pugni', 'misto', 'non_coperto']
+      .map(k => [k, mix[k] || 0]).filter(([, v]) => v > 0);
+    if (!voci.length) {
+      strip.innerHTML = '';
+      if (legenda) legenda.textContent = '';
+      return;
+    }
+    strip.innerHTML = voci.map(([k, v]) =>
+      `<div class="seg ${k === 'non_coperto' ? 'silenzio' : k}"
+            style="flex-grow:${v}${k === 'non_coperto' ? ';opacity:.45' : ''}"
+            title="${nomeFase(k)} — ${v}%"></div>`).join('');
+    if (legenda) {
+      // Ogni nome di fase e' un nodo suo: un'unica stringa composta
+      // ("Leggero 11.8%, Solo pugni 54.3%...") non sarebbe traducibile,
+      // perche' come voce di dizionario non puo' esistere - contiene
+      // numeri che cambiano a ogni playlist.
+      legenda.innerHTML = '— ' + voci.map(([k, v]) =>
+        `<span>${NOMI_FASE[k]}</span> ${v}%`).join(', ');
+    }
+  }
+
+  // Ascolto di un singolo brano. Il wav sta nella libreria del gioco, che
+  // NON viene toccata: il backend ne fa una copia nella cartella di
+  // servizio solo quando serve davvero.
+  let ascoltoIndice = -1;
+
+  async function ascolta(i) {
+    const s = (corrente.songs || [])[i];
+    if (!s) return;
+    const audio = document.getElementById('pl-audio');
+    if (ascoltoIndice === i && !audio.paused) { audio.pause(); segnaAscolto(-1); return; }
+    const r = await api().get_track_audio(s.track_id);
+    if (!r.ok) { nota(r.error); return; }
+    audio.src = r.file;
+    audio.currentTime = 0;
+    audio.play();
+    segnaAscolto(i);
+  }
+  window.ascolta = ascolta;
+
+  function segnaAscolto(i) {
+    ascoltoIndice = i;
+    document.querySelectorAll('.pl-ascolta').forEach((b, k) => {
+      b.innerHTML = (k === i) ? '&#10073;&#10073;' : '&#9654;';
+      b.classList.toggle('in-ascolto', k === i);
+    });
+  }
+
+  function nota(testo) { document.getElementById('pl-nota').textContent = testo || ''; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const a = document.getElementById('pl-audio');
+    if (a) { a.addEventListener('ended', () => segnaAscolto(-1));
+             a.addEventListener('pause', () => segnaAscolto(-1)); }
+  });
+
+  async function sposta(da, a) {
+    const r = await api().move_song(corrente.path, da, a);
+    if (!r.ok) { nota(r.error); return; }
+    corrente.songs = r.songs;
+    renderBrani();
+    nota('Ordine salvato nel file della playlist (backup creato prima della scrittura).');
+  }
+  window.sposta = sposta;
+
+  async function togli(i) {
+    const s = corrente.songs[i];
+    if (!confirm('Togliere "' + (s.name || s.track_id) + '" dalla playlist?\n\n' +
+                 'Scrive davvero nel file della libreria di BoxVR (con backup automatico).')) return;
+    const r = await api().remove_song(corrente.path, i);
+    if (!r.ok) { nota(r.error); return; }
+    corrente.songs = r.songs;
+    if (r.duration !== undefined) corrente.duration = r.duration;
+    renderBrani();
+    await caricaElenco();
+    nota('Brano tolto e playlist salvata.');
+  }
+  window.togli = togli;
+
+  async function rinominaPlaylist() {
+    const nome = document.getElementById('pl-name-input').value.trim();
+    if (!nome) { nota('Serve un nome.'); return; }
+    const r = await api().rename_playlist(corrente.path, nome);
+    if (!r.ok) { nota(r.error); return; }
+    if (r.path) corrente.path = r.path;
+    await caricaElenco();
+    nota('Playlist rinominata.');
+  }
+  window.rinominaPlaylist = rinominaPlaylist;
+
+  async function eliminaPlaylist() {
+    if (!corrente) return;
+    if (!confirm('Eliminare la playlist "' + (corrente.workout_name || '') + '"?\n\n' +
+                 'Il file viene rimosso dalla libreria di BoxVR. Una copia resta nella ' +
+                 'cartella di backup.')) return;
+    const r = await api().delete_playlist(corrente.path);
+    if (!r.ok) { nota(r.error); return; }
+    corrente = null;
+    document.getElementById('pl-nome').textContent = 'Seleziona una playlist…';
+    document.getElementById('pl-songs').innerHTML = '';
+    document.getElementById('pl-strip').innerHTML = '';
+    await caricaElenco();
+    nota('Playlist eliminata (copia conservata nel backup).');
+  }
+  window.eliminaPlaylist = eliminaPlaylist;
+
+  async function apriBackup() { await api().open_backup_folder(); }
+  window.apriBackup = apriBackup;
+
+  // --- avvio ---
+  renderBgPattern();
+  window.addEventListener('resize', fitPage);
+  fitPage();
+
+  function avvio() { caricaElenco(); loadAppInfo(); initTheme(); initLang(); }
+  if (window.pywebview) avvio();
+  else window.addEventListener('pywebviewready', avvio);

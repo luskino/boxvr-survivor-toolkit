@@ -1,0 +1,67 @@
+  <!-- Blocco inferiore di Correggi alle coordinate REALI del frame Figma
+       1:7 (get_metadata). A differenza di Genera - che ha DUE card affiancate
+       (625 e 720) - qui c'e' UNA sola card 1360x345 a y=686, divisa in due
+       colonne da un separatore verticale a x=487 alto 297 da y=710. -->
+  <h3 class="block-title toolkit-title">Toolkit</h3>
+  <div class="toolkit-card">
+    <div class="tk-sep"></div>
+
+    <!-- colonna sinistra -->
+    <p class="tk-stats" id="p-counts">
+      <span>Sezioni individuate: <b id="p-n-segments">0</b></span>
+      <span>Colpi totali: <b id="p-n-punches" title="Disponibile solo dopo la correzione vera">—</b></span>
+    </p>
+
+    <div class="tk-preset-label">Preset <span class="info-dot" data-tip="preset" tabindex="0">i</span></div>
+    <div class="segmented preset-segmented" id="preset-buttons">
+      <button class="preset-btn-light" onclick="setPreset(20)">Leggero</button>
+      <button class="preset-btn-medium active" onclick="setPreset(50)">Medio</button>
+      <button class="preset-btn-aggressive" onclick="setPreset(80)">Aggressivo</button>
+    </div>
+
+    <div class="tk-slider-label tk-ratio-label">Intensità workout <span class="info-dot" data-tip="ratio" tabindex="0">i</span></div>
+    <span class="tk-slider-value tk-ratio-value" id="ratio-value">50%</span>
+    <input class="tk-slider tk-ratio-slider" type="range" id="ratio-slider" min="0" max="100" value="50" oninput="onControlsChanged()">
+
+    <div class="tk-slider-label tk-margin-label">Margine di confidenza <span class="info-dot" data-tip="margin_info" tabindex="0">i</span></div>
+    <span class="tk-slider-value tk-margin-value" id="margin-value">12%</span>
+    <input class="tk-slider tk-margin-slider" type="range" id="margin-slider" min="0" max="100" value="12" oninput="onControlsChanged()">
+
+    <button class="btn-copy-all" onclick="copyToAll()">Copia su tutti i brani</button>
+
+    <!-- colonna destra -->
+    <div class="tk-fasi-label">Fasi del brano dopo la correzione</div>
+    <!-- "Phase type correction" (25:8447-25:8455): pillole PRIMA &gt; DOPO,
+         cioe' il livello originale del gioco e quello proposto. E' questa la
+         differenza col componente di Genera, dove il "prima" non esiste. -->
+    <div class="tk-fasi-row" id="tk-fasi-row">
+      <span class="pill silenzio">Silenzio <b id="pc-silenzio-prima">0</b><span class="coda">&rsaquo; <b id="pc-silenzio">0</b></span></span>
+      <span class="pill leggero">Leggero <b id="pc-leggero-prima">0</b><span class="coda">&rsaquo; <b id="pc-leggero">0</b></span></span>
+      <span class="pill pugni">Solo pugni <b id="pc-pugni-prima">0</b><span class="coda">&rsaquo; <b id="pc-pugni">0</b></span></span>
+      <span class="pill misto">Misto <b id="pc-misto-prima">0</b><span class="coda">&rsaquo; <b id="pc-misto">0</b></span></span>
+    </div>
+
+    <label class="tk-backup">Crea backup nella cartella Trackdata
+      <span class="toggle tg-backup on" id="toggle-backup" role="switch" tabindex="0" aria-checked="true" aria-label="Backup prima di installare" onclick="this.classList.toggle('on'); this.setAttribute('aria-checked', this.classList.contains('on'))" onkeydown="attivaConTastiera(event)"></span>
+    </label>
+
+    <!-- "Stati correzione" (27:3459): e' lo STESSO componente a 4 varianti
+         gia' portato in Genera come "Stati generazione" (30:5648, che ne
+         aggiunge una quinta per il nome playlist mancante). Riuso quindi le
+         stesse classi .stati-gen/.sg-* invece di duplicarne una copia. -->
+    <div class="stati-gen sg-idle" id="stati-gen">
+      <div class="sg-row">
+        <button class="sg-btn" id="run-btn" onclick="runCorrection()">Avvia correzione</button>
+        <button class="sg-open" id="open-folder-btn" onclick="openResultFolder()">Apri cartella risultati ›</button>
+        <button class="sg-open" id="install-btn" onclick="installaInBoxVR()" title="Copia i file nella libreria di BoxVR">Installa in BoxVR</button>
+        <span class="sg-msg" id="run-helper"></span>
+        <span class="sg-count" id="run-count"></span>
+      </div>
+      <div class="sg-bar"><div class="sg-bar-fill" id="run-bar-fill"></div></div>
+    </div>
+
+    <div class="tk-log" id="tk-log">
+      <div class="tk-log-head">Log</div>
+      <pre class="tk-log-body" id="tk-log-body"></pre>
+    </div>
+  </div>

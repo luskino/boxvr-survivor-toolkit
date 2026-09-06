@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>BoxVR Survivor Toolkit — Scelta modalità (dati reali)</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .scatter svg { width: 100%; height: 100%; }
+  .scatter.blue { color: #3FA2FF; }
+  .scatter.pink { color: #FF4EC1; }
+  .scatter.red { color: #FF3E41; }
+
+  .real-badge {
+    background: #10B981; color: white; font-family: var(--font-display);
+    font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 12px;
+    display: inline-block; margin-bottom: 10px;
+  }
+  .game-dir-bar {
+    background: rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; color: #EDEDF7; display: flex; align-items: center; gap: 10px;
+    margin-top: 14px; max-width: 640px;
+  }
+  .game-dir-bar code { word-break: break-all; }
+  .game-dir-bar button {
+    border: 1px solid rgba(255,255,255,0.3); background: transparent; color: #EDEDF7;
+    border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; flex: none;
+  }
+  .status-warning {
+    background: #FFD5D6; color: #660000; border-radius: 8px; padding: 10px 14px;
+    font-size: 14px; margin-top: 14px; max-width: 640px;
+  }
+  .toggle-note { font-size: 13px; color: #EDEDF7; opacity: 0.8; margin-top: 6px; }
+
+  /* .patch-pill/.patch-disable-link/.app-version: regole comuni in styles.css
+     - qui solo gli override per sfondo scuro del dashboard (serve testo chiaro) */
+  .patch-disable-link { color: #EDEDF7; opacity: 0.75; }
+  .app-version { color: #EDEDF7; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div class="dashboard-backdrop" id="backdrop">
+
+  <div class="dashboard-card">
+    <span class="real-badge">DATI REALI — patch letta/scritta per davvero</span>
+    <div id="patch-pill-wrap"></div>
+    <div class="lang-switch" title="Traduzione non ancora reale - solo il widget, vedi tracking doc">
+      <span class="lang-pill active">IT</span>
+      <span class="lang-pill">EN</span>
+    </div>
+    <button class="theme-switch" id="theme-switch" onclick="toggleTheme()" title="Tema chiaro/scuro"><span class="theme-switch-knob"></span></button>
+    <p class="dashboard-welcome">Benvenuto/a su</p>
+    <h1 class="dashboard-title">BoxVR Survivor Toolkit <span class="app-version" id="app-version"></span></h1>
+    <p class="dashboard-quote">
+      "<span class="blue">Pillola azzurra</span>: fine della storia. Domani ti svegli in camera tua, e credi a quello che vuoi.<br>
+      <span class="red">Pillola rossa</span>: resti nel paese delle meraviglie, e quant'è profonda la tana del bianconiglio te lo mostro io."
+    </p>
+
+    <div class="tile-grid">
+      <div class="tile correggi">
+        <div class="tile-head">
+          <h3>Correggi<br>Workout esistenti</h3>
+          <span class="icon" style="color:var(--accent-blue-strong)">🔧</span>
+        </div>
+        <p class="tile-subtitle">Semplice ma poco controllo</p>
+        <p class="tile-desc">
+          Basilare, tenta di migliorare il più possibile i livelli di intensità dei workout che BoxVR ha già creato.
+          Può essere necessario correggere e testare un workout prima di arrivare alla qualità desiderata.
+        </p>
+        <a class="tile-cta" href="#" id="correggi-cta">Vai al tool →</a>
+        <p class="tile-patch-note" id="correggi-patch-note">⚠ Rilevata Patch. <a href="#" id="disable-patch-link">Disabilita</a></p>
+      </div>
+
+      <div class="tile genera">
+        <div class="tile-head">
+          <h3>Crea Workout<br>da Mp3</h3>
+          <span class="icon" style="color:var(--accent-red)">🎵</span>
+        </div>
+        <p class="tile-subtitle">Più complesso, più divertente<br>Richiede BoxVR Patchato</p>
+        <p class="tile-desc">
+          Crea allenamenti nuovi da zero, con colpi precisi su beat/drop che non cambiano ogni volta che giocate il
+          workout. Richiede una piccola modifica al gioco, reversibile.
+        </p>
+        <a class="tile-cta" href="#" id="genera-cta">Vai al tool →</a>
+      </div>
+    </div>
+
+    <!-- Nessun wireframe Figma esiste per questo pulsante (Playlist Manager
+         non e' mai stato progettato li') - link minimale invece di forzare
+         un terzo "tile" nella griglia a 2 colonne pensata solo per
+         Correggi/Genera. Rifinitura visiva rimandata di proposito. -->
+    <a href="#" id="playlist-cta" class="game-dir-bar" style="justify-content:center; text-decoration:none; cursor:pointer">
+      🗂️ Gestione playlist installate →
+    </a>
+  </div>
+
+  <div class="game-dir-bar" id="game-dir-bar">Rilevamento cartella di gioco…</div>
+  <div class="status-warning" id="status-warning" style="display:none"></div>
+</div>
+<script>
+  const api = () => window.pywebview.api;
+
+  const JAB_DX = `<svg viewBox="20 28 100 84" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M81.8617 38.0002C82.0491 38.0001 82.2376 38.006 82.427 38.0179C85.4566 38.2094 88.5273 40.1942 89.6188 43.1006C96.1047 60.3714 99.3432 67.4156 101.326 85.1541C98.5403 87.6995 95.3048 90.1449 91.7603 92.3478L79.1194 55.2772L75.7523 56.4033L88.6316 94.1814C84.9177 96.2338 80.9354 97.9993 76.8294 99.3288L62.475 61.3029L59.1437 62.535L73.4086 100.325C69.7054 101.287 65.9456 101.873 62.2194 102L47.1211 68.3314L43.8671 69.7643L58.3105 101.965C54.1569 101.731 50.0861 100.876 46.2348 99.2703C37.989 89.1107 32.4085 78.5556 30.1495 66.6861C29.1802 61.5931 32.9596 56.6624 40.4707 56.3442L41.6424 56.291L42.0589 55.2061C43.6674 50.9818 45.8185 49.528 48.0552 49.0795C50.2919 48.6309 52.865 49.3691 54.8068 50.4712L57.2936 51.8807L57.4661 49.0504C57.6546 45.9567 59.435 43.4659 62.0943 42.3283C64.7536 41.1905 68.3883 41.3411 72.5282 44.1974L74.5152 45.5654L75.2408 43.2775C76.4814 39.3593 79.0493 37.9972 81.8615 38L81.8617 38.0002Z"/></svg>`;
+  const BLOCK = `<svg viewBox="22.94 686 94.13 100" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M103.938 709.76L97.088 701.84C95.5971 700.043 93.7345 698.59 91.6284 697.582C89.5223 696.574 87.2227 696.034 84.888 696H55.128C52.7933 696.034 50.4937 696.574 48.3876 697.582C46.2815 698.59 44.4189 700.043 42.928 701.84L36.078 709.76C34.464 711.72 33.4231 714.089 33.0702 716.603C32.7173 719.118 33.066 721.681 34.078 724.01L53.748 769C55.618 773.28 59.408 776 63.548 776H76.468C80.608 776 84.398 773.31 86.268 769L105.918 724C106.931 721.674 107.282 719.114 106.932 716.601C106.583 714.089 105.547 711.721 103.938 709.76Z"/></svg>`;
+  const SHAPES = [JAB_DX, JAB_DX, BLOCK];
+  const COLORS = ['blue', 'pink', 'red'];
+  const backdrop = document.getElementById('backdrop');
+  for (let i = 0; i < 22; i++) {
+    const el = document.createElement('div');
+    el.className = 'scatter ' + COLORS[i % COLORS.length];
+    el.style.left = Math.random() * 100 + '%';
+    el.style.top = Math.random() * 100 + '%';
+    el.style.transform = `rotate(${Math.random() * 60 - 30}deg) scale(${0.8 + Math.random() * 0.8})`;
+    el.innerHTML = SHAPES[i % SHAPES.length];
+    backdrop.insertBefore(el, backdrop.firstChild);
+  }
+
+  const PATCH_CHECK_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M6.5 11.5L10.0714 15L16.5 8" stroke="#2EB36B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const PATCH_DOWNLOAD_ICON = '<svg width="12" height="12" viewBox="0 0 22 22" fill="none"><path d="M11 6V15.091M6 11.455L11 16L16 11.455" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function renderPatchPill(s) {
+    const wrap = document.getElementById('patch-pill-wrap');
+    if (s.state === 'patched') {
+      wrap.innerHTML = `
+        <div class="patch-pill installed"><span class="patch-icon">${PATCH_CHECK_ICON}</span>Patch installata</div>
+        <div class="patch-disable-link"><a href="#" id="patch-pill-disable">Disabilita</a></div>`;
+      document.getElementById('patch-pill-disable').onclick = (e) => { e.preventDefault(); togglePatch(); };
+    } else if (s.state === 'original') {
+      wrap.innerHTML = `<div class="patch-pill not-detected" id="patch-pill-apply">
+        <span class="patch-icon">${PATCH_DOWNLOAD_ICON}</span>Patch non rilevata</div>`;
+      document.getElementById('patch-pill-apply').onclick = togglePatch;
+    } else {
+      wrap.innerHTML = '';
+    }
+  }
+
+  function applyStatus(s) {
+    const cta = document.getElementById('correggi-cta');
+    const note = document.getElementById('correggi-patch-note');
+    const bar = document.getElementById('game-dir-bar');
+    const warn = document.getElementById('status-warning');
+    warn.style.display = 'none';
+    renderPatchPill(s);
+    if (s.version) document.getElementById('app-version').textContent = 'Ver ' + s.version;
+
+    if (s.state === 'patched') {
+      cta.classList.add('disabled');
+      cta.textContent = 'Vai al tool 🔒';
+      note.classList.add('visible');
+    } else {
+      cta.classList.remove('disabled');
+      cta.textContent = 'Vai al tool →';
+      note.classList.remove('visible');
+    }
+
+    if (s.state === 'missing') {
+      warn.textContent = s.game_dir
+        ? 'Assembly-CSharp.dll ' + T('non trovata in') + ' "' + s.game_dir
+          + '" ' + T('- il gioco è stato spostato o disinstallato?')
+        : 'Nessuna cartella di gioco impostata ancora.';
+      warn.style.display = 'block';
+    } else if (s.state === 'unknown') {
+      warn.textContent = 'Byte della DLL non riconosciuti - questa build del gioco è diversa da quella attesa. Nessuna azione automatica.';
+      warn.style.display = 'block';
+    } else if (s.state === 'invalid_dir') {
+      warn.textContent = 'La cartella scelta non sembra una vera installazione di BoxVR (manca Assembly-CSharp.dll).';
+      warn.style.display = 'block';
+    }
+
+    bar.innerHTML = '';
+    const label = document.createElement('span');
+    label.innerHTML = s.game_dir
+      // ogni etichetta nel suo <span>: cosi' la traduce il meccanismo
+      // generale. Come stringa unica ("Ver 1.28 — Cartella di gioco: ...")
+      // non poteva essere una voce di dizionario - contiene dati che
+      // cambiano a ogni macchina.
+      ? `<span>Cartella di gioco:</span> <code>${s.game_dir}</code> — <span>stato:</span> <b>${s.state}</b>`
+      : 'Nessuna cartella di gioco impostata';
+    const btn = document.createElement('button');
+    btn.textContent = 'Scegli cartella…';
+    btn.onclick = chooseGameDir;
+    bar.appendChild(label);
+    bar.appendChild(btn);
+  }
+
+  async function refreshStatus() {
+    const s = await api().get_status();
+    applyStatus(s);
+    return s;
+  }
+
+  async function chooseGameDir() {
+    const s = await api().choose_game_dir();
+    applyStatus(s);
+  }
+
+  // Chiedere la patch perche' serve a Genera e' una domanda diversa da
+  // "vuoi applicare la patch?": chi ci arriva sta cercando di generare, non
+  // di amministrare il gioco. La premessa dice perche' la domanda compare.
+  function chiediLaPatch() {
+    return togglePatch(T('«Crea Workout da Mp3» scrive coreografie che il gioco legge solo con la patch attiva: senza, i workout generati non arriverebbero mai in VR.'));
+  }
+  window.chiediLaPatch = chiediLaPatch;
+
+  async function togglePatch(premessa) {
+    // usata anche come gestore di click diretto: li' l'argomento e' l'evento
+    if (typeof premessa !== 'string') premessa = '';
+    const s = await api().get_status();
+    const verb = s.state === 'patched' ? 'disabilitare' : 'applicare';
+    if (!confirm((premessa ? premessa + '\n\n' : '') + `Confermi di voler ${verb} la patch sulla cartella di gioco reale?\n${s.game_dir || ''}\n\nScrive per davvero nel file del gioco (con backup automatico).`)) {
+      return;
+    }
+    const r = await api().toggle_patch();
+    if (!r.ok) {
+      alert('Operazione non riuscita: ' + r.message);
+    } else {
+      alert(r.message);
+    }
+    applyStatus(r.status || await api().get_status());
+  }
+
+  document.getElementById('disable-patch-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    togglePatch();
+  });
+  document.getElementById('correggi-cta').addEventListener('click', (e) => {
+    e.preventDefault();
+    // stessa finestra/sessione pywebview - "correggi.html" e' stato copiato
+    // dentro la stessa cartella di servizio del dashboard (vedi build_serving_dir
+    // in app.py), non il mockup statico
+    if (!e.currentTarget.classList.contains('disabled')) location.href = 'correggi.html';
+  });
+  document.getElementById('genera-cta').addEventListener('click', (e) => {
+    e.preventDefault();
+    // Senza patch qui non si entra: non e' una limitazione dell'interfaccia,
+    // e' che il risultato non arriverebbe mai in gioco. Invece di lasciare
+    // la porta chiusa e basta, si chiede quello che manca.
+    const st = _ultimoStato || {state: 'unknown'};
+    if (st.state !== 'patched') {
+      if (st.state === 'original') chiediLaPatch();
+      else {
+        alert(T('Per creare workout da mp3 serve BoxVR patchato, e la cartella del gioco non è stata ancora trovata. Indicala qui sotto e poi installa la patch.'));
+        chooseGameDir();
+      }
+      return;
+    }
+    // stessa finestra/sessione pywebview di "correggi.html" sopra -
+    // "genera.html" e' stato copiato nella stessa cartella di servizio
+    // (vedi build_serving_dir in app.py), non piu' il mockup statico
+    location.href = 'genera.html';
+  });
+  document.getElementById('playlist-cta').addEventListener('click', (e) => {
+    e.preventDefault();
+    location.href = 'playlist.html';
+  });
+
+  // Tema chiaro/scuro - stesso pattern/chiave di genera_real/correggi_real
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    const sw = document.getElementById('theme-switch');
+    // mostra il tema verso cui si VA, non quello attuale (blu notte con
+    // pagina chiara e viceversa) - data-on="true" = variante scura
+    if (sw) sw.dataset.on = theme === 'light' ? 'true' : 'false';
+  }
+  async function initTheme() {
+    applyTheme(await api().get_theme());
+  }
+  async function toggleTheme() {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    await api().set_theme(next);
+  }
+  window.toggleTheme = toggleTheme;
+
+  if (window.pywebview) {
+    refreshStatus();
+    initTheme();
+  } else {
+    window.addEventListener('pywebviewready', () => { refreshStatus(); initTheme(); });
+  }
+</script>
+</body>
+</html>

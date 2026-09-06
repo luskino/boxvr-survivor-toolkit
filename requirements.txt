@@ -1,0 +1,23 @@
+# BoxVR Survivor Toolkit - dipendenze runtime.
+# Installazione: pip install -r requirements.txt
+# Per creare l'eseguibile serve anche pyinstaller (vedi docs/contributing.md).
+
+# --- analisi audio e metadati: le usano TUTTI gli eseguibili ---
+numpy
+scipy
+librosa
+soundfile
+mutagen
+pillow
+
+# --- il toolkit web (l'applicazione spedita oggi) ---
+pywebview
+
+# --- la GUI Tkinter storica ---
+# Non e' l'applicazione principale da quando c'e' il port web, ma non e'
+# nemmeno morta: il toolkit web importa `SongPlayer` da `boxvr_fixer_gui`, e
+# il Playlist Manager e' ancora una finestra Tkinter sua. Senza queste tre,
+# l'eseguibile web non parte.
+tkinterdnd2
+customtkinter
+sounddevice

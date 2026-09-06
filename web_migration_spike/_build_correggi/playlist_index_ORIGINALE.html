@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Gestione playlist — dati reali</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Pagina volutamente minimale/utilitaria - nessun wireframe Figma esiste
+     per questo strumento (mai progettato li'), quindi niente design nuovo
+     inventato qui. Solo le classi gia' esistenti in styles.css. */
+  .real-badge {
+    background: #10B981; color: white; font-family: var(--font-display);
+    font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 12px;
+    margin-left: 12px; vertical-align: middle;
+  }
+  .not-wired-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .pl-song-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: var(--radius-control); background: var(--bg-card);
+    margin-bottom: 6px;
+  }
+  .pl-song-row .pl-name { flex: 1; font-weight: 600; color: var(--text-heading); font-size: 14px; }
+  .pl-song-row .pl-dur { color: var(--text-muted); font-size: 13px; }
+  .pl-song-row button { border: none; background: transparent; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+  .pl-move-up, .pl-move-down { color: var(--accent-blue-strong); }
+  .pl-remove { color: var(--accent-red-strong, #FF3E41); }
+  .pl-rename-row { display: flex; gap: 8px; margin: 10px 0; }
+  .pl-rename-row input { flex: 1; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="app-header">
+    <h1>BoxVR Survivor Toolkit</h1>
+    <span class="real-badge">DATI REALI — primo port, non un mockup</span>
+  </header>
+
+  <div class="section-title">
+    <span class="icon">🗂️</span>
+    <h2>Gestione playlist</h2>
+  </div>
+  <p class="section-desc">
+    Vede/riordina/rinomina/elimina per davvero le playlist già installate nella libreria vera di BoxVR
+    (<code>boxvr_playlist_manager.py</code>, stessa logica dell'exe <code>BoxVR_Playlist_Manager</code> già spedito).
+    Eliminare una playlist la sposta in una cartella di backup, non la cancella mai. I brani stessi
+    (trackdata/wav/wdef) non vengono mai toccati, solo l'indice della playlist.
+  </p>
+
+  <div class="layout">
+    <aside class="song-panel">
+      <div class="song-panel-header">
+        <span class="song-count" id="pl-count">caricamento…</span>
+      </div>
+      <div class="song-list" id="playlist-list"></div>
+    </aside>
+
+    <main>
+      <h3 class="block-title">Playlist selezionata</h3>
+      <div id="pl-empty" class="not-wired-note">Seleziona una playlist dall'elenco a sinistra.</div>
+      <div id="pl-detail" style="display:none">
+        <div class="pl-rename-row">
+          <input class="text-input" id="pl-name-input" placeholder="Nome playlist">
+          <button class="btn-secondary" onclick="renamePlaylist()">Rinomina</button>
+        </div>
+        <div id="pl-meta" class="not-wired-note"></div>
+
+        <h3 class="block-title">Brani</h3>
+        <div id="pl-songs"></div>
+
+        <button class="btn-primary" style="margin-top:16px; background:var(--accent-red-strong,#FF3E41)" onclick="deletePlaylist()">Elimina playlist (backup, non distruttivo)</button>
+        <button class="btn-open-folder" onclick="openBackupFolder()">Apri cartella backup →</button>
+        <p class="run-error" id="pl-error"></p>
+      </div>
+    </main>
+  </div>
+
+</div>
+<script>
+  // Standalone (playlist_real/app.py) espone i metodi senza prefisso.
+  // Dentro dashboard_real lo stesso js_api porta ANCHE i metodi di
+  // Correggi/Genera - per uniformita' con genera_* (anche se qui nessun
+  // nome collide davvero) i metodi sono esposti li' col prefisso
+  // "playlist_". Questo proxy prova prima il nome con prefisso e ripiega
+  // su quello nudo, stesso meccanismo di genera_real/index.html.
+  const api = () => new Proxy({}, {
+    get(_, prop) {
+      const real = window.pywebview.api;
+      const prefixed = real['playlist_' + prop];
+      const fn = typeof prefixed === 'function' ? prefixed : real[prop];
+      return fn.bind(real);
+    }
+  });
+  let playlists = [], current = null;
+
+  function fmtDuration(s) {
+    s = Math.max(0, s || 0);
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  }
+
+  async function loadPlaylists() {
+    playlists = await api().list_playlists();
+    document.getElementById('pl-count').textContent = playlists.length + ' playlist installate';
+    const list = document.getElementById('playlist-list');
+    list.innerHTML = playlists.map(p => `
+      <div class="song-row${current && current.path === p.path ? ' selected' : ''}" data-path="${p.path.replace(/"/g, '&quot;')}" onclick="selectPlaylist(this.dataset.path)">
+        <div class="row-top"><span class="track-name">${p.workout_name}</span></div>
+        <div class="row-bottom"><span>${p.num_songs} brani — ${fmtDuration(p.duration)}</span></div>
+      </div>`).join('');
+  }
+
+  async function selectPlaylist(path) {
+    document.getElementById('pl-error').textContent = '';
+    const d = await api().get_playlist(path);
+    if (!d.ok) { alert(d.error); return; }
+    current = d;
+    document.getElementById('pl-empty').style.display = 'none';
+    document.getElementById('pl-detail').style.display = 'block';
+    document.getElementById('pl-name-input').value = d.workout_name;
+    renderSongs();
+    await loadPlaylists();
+  }
+  window.selectPlaylist = selectPlaylist;
+
+  function renderSongs() {
+    document.getElementById('pl-meta').textContent =
+      `${current.songs.length} brani — durata totale ${fmtDuration(current.duration)}`;
+    document.getElementById('pl-songs').innerHTML = current.songs.map((s, i) => `
+      <div class="pl-song-row">
+        <button class="pl-move-up" title="Sposta su" onclick="moveSong(${i}, ${i - 1})" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button class="pl-move-down" title="Sposta giù" onclick="moveSong(${i}, ${i + 1})" ${i === current.songs.length - 1 ? 'disabled' : ''}>▼</button>
+        <span class="pl-name">${s.display_name}</span>
+        <span class="pl-dur">${fmtDuration(s.duration)}</span>
+        <button class="pl-remove" title="Rimuovi dalla playlist" onclick="removeSong(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  async function moveSong(from, to) {
+    if (to < 0 || to >= current.songs.length) return;
+    const r = await api().move_song(current.path, from, to);
+    if (!r.ok) { document.getElementById('pl-error').textContent = r.error; return; }
+    current.songs = r.songs;
+    renderSongs();
+  }
+  window.moveSong = moveSong;
+
+  async function removeSong(index) {
+    if (!confirm('Rimuovere questo brano dalla playlist? (il brano resta installato, solo tolto da qui)')) return;
+    const r = await api().remove_song(current.path, index);
+    if (!r.ok) { document.getElementById('pl-error').textContent = r.error; return; }
+    current.songs = r.songs;
+    current.duration = r.duration;
+    renderSongs();
+    await loadPlaylists();
+  }
+  window.removeSong = removeSong;
+
+  async function renamePlaylist() {
+    const newName = document.getElementById('pl-name-input').value.trim();
+    if (!newName) return;
+    const r = await api().rename_playlist(current.path, newName);
+    if (!r.ok) { document.getElementById('pl-error').textContent = r.error; return; }
+    document.getElementById('pl-error').textContent = '';
+    current.path = r.path;
+    current.workout_name = newName;
+    await loadPlaylists();
+  }
+  window.renamePlaylist = renamePlaylist;
+
+  async function deletePlaylist() {
+    if (!confirm(`Eliminare "${current.workout_name}"? Verrà spostata in una cartella di backup, non cancellata.`)) return;
+    const r = await api().delete_playlist(current.path);
+    document.getElementById('pl-detail').style.display = 'none';
+    document.getElementById('pl-empty').style.display = 'block';
+    current = null;
+    await loadPlaylists();
+  }
+  window.deletePlaylist = deletePlaylist;
+
+  async function openBackupFolder() {
+    await api().open_backup_folder();
+  }
+  window.openBackupFolder = openBackupFolder;
+
+  if (window.pywebview) {
+    loadPlaylists();
+  } else {
+    window.addEventListener('pywebviewready', loadPlaylists);
+  }
+</script>
+</body>
+</html>

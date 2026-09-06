@@ -1,0 +1,1631 @@
+/* Design tokens estratti DAVVERO dal export Figma (Prove export svg figma/),
+   non inventati - vedi UI & Warframing/rd_migrazione_framework.md.
+   Colori: grep sui fill="#..." di Correggi.svg/Genera.svg.
+   Font: Poppins (titoli) + Roboto (corpo), letti da font-family="" nell'SVG. */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+:root {
+  /* Anello del pulsante "rimuovi brano" della Song Info Card: navy pieno
+     sul fondo chiaro della card. Al scuro serve una versione schiarita,
+     altrimenti l'anello sparisce contro #29293D (1.8:1). */
+  --x-rimuovi: #0C355C;
+  --bg-page: #EDEDF7;
+  --bg-card: #FFFFFF;
+  --bg-card-soft: #F4F4F4;
+  /* Blocco Marker: erano scritti a mano dentro la pagina (#DFF0FF), quindi
+     non cambiavano col tema e in scuro restava un riquadro azzurro
+     abbagliante con sopra segni illeggibili. */
+  --bm-fondo: #DFF0FF;
+  --bm-bordo: #0071DA;
+  --bm-onda: #B9A6F5;
+  --bm-riga: rgba(12, 53, 92, 0.5);
+  --bm-etichetta: rgba(12, 53, 92, 0.55);
+
+  --bg-card-alt: #E7E7F3;
+
+  --text-heading: #0C355C;
+  /* #6B7280 passava su bianco (4.83:1) ma NON sullo sfondo pagina
+     #EDEDF7 (4.16:1) ne' sulle card morbide - e la maggior parte del testo
+     corrente sta proprio li'. #616774 tiene la stessa tinta e resta sopra
+     4.6:1 su tutti e quattro i fondi chiari del tema. */
+  --text-body: #616774;
+  /* MISURATO, non scelto a occhio: #9CA3C4 su bianco dava 2.49:1, contro i
+     4.5:1 che la WCAG 1.4.3 chiede per il testo normale. E' il token del
+     LOG e delle etichette secondarie - la ragione per cui il log risultava
+     illeggibile. #5A6496 tiene la stessa tinta e supera 4.5:1 su tutti e
+     quattro gli sfondi chiari del tema (bianco, EDEDF7, F4F4F4, E7E7F3).
+     Il vecchio valore resta in --accent-grey e --pill-silenzio-bg, dove
+     serve come COLORE di riempimento e non come inchiostro. */
+  --text-muted: #5A6496;
+  /* Avviso testuale, non un errore: ambra scura. */
+  --testo-avviso: #8A4B00;   /* 6.80:1 sul fondo chiaro, misurato */
+
+  --accent-blue: #3FA2FF;
+  --accent-blue-strong: #0071DA;
+  --accent-blue-soft: #7AB2E5;
+  --accent-pink: #FF4EC1;
+  --accent-red: #FF3E41;
+  --accent-red-strong: #BF0000;
+  --accent-purple: #7160FB;
+  --accent-purple-soft: #9083FC;
+  --accent-grey: #9CA3C4;
+  /* Versioni scurite di accent-blue e accent-red, da usare quando quei due
+     colori fanno da INCHIOSTRO su fondo chiaro: a piena intensita' stanno a
+     2.31:1 e 3.00:1, cioe' sotto la soglia. Come riempimento restano quelli
+     di prima - e' per questo che sono token separati e non una modifica di
+     --accent-blue/--accent-red. */
+  --accent-blue-ink: #0066C6;
+  --accent-red-ink: #D10003;
+  --accent-green: #10B981;
+
+  /* Valori confermati da get_design_context su 3 fetch indipendenti (dot
+     "Ipotesi fasi totali", bande sfondo waveform, entrambi 31/08 sera) -
+     #B2B7D1/#3FA2FF erano una stima meno affidabile di un giro precedente. */
+  --pill-silenzio-bg: #9CA3C4;
+  --pill-leggero-bg: #549CDE;
+  --pill-pugni-bg: #F0546B;
+  /* schiarito di un soffio (#7160FB -> #7D6DFB): e' il minimo che porta
+     l'inchiostro scuro delle pillole a 4.6:1. La tinta resta quella. */
+  --pill-misto-bg: #7D6DFB;
+
+  /* Inchiostro delle pillole di fase. Gli sfondi restano i colori del
+     wireframe - sono l'identita' della fase e tornano identici sulle bande
+     della forma d'onda - ma il testo bianco sopra ci stava fra 2.49:1 e
+     4.40:1, cioe' sempre sotto la soglia. Un unico inchiostro scuro su
+     tutte e quattro le tiene fra 4.6:1 e 7.1:1 con una regola sola. */
+  --pill-ink: #101828;
+  /* Il testo SOPRA la pillola, una per una: al chiaro e' lo stesso
+     inchiostro scuro su tutte, al scuro no - la pillola Silenzio li' e' una
+     superficie scura e vuole testo chiaro. Tenerli separati evita di dover
+     scegliere fra "leggibile" e "come il disegno" con una regola sola. */
+  --pill-silenzio-fg: #101828;
+  --pill-leggero-fg: #101828;
+  --pill-pugni-fg: #101828;
+  --pill-misto-fg: #101828;
+  /* la "coda" bianca porta il numero corretto nel colore della fase: su
+     bianco quei colori stanno fra 2.49:1 e 3.85:1, quindi per il TESTO
+     serve la versione scurita (stessa tinta, luminosita' abbassata). */
+  --pill-coda-bg: #FFFFFF;
+  --pill-silenzio-ink: #5A6496;
+  --pill-leggero-ink: #216AAC;
+  --pill-pugni-ink: #CD122E;
+  --pill-misto-ink: #5B46FA;
+
+  --border-soft: #D9D9D9;
+  /* fondo delle pagine di dialogo (disclaimer, scelta):
+     e' una superficie a se', non lo sfondo pagina. */
+  --dash-bg: #2F2F31;
+  /* La modale dei dialoghi non segue lo stesso token nei due temi:
+     al chiaro e' del colore dello sfondo pagina (#EDEDF7), al scuro
+     e' del colore delle card (#2A2A3E). Serve un token suo. */
+  --dash-modal-bg: #EDEDF7;
+  --input-bg: #FFFFFF;
+  /* WCAG 1.4.11 "Non-text Contrast" chiede 3:1 per il bordo che identifica
+     un controllo. #D9D9D9 su bianco dava 1.41:1: i campi si vedevano a
+     malapena, ed e' una delle ragioni per cui l'interfaccia sembrava
+     slavata. #8E92A8 da' 3.08:1 e tiene la stessa tinta bluastra della
+     pagina invece di essere un grigio neutro qualunque.
+     --border-soft resta chiaro: quello e' per i separatori decorativi, che
+     il criterio non copre. */
+  --input-border: #8E92A8;
+  /* anello di fuoco: blu pieno + alone bianco, cosi' resta visibile sia
+     sulle superfici chiare sia dentro i pulsanti blu */
+  --anello-fuoco: #0B4F9E;
+  --anello-fuoco-alone: rgba(255,255,255,0.95);
+  --inset-bg: #F4F4F4;
+
+  --font-display: 'Poppins', 'Segoe UI', sans-serif;
+  --font-body: 'Roboto', 'Segoe UI', sans-serif;
+
+  --radius-card: 12px;
+  --radius-pill: 20px;
+  --radius-control: 8px;
+
+  --shadow-card: 0 2px 12px rgba(12, 53, 92, 0.08);
+}
+
+/* Tema scuro - palette MISURATA sui frame Figma del tema scuro
+   (81:5252, 81:5370, 81:5542, 81:5659, 81:5772, 81:5885, 81:6033),
+   non piu' la conversione che avevo dedotto dalla palette chiara.
+   I due blocchi qui sotto DEVONO restare identici: uno vale quando il
+   sistema operativo e' in tema scuro e l'utente non ha scelto, l'altro
+   quando ha scelto scuro esplicitamente. audit_codice controlla che non
+   divergano - divergere significherebbe due temi scuri diversi a seconda
+   di come ci si arriva. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* MISURATI sui frame del tema scuro (Figma 81:5252-81:6033), non
+       dedotti: le superfici sono quattro gradini di blu molto scuro, non
+       grigi neutri. */
+    --bg-page: #1A1A2E;        /* pagine strumento (Correggi / Genera) */
+    --bg-card: #2A2A3E;        /* card e modali */
+    --bg-card-soft: #29293D;   /* righe elenco, superfici interne */
+    --bm-fondo: #16233A;
+    --bm-bordo: #2E86E0;
+    --bm-onda: #9B86E8;
+    --bm-riga: rgba(214, 228, 255, 0.5);
+    --bm-etichetta: rgba(214, 228, 255, 0.62);
+    --bg-card-alt: #33334C;    /* un gradino piu' su: campi, hover */
+    /* Le pagine di dialogo hanno un fondo tutto loro, molto piu' scuro. */
+    --dash-bg: #05050A;
+    --dash-modal-bg: #2A2A3E;
+
+    --text-heading: #E6E6ED;   /* 9.84:1 sul fondo piu' chiaro dei quattro */
+    --text-body: #CECED6;      /* 7.81:1 */
+    --text-muted: #9D9DB3;     /* 4.62:1 - il piu' scuro che passa ovunque */
+  --testo-avviso: #F0B357;   /* 9.86:1 sul fondo scuro, misurato */
+
+    /* Gli accenti come RIEMPIMENTO restano quelli del brand. Cambiano solo
+       dove fanno da inchiostro su fondo scuro: #FF3E41 su queste superfici
+       sta a 3.50:1, sotto la soglia. #FF7A7A e' anche il valore che compare
+       nei frame di dialogo del Figma scuro, quindi la scelta coincide con
+       il disegno invece di sovrappporsi. */
+    --accent-blue: #3FA2FF;
+    --accent-blue-strong: #0071DA;
+    --accent-blue-soft: #7AB2E5;
+    --accent-pink: #FF4EC1;
+    --accent-red: #FF3E41;
+    --accent-red-strong: #FF7A7A;
+    --accent-purple: #7160FB;
+    --accent-purple-soft: #9083FC;
+    --accent-grey: #9CA3C4;
+    --accent-green: #10B981;
+    --accent-blue-ink: #41A3FF;
+    --accent-red-ink: #FF7A7A;
+
+    /* Le pillole delle fasi tengono i colori del brand anche al scuro; solo
+       l'inchiostro della coda va schiarito, perche' li' il fondo e' scuro. */
+    --pill-coda-bg: #1A1A2E;
+    --pill-silenzio-ink: #B9C0E0;
+    --pill-leggero-ink: #9CC8F2;
+    --pill-pugni-ink: #FF9AA8;
+    --pill-misto-ink: #B5A9FF;
+
+    /* --- componenti, misurati sul frame 81:5885 --- */
+    /* Silenzio al scuro non e' il grigio-blu del chiaro: e' una superficie
+       scura, con testo chiaro (9.84:1). */
+    --pill-silenzio-bg: #33334C;
+    --pill-silenzio-fg: #E6E6ED;
+    /* Le altre tre tengono il fondo del disegno ma NON il testo chiaro, che
+       li' starebbe fra 2.35:1 e 3.55:1 (vedi patch_scuro_componenti.py). */
+    --pill-leggero-fg: #101828;
+    --pill-pugni-fg: #101828;
+    --pill-misto-fg: #101828;
+    /* campi di testo e menu a tendina */
+    --input-bg: #2A2A3E;
+    --input-border: #7A7AA2;   /* 3.42:1 su --bg-card, 4.17:1 su --bg-page */
+  --anello-fuoco: #7FC4FF;
+  --anello-fuoco-alone: rgba(10,10,20,0.95);
+    /* superficie INCASSATA (log, aree di scorrimento): piu' scura della
+       card che la contiene, non piu' chiara come al tema chiaro */
+    --inset-bg: #1A1A2E;
+      /* --- componenti, misurati sul frame 81:5885 --- */
+  /* Silenzio al scuro non e' il grigio-blu del chiaro: e' una superficie
+     scura, con testo chiaro (9.84:1). */
+  /* Le altre tre tengono il fondo del disegno ma NON il testo chiaro, che
+     li' starebbe fra 2.35:1 e 3.55:1 (vedi patch_scuro_componenti.py). */
+  /* campi di testo e menu a tendina */
+  /* superficie INCASSATA (log, aree di scorrimento): piu' scura della
+     card che la contiene, non piu' chiara come al tema chiaro */
+  --row-bg: #29293D;
+  --x-rimuovi: #4A8AD6;   /* 3.99:1 su --row-bg, 3.43:1 su --bg-card-alt */
+    --border-soft: #3A3A52;
+    --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.45);
+  }
+}
+:root[data-theme="dark"] {
+  /* MISURATI sui frame del tema scuro (Figma 81:5252-81:6033), non
+     dedotti: le superfici sono quattro gradini di blu molto scuro, non
+     grigi neutri. */
+  --bg-page: #1A1A2E;        /* pagine strumento (Correggi / Genera) */
+  --bg-card: #2A2A3E;        /* card e modali */
+  --bg-card-soft: #29293D;   /* righe elenco, superfici interne */
+  --bm-fondo: #16233A;
+  --bm-bordo: #2E86E0;
+  --bm-onda: #9B86E8;
+  --bm-riga: rgba(214, 228, 255, 0.5);
+  --bm-etichetta: rgba(214, 228, 255, 0.62);
+  --bg-card-alt: #33334C;    /* un gradino piu' su: campi, hover */
+  /* Le pagine di dialogo hanno un fondo tutto loro, molto piu' scuro. */
+  --dash-bg: #05050A;
+  --dash-modal-bg: #2A2A3E;
+
+  --text-heading: #E6E6ED;   /* 9.84:1 sul fondo piu' chiaro dei quattro */
+  --text-body: #CECED6;      /* 7.81:1 */
+  --text-muted: #9D9DB3;     /* 4.62:1 - il piu' scuro che passa ovunque */
+  --testo-avviso: #F0B357;   /* 9.86:1 sul fondo scuro, misurato */
+
+  /* Gli accenti come RIEMPIMENTO restano quelli del brand. Cambiano solo
+     dove fanno da inchiostro su fondo scuro: #FF3E41 su queste superfici
+     sta a 3.50:1, sotto la soglia. #FF7A7A e' anche il valore che compare
+     nei frame di dialogo del Figma scuro, quindi la scelta coincide con
+     il disegno invece di sovrappporsi. */
+  --accent-blue: #3FA2FF;
+  --accent-blue-strong: #0071DA;
+  --accent-blue-soft: #7AB2E5;
+  --accent-pink: #FF4EC1;
+  --accent-red: #FF3E41;
+  --accent-red-strong: #FF7A7A;
+  --accent-purple: #7160FB;
+  --accent-purple-soft: #9083FC;
+  --accent-grey: #9CA3C4;
+  --accent-green: #10B981;
+  --accent-blue-ink: #41A3FF;
+  --accent-red-ink: #FF7A7A;
+
+  /* Le pillole delle fasi tengono i colori del brand anche al scuro; solo
+     l'inchiostro della coda va schiarito, perche' li' il fondo e' scuro. */
+  --pill-coda-bg: #1A1A2E;
+  --pill-silenzio-ink: #B9C0E0;
+  --pill-leggero-ink: #9CC8F2;
+  --pill-pugni-ink: #FF9AA8;
+  --pill-misto-ink: #B5A9FF;
+
+  /* --- componenti, misurati sul frame 81:5885 --- */
+  /* Silenzio al scuro non e' il grigio-blu del chiaro: e' una superficie
+     scura, con testo chiaro (9.84:1). */
+  --pill-silenzio-bg: #33334C;
+  --pill-silenzio-fg: #E6E6ED;
+  /* Le altre tre tengono il fondo del disegno ma NON il testo chiaro, che
+     li' starebbe fra 2.35:1 e 3.55:1 (vedi patch_scuro_componenti.py). */
+  --pill-leggero-fg: #101828;
+  --pill-pugni-fg: #101828;
+  --pill-misto-fg: #101828;
+  /* campi di testo e menu a tendina */
+  --input-bg: #2A2A3E;
+  --input-border: #7A7AA2;   /* 3.42:1 su --bg-card, 4.17:1 su --bg-page */
+  --anello-fuoco: #7FC4FF;
+  --anello-fuoco-alone: rgba(10,10,20,0.95);
+  /* superficie INCASSATA (log, aree di scorrimento): piu' scura della
+     card che la contiene, non piu' chiara come al tema chiaro */
+  --inset-bg: #1A1A2E;
+    /* --- componenti, misurati sul frame 81:5885 --- */
+  /* Silenzio al scuro non e' il grigio-blu del chiaro: e' una superficie
+   scura, con testo chiaro (9.84:1). */
+  /* Le altre tre tengono il fondo del disegno ma NON il testo chiaro, che
+   li' starebbe fra 2.35:1 e 3.55:1 (vedi patch_scuro_componenti.py). */
+  /* campi di testo e menu a tendina */
+  /* superficie INCASSATA (log, aree di scorrimento): piu' scura della
+   card che la contiene, non piu' chiara come al tema chiaro */
+  --row-bg: #29293D;
+  --x-rimuovi: #4A8AD6;   /* 3.99:1 su --row-bg, 3.43:1 su --bg-card-alt */
+  --border-soft: #3A3A52;
+  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* "Light switch.svg" - stato acceso (interruttore chiaro/scuro nell'header) */
+/* "Light switch" (20:3132) - valori REALI presi dagli SVG delle due
+   varianti scaricate da Figma:
+     Light: pista 120x56 r28 gradiente #FFC747 -> #FFA626, manopola bianca
+            r22 a cx=28 (sinistra) con pallino r5 #FFB326 dentro, e un
+            pallino r7 bianco al 35% sul lato opposto (cx=92)
+     Dark:  pista gradiente #1A1F40 -> #0F142E con bordo #4D598C al 12%,
+            manopola r22 a cx=92 (destra) con pallino r6 #BFD1FF dentro,
+            pallino r5 bianco al 20% a sinistra
+   Lo stato lo guida data-on ("true" = scuro), non il tema della pagina:
+   e' l'interruttore stesso a dire dove si trova. */
+.theme-switch {
+  position: relative; display: inline-block;
+  width: 120px; height: 56px; border-radius: 28px; border: none; padding: 0;
+  cursor: pointer; flex: none;
+  background: linear-gradient(90deg, #FFC747, #FFA626);
+  box-shadow: inset 0 1px 3px rgba(255,255,255,0.2);
+  transition: background 0.2s;
+}
+.theme-switch[data-on="true"] {
+  background: linear-gradient(90deg, #1A1F40, #0F142E);
+  box-shadow: inset 0 1px 4px rgba(77,102,204,0.15), 0 0 0 1px rgba(77,89,140,0.12);
+}
+/* pallino tenue sul lato dove la manopola NON e' */
+.theme-switch::before {
+  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+  left: 85px; width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255,255,255,0.35); transition: left 0.2s, width 0.2s, height 0.2s;
+}
+.theme-switch[data-on="true"]::before {
+  left: 23px; width: 10px; height: 10px; background: rgba(255,255,255,0.2);
+}
+.theme-switch .theme-switch-knob {
+  position: absolute; top: 6px; left: 6px; width: 44px; height: 44px;
+  border-radius: 50%; background: #fff; transition: left 0.2s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.08);
+  display: flex; align-items: center; justify-content: center;
+}
+.theme-switch[data-on="true"] .theme-switch-knob {
+  left: 70px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.08), 0 0 12px rgba(102,128,255,0.25);
+}
+/* pallino dentro la manopola: "sole" arancio da chiaro, "luna" azzurra da scuro */
+.theme-switch .theme-switch-knob::after {
+  content: ''; width: 10px; height: 10px; border-radius: 50%; background: #FFB326;
+}
+.theme-switch[data-on="true"] .theme-switch-knob::after { width: 12px; height: 12px; background: #BFD1FF; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.page {
+  /* 1920px, non 1440 - misurato per davvero sul canvas reale del wireframe
+     (Genera.svg/Correggi.svg dichiarano viewBox 0 0 1920 1080, e il
+     contenuto usa quasi tutta quella larghezza: margine sinistro 40px
+     esatti misurati su "BoxVR Survivor Toolkit"/"Anteprima brano", il
+     pannello brani arriva quasi al bordo destro). Il vecchio 1440px non
+     era una misura, solo una convenzione web generica - a 1920px di
+     finestra lasciava ~240px di margine vuoto per lato, mai nel design
+     reale. margin:auto resta per non stirare all'infinito su monitor
+     piu' larghi di 1920, ma NON deve mai stringere sotto quella soglia. */
+  max-width: 1920px;
+  margin: 0 auto;
+  /* Basso ridotto (era 80px) - il margine reale sotto le card di Genera/
+     Correggi (1031 -> 1080) e' ~49px, misurato su Figma, non un valore
+     web generico. */
+  padding: 32px 40px 40px;
+}
+
+/* -- header -------------------------------------------------------------- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  /* 6px, non 28px - misurato per davvero (screenshot 1920x1080 vero +
+     scansione pixel): con 28px il contenuto sforava sotto la finestra,
+     il gap reale fra header e titolo "Crea Workout da Mp3" e' minimo
+     (~3px, 29:4510 y=33..69 vs 29:4508 y=99). */
+  margin-bottom: 6px;
+}
+.app-header h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+.app-header .version {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* IT/EN - vero nel wireframe (Correggi.svg, x~1710/1707 in alto a destra) */
+.lang-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+}
+.lang-switch a { color: var(--text-muted); text-decoration: none; }
+.lang-switch a.active { color: var(--accent-blue-strong); }
+
+/* Link di navigazione fra le due pagine del mockup - NON è nel wireframe
+   (la vera app sceglie la modalità in una schermata Dashboard separata,
+   vedi "Start page _ Dashboard selection.svg" e "Tile mode.svg" - non
+   ancora ricostruita qui). Stile deliberatamente diverso dal resto
+   dell'interfaccia, per non farlo passare per un elemento di design reale. */
+.mockup-nav {
+  margin-left: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  align-self: center;
+}
+
+/* -- section title -------------------------------------------------------- */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  /* Ereditava il colore del corpo dal body: al chiaro la differenza non si
+     notava, al scuro il titolo veniva #CECED6 invece di #E6E6ED. */
+  color: var(--text-heading);
+  /* Ridotto (era 8px 0 18px) - stesso motivo del fix su .app-header sopra:
+     misurato che il contenuto sforava sotto 1080px, il gap reale fra
+     titolo e descrizione e' ~19px (29:4508 bottom 135 -> 29:4509 top 154),
+     non ~26-44px. */
+  margin: 2px 0 10px;
+}
+/* 45x45 reali (Big Icons, 4:73/4:75) - non 40 */
+.section-title .icon {
+  width: 45px; height: 45px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.section-title .icon svg,
+.section-title .icon img { width: 100%; height: 100%; display: block; }
+.section-title h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+.section-title.correggi .icon { color: var(--accent-blue); }
+.section-title.genera .icon { color: var(--accent-red); }
+
+.section-desc {
+  color: var(--text-body);
+  /* 1301px REALE (get_design_context, 29:4509) - 980px era una larghezza
+     web generica mai misurata, andava a capo su piu' righe del reale e
+     contribuiva a far sforare l'altezza della finestra 1920x1080. */
+  max-width: 1301px;
+  margin: 0 0 28px;
+}
+
+h3.block-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-heading);
+  margin: 0 0 14px;
+}
+
+/* -- layout: sidebar (Pannello brani) + main ------------------------------ */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* -- song list panel -------------------------------------------------------
+   A DESTRA nel wireframe reale (Correggi.svg/Genera.svg) - il pannello
+   brani (Pannello brani.svg) è un componente a parte pensato per affiancare
+   il contenuto principale sulla destra, non sulla sinistra. */
+.song-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  order: 2;
+}
+main { order: 1; }
+.song-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.btn-add {
+  background: var(--accent-blue-strong);
+  color: white;
+  border: none;
+  border-radius: var(--radius-control);
+  padding: 10px 16px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.song-count { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+.btn-clear {
+  margin-left: auto;
+  background: var(--bg-card-soft);
+  color: var(--text-body);
+  border: none;
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.song-list { display: flex; flex-direction: column; gap: 8px; max-height: 620px; overflow-y: auto; }
+.song-row {
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  /* Al chiaro la riga non ha fondo proprio: si vede la card bianca sotto,
+     come nel wireframe. Al scuro invece il disegno le da' una superficie
+     sua (#29293D contro il #2A2A3E della card): la differenza e' minima ma
+     c'e', ed e' quella che stacca la riga dal pannello. */
+  background: var(--row-bg, transparent);
+}
+/* Due stati DISTINTI nel componente Song Info Card, che avevo confuso:
+     "On focus" (18:7301) = passaggio del mouse -> fondo azzurro #E7F3FF
+     "Selected" (44:4400) = riga scelta -> fondo NORMALE + bordo 3px #0C355C
+   Prima usavo lo stile del passaggio del mouse anche per la selezione. */
+.song-row:hover { background: #E7F3FF; }
+.song-row.selected {
+  /* "fondo NORMALE + bordo": il fondo normale di una riga adesso e'
+     --row-bg (trasparente al chiaro, una superficie sua al scuro), non
+     --bg-card - che al scuro e' la card, non la riga. */
+  background: var(--row-bg, var(--bg-card)); border: 3px solid #0C355C; padding: 8px 10px;
+}
+.song-row.selected:hover { background: #E7F3FF; }
+
+/* ---- Testi della riga a fuoco -------------------------------------
+   Il fondo #E7F3FF e' lo stesso in ENTRAMBI i temi, ma i colori del testo
+   seguivano i token: al scuro diventavano chiari e finivano su un fondo
+   chiaro. Il corpo del testo dava 1.39:1 - il nome del brano e la
+   percentuale di colpi erano praticamente invisibili.
+
+   Quindi qui i colori NON vengono dai token di tema: sono fissi, perche'
+   e' fisso il fondo su cui stanno. E sono blu, non grigi, come chiesto:
+       nome brano e numero   #0C355C  11.11:1
+       artista e riga sopra  #2E5F92   5.89:1
+       percentuale di colpi  #1B4F8F   7.29:1
+   L'icona del pugno usa currentColor, quindi segue la percentuale. */
+.song-row:hover .row-top,
+.song-row.selected:hover .row-top { color: #2E5F92; }
+.song-row:hover .row-top .idx,
+.song-row.selected:hover .row-top .idx { color: #0C355C; }
+.song-row:hover .track-name,
+.song-row.selected:hover .track-name { color: #0C355C; }
+.song-row:hover .row-pugni,
+.song-row.selected:hover .row-pugni { color: #1B4F8F; }
+.song-row:hover .bpm-value,
+.song-row.selected:hover .bpm-value { color: #2E5F92; }
+/* Corsia riservata al pulsante "rimuovi" sul bordo destro.
+   Il pulsante e' centrato verticalmente a 10px dal bordo, quindi cade
+   proprio in mezzo alle due righe: senza spazio riservato la rotella
+   dell'analisi (in alto) e l'icona del pugno (in basso) gli finivano
+   addosso. Riservare la corsia SEMPRE, e non solo al passaggio del mouse,
+   evita anche che il contenuto salti quando il pulsante compare. */
+.song-row .row-top,
+.song-row .row-bottom { padding-right: 26px; }
+
+.song-row .row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.song-row .row-top .idx { font-weight: 700; color: var(--text-heading); }
+.song-row .row-top .bpm { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.song-row .row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.song-row .track-name {
+  font-weight: 700;
+  color: var(--text-heading);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.status-dot.ready { background: var(--accent-green); }
+.status-dot.warn { background: var(--accent-red); }
+.status-dot.pending { background: var(--border-soft); }
+.status-pct { font-size: 13px; font-weight: 700; color: var(--text-heading); }
+.status-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  /* La traccia era --border-soft: sulla riga scura e' quasi invisibile, e
+     restava solo l'archetto blu che gira - da cui l'impressione di un
+     effetto rotto. Con --input-border la circonferenza si vede tutta e si
+     legge come una rotella, non come un frammento. */
+  border: 2px solid var(--input-border); border-top-color: var(--accent-blue);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* stato "Analisi fallita" (Song Info Card.svg - non ancora coperto dal
+   primo giro sul Pannello brani): etichetta e nome brano in rosso, link
+   "Riprova" sottolineato - a differenza di "Analisi in corso" non ha uno
+   spinner, ha un'azione da compiere. */
+.song-row.failed .track-name, .song-row.failed .row-top .fail-label { color: var(--accent-red-strong); }
+.retry-link { color: var(--accent-red-strong); font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* -- anteprima brano ------------------------------------------------------- */
+.preview-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 14px 20px;
+  /* 10px, non 28px - stesso motivo dei due fix sopra: il blocco Anteprima
+     brano completo (etichetta+card) renderizzava a ~400px contro i 314px
+     reali del componente Figma (29:4512), misurato via screenshot vero. */
+  margin-bottom: 10px;
+}
+.preview-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.preview-top .idx { font-weight: 700; color: var(--text-heading); }
+.preview-top .artist { color: var(--text-muted); }
+.preview-top .track-name { font-weight: 700; color: var(--text-heading); }
+.preview-top .bpm { color: var(--text-muted); }
+.preview-top .spacer { flex: 1; }
+.preview-top .zoom-btn {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  color: var(--text-body);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.preview-top .zoom-btn.active { background: var(--accent-blue-strong); color: white; border-color: var(--accent-blue-strong); }
+
+.transport-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.transport-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.transport-btn.play { background: #22C55E; color: white; }
+.transport-btn.stop { background: var(--bg-card-soft); color: var(--text-body); }
+
+/* Icone reali play/pausa/stop ("Playback icons" - get_design_context,
+   3 stati: stopped/Playing/disabled) - non piu' testo unicode. Ogni bottone
+   contiene l'SVG scaricato per davvero (colori reali: play #5ABE51,
+   pausa #DB940E, stop grigio #A2A2A2 a riposo / rosso #CD0000 durante la
+   riproduzione), sostituito via JS in base allo stato - non un cerchio
+   colorato generico come nel primo giro. */
+/* ---- Gerarchia del trasporto ----------------------------------------
+   Play e Stop erano due icone da 16x16, dello stesso peso: guardando la
+   barra non si capiva quale fosse l'azione principale, e nessuna delle due
+   arrivava ai 24px minimi di bersaglio.
+
+   Guardando come sono fatti i player moderni (raccolte Dribbble di music
+   player UI, e l'articolo di Tubik Studio sulle interfacce per servizi
+   musicali) il tratto ricorrente e' sempre lo stesso: fondo quieto, un
+   solo accento, e l'azione primaria visivamente DOMINANTE - play/pausa e'
+   un cerchio pieno piu' grande, mentre stop e salti stanno indietro.
+
+   Qui le icone restano quelle del wireframe (sono identita' del prodotto):
+   cambia il peso. Play prende un supporto circolare e 30px, Stop resta
+   piatto a 22. Cosi' la gerarchia c'e' e i bersagli crescono.
+   https://blog.tubikstudio.com/feel-the-beat-ui-design-for-music-streaming-services/ */
+.playback-icon-btn {
+  border: none; background: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+}
+.playback-icon-btn svg { width: 100%; height: 100%; }
+#play-btn.playback-icon-btn {
+  width: 30px; height: 30px; padding: 5px;
+  background: var(--inset-bg);
+  box-shadow: inset 0 0 0 1px var(--input-border);
+}
+#play-btn.playback-icon-btn:hover { background: var(--bg-card-alt); }
+/* Lo stop non compete con il play: resta piatto e si accende solo quando
+   c'e' davvero qualcosa da fermare. */
+#stop-btn.playback-icon-btn:hover { background: var(--inset-bg); }
+.toggle-label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-heading); font-weight: 500; }
+/* Switch REALI (SVG scaricati da Figma: Group 26/27/28 di "Anteprima
+   brano"): 18x10, raggio pieno, pallino r=3 a sinistra da spento e a
+   destra da acceso. Ogni switch ha il SUO colore, uguale a cio' che accende
+   sulla waveform - non un blu unico per tutti:
+     Base beat       #0071DA  (come i tick dei beat)
+     Marker visibili #7700FF  (VIOLA come il pulsante "Marca" e i marker -
+                     l'SVG esportato aveva un giallo #B6AA04 che l'utente ha
+                     corretto: i marker sono viola in tutto il resto dell'app)
+     Curva di carica #09E2E2  (come la linea dell'energia)
+   Spento = trasparente con bordo e pallino del colore;
+   acceso = pieno del colore con pallino BIANCO. */
+/* 35x19.44: misura REALE del componente switch (nodo Figma 25:9094). I
+   18x10 letti dall'SVG dell'anteprima erano l'icona in scala ridotta, non lo
+   switch vero - da qui la sensazione che fossero troppo piccoli. */
+.toggle {
+  width: 35px; height: 19px; border-radius: 10px;
+  background: transparent; border: 1px solid var(--toggle-color, #0071DA);
+  position: relative; cursor: pointer; flex: none; box-sizing: border-box;
+}
+.toggle.on { background: var(--toggle-color, #0071DA); border-color: var(--toggle-color, #0071DA); }
+.toggle::after {
+  content: ''; position: absolute; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--toggle-color, #0071DA); top: 1px; left: 1px; transition: left .15s;
+}
+.toggle.on::after { left: 18px; background: #fff; }
+.toggle.tg-basebeat { --toggle-color: #0071DA; }
+.toggle.tg-marker   { --toggle-color: #7700FF; }
+.toggle.tg-curva    { --toggle-color: #09E2E2; }
+/* "Crea backup nella cartella Trackdata": rosso #F4506B (misurato), non blu */
+.toggle.tg-backup   { --toggle-color: #F4506B; }
+
+/* Bande delle fasi: opacita' 0.78 sul fondo bianco - valore RICAVATO dal
+   campionamento dell'export Figma (es. --pill-pugni-bg #F0546B a 0.78 su
+   bianco da' esattamente il (243,122,140) misurato, e lo stesso vale per
+   tutte e quattro le fasi). Con "Marker visibili" acceso passano a meta'
+   (0.39), come nel wireframe. */
+.waveform {
+  height: 108px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+  background: transparent;
+  pointer-events: none;
+}
+.waveform .seg { flex: 1 0 auto; opacity: 0.78; pointer-events: auto; }
+.markers-on .waveform .seg { opacity: 0.39; }
+/* Secondo layer: le STESSE bande gia' scurite di 56 per canale, ritagliate
+   dalla sagoma della forma d'onda (maschera generata da renderWaveShape).
+   Serve perche' il "Linear Burn" del wireframe non esiste fra i
+   mix-blend-mode CSS, e nero-semitrasparente darebbe uno scurimento
+   proporzionale invece che costante. */
+.waveform.wave-dark { position: absolute; inset: 0; height: 100%; }
+.waveform.wave-dark .seg { opacity: 1; pointer-events: none; }
+.waveform .seg.silenzio { background: var(--pill-silenzio-bg); }
+.waveform .seg.leggero { background: var(--pill-leggero-bg); }
+.waveform .seg.pugni { background: var(--pill-pugni-bg); }
+.waveform .seg.misto { background: var(--pill-misto-bg); }
+.waveform .playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-heading);
+}
+
+.mini-structure {
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  margin-top: 8px;
+}
+.mini-structure .seg { flex: 1 0 auto; }
+.mini-structure .seg.silenzio { background: var(--pill-silenzio-bg); }
+.mini-structure .seg.leggero { background: var(--pill-leggero-bg); }
+.mini-structure .seg.pugni { background: var(--pill-pugni-bg); }
+.mini-structure .seg.misto { background: var(--pill-misto-bg); }
+.mini-structure-label { font-size: 13px; color: var(--text-muted); margin-top: 5px; }
+
+/* -- toolkit ---------------------------------------------------------------- */
+.toolkit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.toolkit-col {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px 22px;
+}
+
+.info-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%; border: none;
+  background: var(--accent-blue-soft); color: #101828; font-size: 13px; font-weight: 700;
+  font-family: var(--font-display); padding: 0; margin-left: 4px; cursor: pointer;
+}
+
+.segmented {
+  display: inline-flex;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  /* --input-border e non --border-soft: questo e' il contorno di un
+     CONTROLLO, non un separatore decorativo, quindi ricade sotto WCAG
+     1.4.11 e deve stare a 3:1. Col token morbido dava 1.41:1. */
+  border: 1px solid var(--input-border);
+}
+.segmented button {
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-body);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 20px;
+  cursor: pointer;
+}
+.segmented button.active { background: var(--accent-red); color: white; }
+
+/* Preset dei colpi (Pannello generazione, tab Automatica - dati REALI da
+   get_design_context): il pulsante selezionato prende il colore del
+   preset (verde/giallo/rosso = leggero/medio/aggressivo, stesso principio
+   gia' usato per il pallino della riga brano), non un rosso generico
+   "attivo" - quelli non selezionati restano grigio chiaro/testo nero. */
+/* "Veloce/Precisa" e "Solo marker/Armonizza/Estendi" (dati REALI da
+   get_design_context: 44:4785/44:5685-90) usano il blu #0071DA per lo
+   stato attivo, non il rosso generico di .segmented button.active - qui
+   scoped ai soli id di Genera, senza toccare il rosso condiviso usato
+   altrove (es. preset-buttons di Correggi, mai verificato con dati reali
+   in questo giro). */
+#engine-toggle button.active, #sidecar-mode-buttons button.active { background: var(--accent-blue-strong); }
+#preset-buttons button { background: #E7E7F3; color: #000; }
+#preset-buttons .preset-btn-light.active { background: var(--accent-green); color: #fff; }
+/* giallo con testo bianco: 1.63:1, il peggiore di tutta l'interfaccia.
+   Il giallo resta quello del wireframe, cambia l'inchiostro (10.89:1). */
+#preset-buttons .preset-btn-medium.active { background: #F5C518; color: #101828; }
+#preset-buttons .preset-btn-aggressive.active { background: #BF0000; color: #fff; }
+.epm-hint { font-family: var(--font-body); font-size: 13px; color: var(--text-muted); margin: 4px 0 0; }
+
+.field-label {
+  font-weight: 600;
+  color: var(--text-heading);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  /* Ridotto (era 18px 0 8px) - le card di Genera in basso sforavano sotto
+     1080px, misurato con uno screenshot vero della finestra 1920x1080. */
+  margin: 10px 0 5px;
+}
+.field-label .value { margin-left: auto; color: var(--text-body); font-weight: 700; }
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-blue-strong);
+}
+
+.legend-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 6px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-heading); font-weight: 600; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-dot.silenzio { background: var(--pill-silenzio-bg); }
+.legend-dot.leggero { background: var(--pill-leggero-bg); }
+.legend-dot.pugni { background: var(--pill-pugni-bg); }
+.legend-dot.misto { background: var(--pill-misto-bg); }
+
+/* "Phase type generation" REALE (30:5460 e affini): altezza 33, raggio 8
+   (non a pillola), testo bianco 14px semibold col valore a destra. */
+.pill-row { display: flex; flex-wrap: wrap; gap: 11px; margin: 4px 0 14px; }
+.pill {
+  border-radius: 8px;
+  height: 33px;
+  padding: 0 9px;
+  color: var(--pill-ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Le pillole delle fasi hanno DUE parti (misurato sull'export): a sinistra la
+   parte colorata con etichetta e valore di PARTENZA, a destra una CODA
+   BIANCA con "> valore corretto" scritto nel colore della fase. Erano tutte
+   colorate. */
+/* `padding-right: 0` vale SOLO per la variante con la coda, dove a chiudere
+   il bordo destro e' la coda stessa. Applicato a tutte, lasciava le pillole
+   senza coda con 9px di respiro a sinistra e ZERO a destra: il numero
+   finiva appiccicato al bordo.
+   Le pillole senza coda sono il componente "Phase type generation" del
+   wireframe (29:4542-4545): 116x33. Erano invece dimensionate dal contenuto,
+   quindi di quattro larghezze diverse e con i numeri a caso.
+   Segnalato dall'utente il 03/09: "l'indicatore delle fasi non e' allineato".
+   `:has()` distingue le due varianti senza dover marcare a mano il markup. */
+.pill:has(.coda) { padding-right: 0; overflow: hidden; }
+.pill:not(:has(.coda)) {
+  min-width: 116px; padding: 0 9px; box-sizing: border-box;
+  justify-content: space-between; white-space: nowrap;
+}
+.pill .coda {
+  display: inline-flex; align-items: center; gap: 5px;
+  align-self: stretch; margin-left: 12px; padding: 0 13px;
+  /* Era "#fff" fisso. Gli inchiostri --pill-*-ink si SCHIARISCONO al tema
+     scuro (per stare su fondo scuro), ma questo riquadro restava bianco:
+     inchiostro chiaro su bianco, fra 1.76:1 e 2.08:1. Il fondo deve venire
+     da un token come l'inchiostro, altrimenti la coppia si rompe appena si
+     cambia tema. Con --pill-coda-bg i quattro inchiostri stanno fra 8.19:1
+     e 9.71:1 al scuro, e fra 5.64:1 e 5.68:1 al chiaro. */
+  background: var(--pill-coda-bg); border-radius: 8px; font-weight: 700;
+}
+.pill.silenzio .coda { color: var(--pill-silenzio-ink); }
+.pill.leggero  .coda { color: var(--pill-leggero-ink); }
+.pill.pugni    .coda { color: var(--pill-pugni-ink); }
+.pill.misto    .coda { color: var(--pill-misto-ink); }
+
+.pill.silenzio { background: var(--pill-silenzio-bg); color: var(--pill-silenzio-fg); }
+.pill.leggero { background: var(--pill-leggero-bg); color: var(--pill-leggero-fg); }
+.pill.pugni { background: var(--pill-pugni-bg); color: var(--pill-pugni-fg); }
+.pill.misto { background: var(--pill-misto-bg); color: var(--pill-misto-fg); }
+.pill .arrow { font-weight: 400; }
+
+/* "Ipotesi fasi totali generate" reale (get_design_context su Pannello
+   generazione, entrambe le tab, e su Anteprima brano - NON sono pill piene
+   colorate come costruito al primo giro: pallino colorato + testo/numero
+   dello stesso colore, sfondo trasparente, griglia 2x2. */
+.fasi-legend { display: flex; flex-wrap: wrap; gap: 8px 11px; margin: 2px 0 8px; }
+.fasi-legend-item {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+}
+.fasi-legend-item .n { margin-left: 2px; }
+.fasi-legend-dot { width: 17px; height: 17px; border-radius: 50%; flex: none; }
+/* Il PALLINO tiene il colore pieno della fase - e' la chiave di lettura che
+   rimanda alle bande della forma d'onda, e non si tocca. Il TESTO accanto no:
+   quegli stessi colori come inchiostro su bianco stanno fra 2.49:1 e 3.85:1,
+   quindi usa la versione scurita della stessa tinta. */
+.fasi-legend-dot.silenzio { color: var(--pill-silenzio-bg); }
+.fasi-legend-dot.leggero { color: var(--pill-leggero-bg); }
+.fasi-legend-dot.pugni { color: var(--pill-pugni-bg); }
+.fasi-legend-dot.misto { color: var(--pill-misto-bg); }
+.fasi-legend-item.silenzio { color: var(--pill-silenzio-ink); }
+.fasi-legend-item.leggero { color: var(--pill-leggero-ink); }
+.fasi-legend-item.pugni { color: var(--pill-pugni-ink); }
+.fasi-legend-item.misto { color: var(--pill-misto-ink); }
+.fasi-legend-dot.silenzio { background: var(--pill-silenzio-bg); }
+.fasi-legend-dot.leggero { background: var(--pill-leggero-bg); }
+.fasi-legend-dot.pugni { background: var(--pill-pugni-bg); }
+.fasi-legend-dot.misto { background: var(--pill-misto-bg); }
+
+.text-input {
+  width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-heading);
+  /* token propri: al scuro il campo e' #2A2A3E con bordo #3A3A52
+     (misurato sul frame 81:5885), non lo stesso colore della card */
+  background: var(--input-bg);
+}
+.text-input::placeholder { color: var(--text-muted); }
+
+/* Tooltip al passaggio del mouse sulla waveform ("Blocco X / Sezioni
+   consecutive / Colpi totali" - misurato su Genera.svg/Correggi.svg,
+   rect 177x68 rx=8, freccetta verso il cursore, intestazione colorata come
+   la pillola del livello). "Colpi totali" NON e' qui: nessuna funzione reale
+   nel progetto calcola un conteggio colpi per segmento durante l'anteprima
+   (solo una media eventi/min PER PRESET a livello di intero brano, vedi
+   INTENSITY_PRESETS in boxvr_choreo.py) - mostrarlo avrebbe richiesto
+   inventare una stima non verificata, quindi omesso invece di indovinato. */
+/* Tooltip dei blocchi sulla waveform - valori REALI (29:3509): fondo
+   BIANCO con ombra portata (non la card scura del tema), angoli 8px,
+   testo 12px, titolo del colore del blocco e righe blu scuro #0C355C.
+   Tiene i suoi colori anche in tema scuro, come gli altri componenti
+   presi 1:1 dal wireframe. */
+.seg-tooltip {
+  position: fixed; z-index: 50; pointer-events: none;
+  background: #fff; border-radius: 8px;
+  filter: drop-shadow(0px 4px 2px rgba(0,0,0,0.25));
+  padding: 4px 9px 5px 8px; min-width: 172px; display: none;
+}
+.seg-tooltip.visible { display: block; }
+.seg-tooltip .tt-head {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; margin-bottom: 3px;
+}
+.seg-tooltip .tt-row {
+  display: flex; justify-content: space-between; gap: 16px;
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; color: #0C355C;
+}
+
+/* "Patch Status Button.svg" - pillola verde passiva vs bottone blu/viola
+   azionabile, colori reali estratti dall'SVG (#EBFAF2/#267448/#267448 per lo
+   stato installato, gradiente #545CFA→#333DE0 per "non rilevata"). Condivisa
+   fra dashboard_real (sfondo scuro) e genera_real/correggi_real (sfondo
+   chiaro) - solo il colore del link "Disabilita" cambia per pagina. */
+.patch-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  border-radius: 14px; padding: 8px 18px 8px 8px;
+  font-family: var(--font-body, 'Roboto', sans-serif); font-size: 14px; font-weight: 500;
+  margin-bottom: 10px; border: none; cursor: default;
+}
+.patch-pill.installed {
+  background: #EBFAF2; border: 1.5px solid rgba(176, 222, 196, 0.7); color: #267448;
+}
+.patch-pill.installed .patch-icon {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(46, 179, 107, 0.15); border: 1.5px solid rgba(46, 179, 107, 0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.patch-pill.not-detected {
+  background: linear-gradient(90deg, #545CFA, #333DE0); color: white; font-weight: 600;
+  cursor: pointer; box-shadow: 0 4px 6px rgba(61, 79, 247, 0.3);
+}
+.patch-pill.not-detected .patch-icon {
+  width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+}
+.patch-disable-link { font-size: 13px; color: var(--text-muted); margin: -4px 0 10px 4px; display: inline-block; }
+.patch-disable-link a { color: inherit; }
+
+/* Header: "Ver X.X.X.X" reale accanto al titolo (misurato su Genera.svg/
+   Correggi.svg: x=234,y=56.1 relativo a "BoxVR Survivor Toolkit" a x=40) */
+.app-header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.app-version { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--text-heading); }
+
+/* Selettore lingua IT/EN - misurato dall'export HTML/CSS del plugin
+   (v29_4514: contenitore 38x56, IT sopra/EN sotto impilati, non affiancati -
+   confermato anche nello screenshot a pagina intera). SOLO IL WIDGET per
+   ora: la traduzione reale resta rimandata a quando l'ho ritenuta il
+   momento giusto (istruzione esplicita dell'utente), non wired a nulla. */
+/* Selettore lingua REALE (Group 8, 29:4514): riquadro 38x56 con due
+   pillole 34x23 impilate (IT sopra a y=44, EN sotto a y=69), non un
+   blocchetto piu' piccolo. */
+.lang-switch {
+  display: flex; flex-direction: column; gap: 2px; background: var(--bg-card);
+  width: 38px; height: 56px; align-items: center; justify-content: center;
+  border-radius: 6px; padding: 2px; box-shadow: var(--shadow-card); flex: none;
+}
+.lang-pill {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 23px; border-radius: 4px; font-family: var(--font-body);
+  font-size: 14px; font-weight: 700; color: var(--text-heading); cursor: pointer;
+}
+/* la pillola attiva si inverte rispetto alla card, quindi funziona in
+   entrambi i temi (in scuro: testo scuro su fondo chiaro, non bianco su
+   bianco come sarebbe con un colore fisso) */
+.lang-pill.active { background: var(--text-heading); color: var(--bg-card); }
+
+/* "Tootlip.svg" (refuso dell'utente nel nome file, tenuto per riferimento) -
+   popover generico "Info aggiuntive", riusato per OGNI icona ⓘ del
+   programma (chiarito dall'utente 31/08 sera: "è un PH da usare per tutti i
+   popover... sfruttalo per la conversione al nuovo framework, avevamo già
+   diverse tooltip sul vecchio tool" - i testi reali vengono infatti dalle
+   stringhe *_tooltip già scritte in boxvr_fixer_gui.py, non inventati).
+   Colori reali dall'SVG: sfondo #D9D9D9 (= --border-soft, stesso token),
+   intestazione/icona/chiusura #0C355C (= --text-heading), corpo #091724. */
+/* "Tootlip" (18:8173) - valori REALI: 227px, fondo #D9D9D9, raggio 9,
+   padding 7/8/6/8, spazio 9 fra intestazione e testo; titolo "Info
+   aggiuntive" #0C355C 12px Medium con icona 14px, chiusura 12px a destra;
+   corpo #091724 12px Medium con interlinea stretta (88.175%). Tiene i suoi
+   colori anche in tema scuro, come gli altri componenti presi 1:1. */
+.info-popover {
+  position: fixed; z-index: 200; display: none; width: 227px;
+  background: #D9D9D9; border-radius: 9px; padding: 7px 8px 6px;
+  box-shadow: var(--shadow-card);
+}
+/* ---- Suggerimenti lunghi: si allargano invece di allungarsi ---------
+   In una colonna da 227px un testo di ottocento caratteri diventa una
+   striscia altissima che copre mezza schermata e va oltre il bordo
+   (segnalato dall'utente sul suggerimento della modalita' sidecar).
+   Oltre un'altezza data il riquadro cresce in LARGHEZZA, dove lo spazio
+   c'e'. Il testo resta UNA colonna sola: spezzarlo in colonne di giornale,
+   con la riga verticale in mezzo, non era quello che serviva - un
+   suggerimento si legge di corsa, e saltare da una colonna all'altra e'
+   proprio quello che non deve chiedere.
+   Quanto largo serve lo decide showInfoPopover misurando il testo reso. */
+/* Riga di stato della modalita' «Estendi»: quanti secondi sono marcati e
+   se bastano. Non e' un avviso di errore finche' non manca davvero
+   qualcosa - da spenta e' una nota, da accesa un avviso. */
+.copertura-estendi {
+  margin: 4px 0 2px; font-size: 12px; line-height: 1.35;
+  font-family: var(--font-body); color: var(--text-muted, #4A5568);
+}
+.copertura-estendi.insufficiente { color: var(--testo-avviso); font-weight: 600; }
+
+.info-popover.largo-2 { width: 420px; }
+.info-popover.largo-3 { width: 620px; }
+.info-popover.largo-4 { width: 820px; }
+.info-popover.visible { display: block; }
+/* Rete se `inert` non fosse disponibile: con un dialogo aperto la pagina
+   sotto non risponde al mouse - i suggerimenti si aprono al passaggio del
+   puntatore, e comparivano sopra la scena del visualizzatore. */
+body.modale-aperta .page { pointer-events: none; }
+.info-popover-head {
+  display: flex; align-items: center; gap: 12px; font-family: var(--font-display);
+  font-size: 13px; font-weight: 500; color: #0C355C; margin-bottom: 9px;
+}
+.info-popover-head .info-popover-icon { width: 14px; height: 14px; display: block; flex: none; }
+.info-popover-head .info-popover-close {
+  margin-left: auto; border: none; background: none; padding: 0; line-height: 0;
+  cursor: pointer; width: 12px; height: 12px; flex: none;
+}
+.info-popover-head .info-popover-close img { display: block; width: 12px; height: 12px; }
+.info-popover-body {
+  font-family: var(--font-display); font-size: 13px; font-weight: 500;
+  color: #091724; white-space: pre-line; line-height: 1.25;
+}
+
+/* "Base beat"/"Curva di carica" (Genera.svg/Correggi.svg riga ~610-618: due
+   switch, blu #0071DA per Base beat, ciano #09E2E2 per Curva di carica -
+   riusati come colore delle linee invece che di uno switch a parte, dato
+   che qui sono semplici checkbox). Dati reali: beat_times/energy_curve gia'
+   in get_song_detail (bar_score, mai un valore finto). Condiviso fra
+   genera_real/correggi_real, stesso componente waveform. */
+.wave-toggle-row { display: flex; gap: 16px; margin: 6px 0; font-size: 13px; color: var(--text-body); font-family: var(--font-body); }
+.wave-toggle-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+/* Il riquadro della forma d'onda e' cliccabile/trascinabile per spostare
+   il cursore del brano. Fondo chiaro: la sagoma sopra e' grigio scuro. */
+/* Fondo BIANCO (misurato): la forma d'onda non e' un grigio su fondo
+   grigio, e' il fondo bianco scurito di 56 dalla sagoma -> #C7C7C7. */
+.waveform-wrap { position: relative; background: #fff; border-radius: 8px; overflow: hidden; cursor: pointer; }
+.wave-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Nessuna griglia di beat disegnata: "Base beat" e' il click UDIBILE.
+   Qui restano solo la curva di carica (toggle) e i marker dell'utente. */
+.wave-overlay .energy-line { fill: none; stroke: #09E2E2; stroke-width: 2; opacity: 0.9; }
+/* marker VIOLA sopra il layer colorato - come il pulsante "Marca" e i tick
+   del Blocco Marker; sono le UNICHE linee verticali previste */
+.wave-overlay .marker-tick-overlay { stroke: #7700FF; stroke-width: 2; opacity: 1; }
+
+.playlist-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 10px;
+}
+.playlist-row .text-input { flex: 1; margin-bottom: 0; }
+.duration-limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.duration-limit label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-heading);
+}
+.duration-limit select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: 4px;
+  background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='6' viewBox='0 0 11 6'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%230C355C' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+  color: var(--text-body);   /* era #676767 fisso: al scuro spariva */
+  border: 1px solid var(--input-border);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 26px 4px 10px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-heading);
+  font-weight: 500;
+  margin: 18px 0;
+}
+
+.btn-primary {
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 14px;
+  background: var(--accent-red);
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.btn-primary:disabled { background: var(--border-soft); color: var(--text-muted); cursor: not-allowed; }
+
+/* -- stati Avvia correzione/generazione (Stati correzione.svg/Stati
+   generazione.svg) - 4 stati reali: idle, in corso, completata, fallita */
+.run-row { display: flex; align-items: center; gap: 12px; }
+.run-row .btn-primary { flex: 1; }
+.run-row.state-progress .btn-primary { background: #F37A8C; cursor: default; pointer-events: none; }
+.run-row.state-done .btn-primary { background: var(--accent-blue-soft); cursor: default; pointer-events: none; }
+.run-row.state-failed .btn-primary { background: #3a3d47; cursor: default; pointer-events: none; }
+.btn-open-folder {
+  border: 1.5px solid var(--accent-blue-strong); background: var(--bg-card);
+  color: var(--accent-blue-strong); border-radius: var(--radius-pill);
+  padding: 13px 20px; font-family: var(--font-display); font-weight: 700;
+  font-size: 14px; white-space: nowrap; cursor: pointer; display: none;
+}
+.run-row.state-done .btn-open-folder { display: inline-block; }
+.run-counter {
+  font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  color: var(--text-heading); text-align: right; white-space: nowrap; display: none;
+}
+.run-row.state-progress .run-counter,
+.run-row.state-done .run-counter,
+.run-row.state-failed .run-counter { display: block; }
+.run-error { color: var(--accent-red-strong); font-size: 13px; margin-top: 8px; display: none; }
+.run-row.state-failed ~ .run-error { display: block; }
+.run-row.state-progress ~ .progress-track .fill { background: linear-gradient(90deg, var(--accent-pink), var(--accent-blue)); width: 55%; }
+.run-row.state-done ~ .progress-track .fill { background: var(--accent-blue-strong); width: 100%; }
+.run-row.state-failed ~ .progress-track .fill { background: #3a3d47; width: 45%; }
+.state-demo-cycle {
+  font-size: 12px; color: var(--text-muted); text-decoration: underline;
+  cursor: pointer; border: none; background: none; padding: 0; margin-top: 6px; display: block;
+}
+.btn-secondary {
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px;
+  background: var(--accent-blue-strong);
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+/* Stato disabilitato REALE (Buttons "Classic=disabled" + "Annulla
+   unificazione" in Pannello generazione): bordo e testo grigi #B1B1B1 su
+   fondo bianco/carta, NON il pieno colorato - prima un pulsante disabilitato
+   sembrava perfettamente attivo. */
+.btn-secondary:disabled {
+  /* La WCAG esenta i comandi disattivati, ma "Annulla unificazione" spiega
+     cosa farebbe: va letto anche da spento. #B1B1B1 su bianco era 2.14:1;
+     #757575 e' il grigio piu' CHIARO che arriva a 4.6:1, quindi resta
+     spento all'occhio - il bordo chiaro e il cursore lo dicono - senza
+     essere illeggibile. */
+  /* #757575 e #B1B1B1 erano scelti per il fondo chiaro: sulla card scura
+     davano 3.04:1, sotto la soglia. Ora vengono dai token, che cambiano
+     con il tema come il fondo su cui stanno. */
+  background: var(--bg-card); color: var(--text-body); border: 1px solid var(--input-border);
+  cursor: not-allowed;
+}
+.helper-text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+
+.progress-track {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--bg-card-soft);
+  margin-top: 18px;
+  overflow: hidden;
+}
+.progress-track .fill { height: 100%; width: 0%; background: var(--accent-blue); }
+
+.log-section { margin-top: 18px; }
+.log-section summary {
+  font-weight: 600;
+  color: var(--text-heading);
+  cursor: pointer;
+  font-size: 14px;
+}
+.log-section pre {
+  white-space: pre-wrap;
+  /* Incassata: al scuro il log e' piu' SCURO della card che lo contiene
+     (#1A1A2E dentro #2A2A3E), non piu' chiaro come sarebbe naturale
+     ragionando in astratto. Misurato sul frame. */
+  background: var(--inset-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  /* Il log e' testo tecnico che si legge riga per riga: carattere a
+     spaziatura fissa (le colonne si allineano), interlinea 1.5 come
+     raccomandato per la leggibilita', e il token di testo secondario ora
+     corretto a 4.6:1. Prima: 2.49:1 in Roboto interlinea normale. */
+  font-family: 'Consolas', 'Cascadia Mono', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 8px;
+  /* Il log deve stare DENTRO la sua card: senza un tetto d'altezza cresceva
+     con il testo e sfondava il fondo del riquadro - misurato a ogni misura
+     di finestra, 1920 compresa, di 37..49px. Ora scorre da solo, che per un
+     log e' anche il comportamento giusto: interessa l'ultima riga, non
+     l'ingombro di tutte. */
+  max-height: 118px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* -- generation-only: workout preview placeholder --------------------------- */
+.workout-preview-card {
+  border-radius: var(--radius-card);
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(160deg, #16213E, #0C355C);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 16px;
+}
+.workout-preview-card .play-pill {
+  background: rgba(255,255,255,0.92);
+  color: var(--text-heading);
+  border-radius: var(--radius-pill);
+  padding: 12px 22px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+/* -- generate tool switch (Automatica/Sidecar) ------------------------------ */
+.tool-switch {
+  display: inline-flex;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card-soft);
+  padding: 4px;
+  margin-bottom: 20px;
+}
+.tool-switch button {
+  border: none;
+  background: transparent;
+  color: var(--text-body);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.tool-switch button.active { background: var(--accent-blue); color: white; }
+
+.sidecar-placeholder {
+  border: 2px dashed var(--border-soft);
+  border-radius: var(--radius-card);
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.sidecar-placeholder strong { display: block; color: var(--text-heading); font-family: var(--font-display); font-size: 15px; margin-bottom: 8px; }
+
+/* -- dashboard / selezione modalità (Start page _ Dashboard selection.svg) - */
+.dashboard-backdrop {
+  min-height: 100vh;
+  background: #14161f;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.dashboard-backdrop .scatter {
+  position: absolute;
+  opacity: 0.5;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+}
+.dashboard-card {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-page);
+  border-radius: 20px;
+  padding: 40px 56px 48px;
+  max-width: 980px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.dashboard-welcome {
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+.dashboard-title {
+  text-align: center;
+  color: var(--text-heading);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  margin: 0 0 24px;
+}
+.dashboard-quote {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 32px;
+}
+.dashboard-quote .blue { color: var(--accent-blue-strong); font-style: normal; font-weight: 700; }
+.dashboard-quote .red { color: var(--accent-red-strong); font-style: normal; font-weight: 700; }
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.tile {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.tile-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+.tile-head h3 { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--text-heading); margin: 0; }
+.tile-head .icon { width: 36px; height: 36px; flex: none; }
+.tile-subtitle { font-family: var(--font-display); font-weight: 700; font-size: 14px; text-align: center; margin: 8px 0 12px; }
+.tile.correggi .tile-subtitle { color: var(--accent-blue-strong); }
+.tile.genera .tile-subtitle { color: var(--accent-red-strong); }
+.tile-desc { color: var(--text-body); font-size: 14px; text-align: center; flex: 1; margin-bottom: 18px; }
+.tile-cta {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: var(--radius-pill); padding: 12px;
+  color: #FFFFFF; font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  text-decoration: none; cursor: pointer;
+}
+/* Inchiostro per variante, non uno solo per tutte: sul blu #0071DA
+ passa il BIANCO (4.80:1) e non lo scuro (3.70:1), sul rosso #FF3E41 e
+ sul grigio bloccato e' l'opposto (5.09:1 e 6.15:1 contro 3.49:1 e
+ 2.88:1). Metterne uno solo ne rompeva sempre una. */
+.tile.correggi .tile-cta { background: var(--accent-blue-strong); color: #FFFFFF; }
+.tile.genera .tile-cta { background: var(--accent-red); color: #101828; }
+.tile-cta.disabled {
+  background: var(--border-soft) !important; color: var(--text-muted);
+  pointer-events: none; cursor: default;
+}
+.tile-patch-note {
+  font-size: 13px; color: var(--accent-red-strong); text-align: center; margin-top: 10px;
+  display: none; align-items: center; justify-content: center; gap: 6px;
+}
+.tile-patch-note.visible { display: flex; }
+.tile-patch-note a { color: var(--accent-red-strong); }
+
+.patch-toggle {
+  position: fixed; bottom: 16px; right: 16px; z-index: 2;
+  background: rgba(255,255,255,0.9); border-radius: 8px; padding: 8px 12px;
+  font-size: 13px; color: var(--text-heading); display: flex; align-items: center; gap: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+/* -- disclaimer (Start page _ Disclaimer 1/2.svg) -------------------------- */
+.disclaimer-body { text-align: left; color: var(--text-body); font-size: 14px; line-height: 1.8; }
+.disclaimer-body b { color: var(--text-heading); }
+.disclaimer-title {
+  text-align: center; font-family: var(--font-display); font-weight: 700;
+  letter-spacing: 2px; color: var(--accent-red-strong); font-size: 15px; margin: 4px 0 20px;
+}
+.disclaimer-accept {
+  display: block; margin: 28px auto 0; border: none; border-radius: var(--radius-pill);
+  padding: 14px 32px; background: var(--accent-blue-strong); color: white;
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none;
+}
+
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  .song-panel, main { order: initial; }
+  .toolkit-grid { grid-template-columns: 1fr; }
+}
+
+
+/* -- note di sviluppo ------------------------------------------------------
+   Testi che spiegano a CHI SVILUPPA cosa e' collegato per davvero ("nota
+   dev, non nel wireframe", il badge "DATI REALI", la descrizione di cosa
+   scrive la generazione). Utili in sviluppo, fuori posto per chi usa il
+   programma - segnalati dall'utente il 03/09.
+
+   Restano nel markup invece di essere cancellati: durante lo sviluppo si
+   riaccendono in un colpo solo dalla console, senza ricompilare niente.
+
+       document.body.classList.add('dev')
+
+   NON usare `.not-wired-note` per nasconderle: quella classe e' anche lo
+   STILE del testo secondario piccolo, e la portano addosso messaggi veri
+   all'utente (BPM sospetto, esito dell'unificazione, conteggio dei brani).
+   Serviva una classe che dicesse "nota di sviluppo" e nient'altro. */
+.nota-dev { display: none !important; }
+body.dev .nota-dev { display: revert !important; }
+
+
+/* pulsante di ascolto nelle righe della playlist */
+.pl-ascolta {
+  border: none; background: none; cursor: pointer; padding: 0 6px;
+  color: var(--accent-blue-strong); font-size: 13px; line-height: 1;
+}
+.pl-ascolta.in-ascolto { color: var(--accent-red-ink); }
+#pl-mix-legenda { font-weight: 400; color: var(--text-body); }
+
+
+/* icona del volume: e' un pulsante vero (muto/attiva), non una decorazione */
+.vol-muto {
+  border: none; background: none; padding: 0; cursor: pointer;
+  font-size: 14px; line-height: 1; color: inherit;
+}
+.vol-muto:hover { filter: brightness(1.2); }
+
+
+/* Pannello brani mentre ci si trascina sopra qualcosa. Il riquadro vuoto
+   invita a trascinare da sempre; da oggi il trascinamento funziona davvero,
+   e serve un segnale che dica "qui puoi lasciare". */
+.song-panel.drop-attivo {
+  outline: 2px dashed var(--accent-blue-strong);
+  outline-offset: -6px;
+  background: color-mix(in srgb, var(--accent-blue-strong) 8%, var(--bg-card));
+}
+
+
+/* Percentuale di pugni nella riga brano, in basso a destra come nel
+   wireframe: pallino del preset, valore, icona del pugno. */
+.row-pugni {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-display); font-size: 13px; color: var(--text-body);
+}
+.row-pugni b { font-weight: 700; }
+/* mask-image e non <img>: jab_dx.svg usa fill="currentColor", che dentro un
+   <img> non eredita niente e uscirebbe nero fisso in tema scuro. Cosi'
+   invece prende il colore del testo intorno. */
+.icona-pugno {
+  width: 14px; height: 12px; flex: none; display: inline-block;
+  background: currentColor;
+  -webkit-mask: url('assets/icons/jab_dx.svg') no-repeat center / contain;
+  mask: url('assets/icons/jab_dx.svg') no-repeat center / contain;
+}
+.song-row .row-bottom { display: flex; align-items: center; gap: 8px; }
+
+/* ---- Indicatore di fuoco da tastiera --------------------------------
+   Prima di questo blocco il progetto non aveva UNA sola regola :focus:
+   34 elementi interattivi della sola pagina Genera avevano l'outline
+   soppresso senza rimpiazzo, quindi chi naviga da tastiera non poteva
+   sapere dove si trovava.
+
+   WCAG 2.2 SC 2.4.7 "Focus Visible" (AA) lo richiede; SC 2.4.13 "Focus
+   Appearance" (AAA) precisa lo spessore (almeno 2px lungo il perimetro) e
+   il contrasto (3:1 fra stato a fuoco e non a fuoco). Qui si usano due
+   anelli concentrici - uno scuro e uno bianco - cosi' l'indicatore resta
+   visibile sia sulle card chiare sia sui pulsanti blu pieni, senza dover
+   scrivere una regola per ogni fondo.
+
+   :focus-visible e non :focus: il browser lo attiva per tastiera e non al
+   clic del mouse, quindi non compare un alone attorno a ogni pulsante che
+   si preme - il motivo per cui gli outline vengono spesso soppressi. */
+:where(button, a[href], input, select, textarea, [tabindex], .toggle,
+       .zoom-btn, .info-dot, .segmented button):focus-visible {
+  outline: 2px solid var(--anello-fuoco);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--anello-fuoco-alone);
+  border-radius: 4px;
+}
+/* il canvas e' scalato da fitPage: senza questo, l'elemento a fuoco puo'
+   finire fuori dalla parte visibile (SC 2.4.11 "Focus Not Obscured") */
+:where(button, a[href], input, select, textarea):focus-visible {
+  scroll-margin: 24px;
+}
+
+/* ---- Movimento ridotto ---------------------------------------------
+   Non c'era una sola regola che rispettasse questa preferenza, e questo
+   programma di movimento ne ha parecchio: il visualizzatore anima in
+   continuo, la rotella dell'analisi gira, la forma d'onda scorre.
+
+   "prefers-reduced-motion: reduce" e' il modo in cui il sistema operativo
+   comunica che l'utente ha chiesto meno animazione - su Windows e'
+   Impostazioni > Accessibilita' > Effetti visivi > Effetti di animazione.
+   Chi lo attiva spesso lo fa per disturbi vestibolari, dove il movimento
+   inatteso provoca nausea o vertigini.
+
+   Qui non si SPEGNE la funzione: il visualizzatore continua a mostrare
+   dove sono i colpi, perche' e' il suo contenuto. Si azzerano le
+   transizioni decorative e si rallenta di molto cio' che gira da solo. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* la rotella dell'analisi resta l'unica cosa che continua a girare,
+     perche' comunica "sto lavorando" e senza moto non lo direbbe piu' -
+     ma piano, non a velocita' piena */
+  .status-spinner, .spinner {
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ---- Larghezza di lettura dei paragrafi -----------------------------
+   Misurato prima di questa regola: il paragrafo introduttivo di Genera
+   correva per 1301px, cioe' 183 caratteri per riga. La ricerca sulla
+   leggibilita' colloca l'ottimo fra 50 e 60 caratteri e considera
+   accettabile fino a 75: oltre, l'occhio fatica a ritrovare l'inizio
+   della riga successiva e si saltano righe.
+   https://baymard.com/blog/line-length-readability
+
+   Il limite e' in "ch" e non in px perche' quell'unita' e' la larghezza
+   della cifra zero nel font corrente: se un giorno il corpo del testo
+   cambia, la misura di lettura resta giusta da sola. 72ch qui valgono
+   circa 85 caratteri reali - un compromesso deliberato fra la
+   raccomandazione e una colonna larga 1360px, dove 75 caratteri secchi
+   lascerebbero due terzi di riga vuoti. */
+.section-desc, .page-desc { max-width: none; }
+/* Nessun limite di larghezza, per scelta esplicita dell'utente, chiesta
+   piu' volte: il paragrafo usa tutta la colonna e passa da cinque righe a
+   tre. Resta il rilievo di leggibilita' gia' segnalato - a questa larghezza
+   si torna intorno ai 180 caratteri per riga, contro i 50-75 raccomandati -
+   ma l'altezza recuperata serve, e la scelta e' sua.
+   I 56px liberati vanno all'anteprima del brano e al pannello dei brani,
+   che erano i due blocchi piu' compressi.
+   Le descrizioni delle card della Dashboard hanno una larghezza loro
+   (239px, misurata dal wireframe) e non passano da qui. */
+
+/* "Estendi" spento quando non ha materiale per imparare: resta leggibile
+   (non e' un errore, e' una condizione) e il perche' sta nel suggerimento. */
+.wave-toggle-row button.non-disponibile,
+button[data-mode].non-disponibile {
+  opacity: 0.55; cursor: not-allowed;
+}
