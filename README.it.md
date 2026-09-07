@@ -99,7 +99,7 @@ Per usarlo dai sorgenti: vedi [CONTRIBUTING.md](docs/it/contribuire.md).
 | [Storia del progetto](docs/it/storia.md) | da dov'è partito, come ci è arrivato |
 | [Il ruolo dell'IA](docs/it/ia.md) | quanto di questo codice è stato scritto da un'IA, e come |
 | [Licenze di terze parti](THIRD_PARTY_NOTICES.md) | ogni libreria, font e suono incluso, con la sua licenza |
-| [Changelog](CHANGELOG.md) | cosa è cambiato in ogni versione, e come è stato misurato |
+| [Changelog](CHANGELOG.it.md) | cosa è cambiato in ogni versione, e come è stato misurato |
 
 ---
 

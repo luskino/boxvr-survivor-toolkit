@@ -1,132 +1,162 @@
 # Changelog
 
-Ogni voce dice **cosa era sbagliato** e **come si è misurato**, non solo cosa
-è cambiato: un difetto trovato in VR e uno sospettato sulla carta non hanno
-lo stesso peso, e chi legge deve poterli distinguere.
+*[Versione italiana](CHANGELOG.it.md)*
 
-Le note di release su GitHub si scrivono da qui.
+Every entry says **what was wrong** and **how it was measured**, not just what
+changed: a defect found in VR and one suspected on paper do not carry the same
+weight, and the reader should be able to tell them apart.
 
-Il formato delle versioni è `MAJOR.MINOR.PATCH`. Durante la beta cresce il
-PATCH; il MINOR segna un confine (la 1.1.0 è la prima uscita pubblica).
+The GitHub release notes are written from here.
 
----
-
-## 1.2.0 — 7 settembre 2026
-
-Quattro difetti trovati in un allenamento vero, e la tabella di tuning che
-nasce da come sono stati corretti.
-
-### Corretto
-
-- **I colpi bassi non esistevano.** Non pochi: **zero**, su ogni preset e in
-  ogni modalità, contro il 4,3% del gioco. Né ganci al corpo né parate
-  basse. Ora seguono le proporzioni misurate sul repertorio ufficiale — Block
-  21% bassi, Hook 9%, Jab e Uppercut mai — verificate su dodici generazioni:
-  ganci bassi all'8,8%.
-- **Dopo un gancio o un montante i colpi erano troppo vicini.** Il 44-50% di
-  quelli successivi stava sotto il beat, con minimi di **0,00** — un montante
-  e un jab nello stesso identico istante. La regola dei 1,5 beat valeva solo
-  sullo stesso braccio; a lati alternati bastava mezzo beat. Ora sono 0,75
-  beat, cioè +125 ms a 120 bpm: sotto il beat pieno è sceso al 6%.
-  *Volutamente meno del beat pieno che usa il gioco: copiarlo renderebbe le
-  nostre coreografie rade come le sue.*
-- **«Nessun ostacolo» funzionava a metà.** Arrivava solo ai marker
-  dell'utente, mentre gli squat del livello automatico restavano tutti:
-  misurati 11 in Armonizza e 5 in «Solo marker», con una catena da otto. Ora
-  spariscono, e il combo scudo+squat se ne va intero — lo scudo con lo squat
-  conta come squat.
-- **Le catene di squat non avevano un limite.** Misurate fino a otto di fila;
-  il repertorio ufficiale arriva a sedici ma con una mediana di uno. Oltre il
-  limite lo squat diventa un colpo: l'istante resta, cambia la mossa.
-- **«Estendi» imparava dove colpisci, non quanto.** Se marchi due colpi per
-  beat fai 241 colpi/min e il preset più intenso ne punta 88: un divario di
-  **2,7 volte**, ricondotto ogni volta al tetto. È il motivo per cui «non
-  riusciva a imparare i colpi in rapida successione». Ora, quando batti più
-  fitto del preset più intenso, segue la tua cadenza.
-
-### Aggiunto
-
-- **Tabella di tuning** (`tuning.json`): 24 valori regolabili senza toccare
-  il codice, ciascuno con un intervallo che rifiuta l'assurdo e con scritto
-  **da dove viene** — misurato sul gioco, provato in VR, o scelto e mai
-  verificato. Si scrive solo ciò che si cambia; il resto resta di fabbrica.
-- **`confronta_tuning.py`**: rigenera lo stesso brano con e senza il tuo
-  tuning e mette le misure a confronto. È la metà che conta: una tabella
-  senza un modo di vedere l'effetto non toglie il tentoni, lo sposta
-  sull'utente.
-
-### Corretto nei test
-
-- Due controlli verificavano **la cosa sbagliata, e la verificavano bene**:
-  uno confrontava le corsie esatte invece dei lati (falliva su una
-  coreografia corretta appena un gancio poteva essere basso), l'altro
-  contava come violazione una distanza che il programma permette di
-  proposito con lo slider.
-
-### Resta aperto
-
-- Fra due marker dell'utente si misurano ancora distanze di 0,00 beat.
-  Sospetto sia l'aggancio magnetico che porta due colpi vicini sullo stesso
-  punto della griglia — **non verificato, quindi non corretto**.
-- `tests/test_onset_anchoring.py` sez. 7 è rosso da prima di questo giro.
-- Tre test che aprono una finestra Tkinter vanno in timeout in modo
-  intermittente, da prima di questo giro.
+Versions are `MAJOR.MINOR.PATCH`. During the beta the PATCH grows; the MINOR
+marks a boundary (1.1.0 was the first public release).
 
 ---
 
-## 1.1.2 — 6 settembre 2026
+## How a release happens
 
-### Corretto
+Four steps, in this order, none of them skipped.
 
-- **I brani generati restavano sul disco per sempre.** Misurati **715 MB in
-  76 file** nella cartella dei risultati. La pulizia esistente si occupava
-  delle cartelle temporanee di servizio, che sono un'altra cosa. Ora si
-  svuotano alla chiusura e all'avvio, cancellando per estensione: ciò che
-  non abbiamo prodotto noi resta dov'è.
+1. **Bug fixing.** The corrections, each with the measurement that says what
+   was wrong and by how much.
+2. **Changelog and executable.** This file is updated — the release notes are
+   written from it — and the executable is built, checking that the fixes are
+   *inside the binary*, not only in the sources.
+3. **Testing.** A person plays it, in VR.
+4. **Confirmation and publishing.** Only after an explicit yes.
 
-### Aggiunto
+The third step is not a formality, and it is the one there is most temptation
+to skip because the automated tests are green. But tests can only say whether
+the program does what it was asked; never whether what it was asked makes
+sense:
 
-- Screenshot nei due README, e le due schermate di apertura accostate — con
-  e senza patch — perché la regola delle due porte si legga in un colpo
-  d'occhio.
+- the **dodge + simultaneous punch** combo passed eight well-written checks
+  and was physically impossible to execute — your body is already moved to one
+  side and half the space is taken by the obstacle;
+- **Extend flattened the proportions of your rhythm** onto a single
+  subdivision, and the test meant to catch it looked at one subdivision at a
+  time: it could not see the defect.
 
----
-
-## 1.1.1 — 6 settembre 2026
-
-### Corretto
-
-- **Schivata con pugno simultaneo: ineseguibile.** Segnalato in VR. La
-  correzione ovvia — mettere il colpo dal lato libero — non è possibile: la
-  direzione della schivata **non esiste nel formato**, la sceglie il gioco.
-  Il combo è ritirato; la stessa quota di squat diventa una schivata sola,
-  con il beat libero attorno che le dà il gioco.
-- **Armonizza ed Estendi «scivolavano nello standard BoxVR».** Estendi
-  imparava il ritmo e poi lo appiattiva: spostava ogni colpo sulla
-  suddivisione più *vicina*, e una marcatura 32%/68% usciva 100%/0%.
-  Armonizza non imparava affatto. Ora si piazza *dal* ritmo invece di
-  avvicinarsi al ritmo, a densità invariata.
+Both were found in the headset, by someone in the middle of a workout.
 
 ---
 
-## 1.1.0 — 6 settembre 2026 — prima uscita pubblica
+## 1.2.0 — 7 September 2026
 
-### Corretto
+Four defects found during a real workout, and the tuning table that grew out
+of how they were fixed.
 
-- **«Estendi» era premibile prima di poter funzionare**, e la spiegazione
-  del perché era irraggiungibile proprio a chi la cercava. Ora resta spento
-  finché non ha materiale da cui imparare, e dice soglia e conteggio.
-- **La curva di carica non arrivava ai bordi**: misurato 12,7% vuoto a
-  sinistra e 13,6% a destra, un quarto dell'anteprima.
-- **Senza patch si poteva entrare in Genera**, generare tutto, e scoprire in
-  VR che non era cambiato niente. Metà di questo blocco esisteva nella GUI
-  Tkinter e si era persa nel port.
-- **«Installa in BoxVR» non installava le playlist.** Verificato sui file:
-  TrackData scritto, WorkoutPlaylists fermo a una settimana prima. In più ne
-  restituiva solo la prima, e con i blocchi da 30 minuti sono più d'una.
-- Tredici frasi restavano in italiano in modalità inglese.
+### Fixed
 
-### Aggiunto
+- **Low punches did not exist.** Not rare: **zero**, on every preset and in
+  every mode, against 4.3% in the game itself. No hooks to the body, no low
+  blocks. They now follow the proportions measured on the official repertoire
+  — Block 21% low, Hook 9%, Jab and Uppercut never — verified across twelve
+  generations: low hooks at 8.8%.
+- **Punches came too soon after a hook or an uppercut.** 44–50% of the moves
+  that followed one landed under a beat away, with minimums of **0.00** — an
+  uppercut and a jab at the very same instant. The 1.5-beat rule only applied
+  to the same arm; on alternating sides half a beat was enough. It is now 0.75
+  beats, i.e. +125 ms at 120 bpm, and moves under a full beat dropped to 6%.
+  *Deliberately less than the full beat the game uses: copying that would make
+  our choreographies as sparse as its own.*
+- **"No obstacles" only worked halfway.** It reached the user's own markers
+  but not the automatic layer, so its squats all survived: 11 measured in
+  Harmonize and 5 in "Markers only", with a chain of eight. They now go, and
+  the block+squat combo goes with them — a block paired with a squat counts as
+  a squat.
+- **Squat chains had no limit.** Measured up to eight in a row; the official
+  repertoire reaches sixteen but with a median of one. Past the limit a squat
+  becomes a punch: the instant stays, the move changes.
+- **Extend learned where you punch, not how much.** Marking two hits per beat
+  is 241 punches/min while the most intense preset targets 88 — a **2.7×** gap,
+  pulled back to the ceiling every time. That is why it "could not learn
+  punches in quick succession". It now follows your cadence when you set a
+  faster pace than the preset.
 
-- **«Cartella BoxVR» sempre raggiungibile** in testata, non solo dopo
-  un'operazione riuscita.
+### Added
+
+- **Tuning table** (`tuning.json`): 24 values adjustable without touching the
+  code, each with a range that rejects the absurd and with **where it came
+  from** written next to it — measured on the game, confirmed in VR, or chosen
+  and never verified. You write only what you change; the rest stays at
+  factory values.
+- **`confronta_tuning.py`**: regenerates the same track with and without your
+  tuning and puts the measurements side by side. This is the half that counts:
+  a table with no way to see the effect does not remove the guesswork, it
+  moves it onto the user.
+
+### Fixed in the tests
+
+- Two checks verified **the wrong thing, and verified it well**: one compared
+  exact lanes instead of sides (so it failed on correct choreography as soon as
+  a hook could be low), the other counted as a violation a gap the program
+  allows on purpose through the slider.
+
+### Still open
+
+- Gaps of 0.00 beats still occur between two of the user's own markers. The
+  suspect is the magnetic grid snapping pulling two nearby hits onto the same
+  point — **not verified, so not fixed**.
+- `tests/test_onset_anchoring.py` section 7 was already red before this round.
+- Three tests that open a Tkinter window time out intermittently, also from
+  before this round.
+
+---
+
+## 1.1.2 — 6 September 2026
+
+### Fixed
+
+- **Generated tracks stayed on disk forever.** Measured **715 MB across 76
+  files** in the results folder. The existing cleanup dealt with the temporary
+  serving folders, which are a different thing. They are now cleared on close
+  and on startup, deleted by extension: anything we did not produce stays
+  where it is.
+
+### Added
+
+- Screenshots in both READMEs, with the two opening screens side by side —
+  with and without the patch — so the two-doors rule reads at a glance.
+
+---
+
+## 1.1.1 — 6 September 2026
+
+### Fixed
+
+- **Dodge with a simultaneous punch: impossible to execute.** Reported from
+  VR. The obvious fix — put the punch on the free side — is not possible: the
+  dodge's direction **does not exist in the format**, the game picks it. The
+  combo is withdrawn; the same share of squats becomes a dodge on its own,
+  with the clear beat around it that the game gives them.
+- **Harmonize and Extend "slid back into the BoxVR standard".** Extend learned
+  the rhythm and then flattened it: it moved every punch onto the *nearest*
+  allowed subdivision, so a 32%/68% marking came out 100%/0%. Harmonize did
+  not learn at all. Both now place *from* the rhythm instead of moving towards
+  it, at unchanged density.
+
+---
+
+## 1.1.0 — 6 September 2026 — first public release
+
+### Fixed
+
+- **Extend could be pressed before it could work**, and the explanation of why
+  was unreachable to exactly the person looking for it. It now stays off until
+  it has something to learn from, and states the threshold and your current
+  count.
+- **The energy curve did not reach the edges**: measured 12.7% empty on the
+  left and 13.6% on the right, a quarter of the preview.
+- **Generate could be entered without the patch**, letting you generate
+  everything and discover in VR that nothing had changed. Half of this gate
+  existed in the Tkinter GUI and had been lost in the port.
+- **"Install into BoxVR" did not install the playlists.** Verified on the
+  files: TrackData written, WorkoutPlaylists a week old. It also returned only
+  the first one, and with 30-minute blocks there is more than one.
+- Thirteen strings stayed in Italian while the interface was in English.
+
+### Added
+
+- **"BoxVR folder" always reachable** in the header, not only after a
+  successful operation.
