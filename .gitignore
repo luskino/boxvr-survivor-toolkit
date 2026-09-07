@@ -101,3 +101,8 @@ training data/
 # cinque file che sembrano lapplicazione senza esserlo. Restano sul disco.
 web_migration_spike/mockups/*.html
 web_migration_spike/mockups/mock-data.js
+
+# Le regolazioni personali: le crea chi vuole cambiare qualcosa, copiando
+# tuning.esempio.json. Se stesse nel repository, chi clona si porterebbe
+# dietro le regolazioni di un altro senza saperlo.
+tuning.json

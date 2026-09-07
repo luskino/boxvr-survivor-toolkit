@@ -101,6 +101,7 @@ To run from source, see [docs/contributing.md](docs/contributing.md).
 | [The role of AI](docs/ai.md) | how much of this code an AI wrote, and how |
 | [Third-party licences](THIRD_PARTY_NOTICES.md) | every bundled library, font and sound, with its licence |
 | [Contributing](docs/contributing.md) | running from source, the test suites, how the pages are composed |
+| [Changelog](CHANGELOG.md) | what changed in each version, and how it was measured |
 
 Italian versions of all of the above live in [`docs/it/`](docs/it/).
 

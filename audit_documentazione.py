@@ -81,7 +81,12 @@ def controlla_file_nominati():
     """I file citati fra backtick devono esistere."""
     IGNORA = ('...', 'settings.json', '<hash>.trackdata.txt', '<hash>.wav',
               '<hash>.wdef.txt', 'Assembly-CSharp.dll', 'musicActionList',
-              'resources.assets', 'trackdata', 'madmom_worker.exe')
+              'resources.assets', 'trackdata', 'madmom_worker.exe',
+              # `tuning.json` NON esiste apposta: lo crea chi vuole regolare
+              # qualcosa, copiandolo da tuning.esempio.json. Se esistesse
+              # gia' nel repository, chiunque cloni si porterebbe dietro le
+              # regolazioni di un altro senza saperlo.
+              'tuning.json')
     for d in DOCS:
         testo = leggi(d)
         if testo is None:
@@ -142,14 +147,28 @@ def controlla_numeri():
         ('docs/patch.md', '0xFE47', 'patch boxvr/patch_boxvr.py',
          'OFFSET = 0xFE47'),
     ]
+    # I valori di fabbrica della tabella di tuning contano come sorgente:
+    # da quando le costanti li leggono da li', nel codice non c'e' piu' il
+    # numero scritto a mano (EXTEND_MIN_COVERAGE_S = 45.0 e' diventato
+    # _reg('estendi_secondi_minimi', 45.0)), e cercare la stringa esatta
+    # dava un falso allarme su una documentazione corretta.
+    da_tuning = ''
+    try:
+        import tuning
+        da_tuning = chr(10).join('%s = %s' % (k, v[0]) for k, v in tuning.VALORI.items())
+    except Exception:                      # noqa: BLE001
+        pass
+
     for doc, frase, sorgente, atteso in coppie:
         t = leggi(doc) or ''
-        s = leggi(sorgente) or ''
+        s = (leggi(sorgente) or '') + chr(10) + da_tuning
         if frase.lower() not in t.lower():
             continue                      # il documento non lo afferma piu'
-        if atteso not in s:
-            rileva(doc, 'afferma "%s" ma %s non contiene "%s"'
-                        % (frase, sorgente, atteso))
+        # il numero puo' stare nella costante o fra i valori di fabbrica
+        numero = atteso.split('=')[-1].strip()
+        if atteso not in s and ('= %s' % numero) not in s:
+            rileva(doc, 'afferma "%s" ma ne %s ne la tabella di tuning '
+                        'contengono "%s"' % (frase, sorgente, atteso))
 
 
 def controlla_presets():

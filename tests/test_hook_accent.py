@@ -51,7 +51,15 @@ check("il primo colpo e' sempre Hook (l'identita' dell'accento)", fig[0]['moveTy
 check("tutti i colpi sono di braccia (Jab/Hook/Uppercut)",
       all(a['moveType'] in m.ARM_MOVES for a in fig))
 check("tutti marcati _protected", all(a.get('_protected') for a in fig))
-check("lati alternati (0,1,0)", [a['moveChannel'] for a in fig] == [m.CH_FRONT, m.CH_BACK, m.CH_FRONT])
+# Il LATO, non la corsia esatta: da quando un gancio puo' essere basso
+# lo stesso lato si scrive 0 oppure 1, e i canali vanno a coppie (0/1 un
+# lato, 4/5 l'altro) - la stessa divisione per due che fa _same_side.
+lati = [a['moveChannel'] // 2 for a in fig]
+corsie = [a['moveChannel'] for a in fig]
+check(f"lati alternati (lati {lati}, corsie {corsie})",
+      lati == [m.CH_FRONT // 2, m.CH_BACK // 2, m.CH_FRONT // 2])
+check("e le corsie sono quelle ammesse per quel lato",
+      all(a['moveChannel'] // 2 == l for a, l in zip(fig, lati)))
 gaps = [round((fig[i + 1]['startTime'] - fig[i]['startTime']) / (60.0 / 120.0), 3)
         for i in range(len(fig) - 1)]
 check(f"distanza di {m._HOOK_ACCENT_GAP_BEATS} beat fra un gancio e il successivo (misurato {gaps})",

@@ -105,6 +105,14 @@ def audit(actions, beats):
             if frozenset((p['moveType'], c['moveType'])) not in choreo.LEGAL_SIMULTANEOUS:
                 violations.append(('sim', p, c))
             continue
+        # La deroga dello slider: due colpi ENTRAMBI dell'utente e non
+        # ostacoli possono stare vicini quanto lui ha chiesto (30/08). Non
+        # e' una violazione, e' la funzione che quella deroga svolge - qui
+        # si salta, come fa il programma.
+        if (p.get('_sidecar') and c.get('_sidecar')
+                and p['moveType'] not in choreo.OBSTACLE_MOVES
+                and c['moveType'] not in choreo.OBSTACLE_MOVES):
+            continue
         need = choreo._required_gap_beats(p, c)
         si, sj = steps(p['startTime']), steps(c['startTime'])
         eps = 2 * choreo.ONSET_JITTER_TOLERANCE_BEATS

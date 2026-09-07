@@ -1,0 +1,89 @@
+{
+  "_come_si_usa": [
+    "Copia questo file come tuning.json, tieni SOLO le righe che vuoi",
+    "cambiare, e riavvia il tool. Per tornare com'era, cancella",
+    "tuning.json. Le righe che cominciano con _ sono commenti.",
+    "",
+    "Per vedere l'effetto senza mettersi il visore:",
+    "  python confronta_tuning.py <un brano.mp3>"
+  ],
+  "_provenienza": [
+    "misurato = preso dai file del gioco o dai 465 workout ufficiali.",
+    "           Cambiandolo ti allontani da come si comporta BoxVR.",
+    "provato  = scelto da noi e confermato in VR.",
+    "scelto   = scelto da noi e mai verificato in visore: qui c'e'",
+    "           piu' margine per giocare."
+  ],
+
+  "_respiro_minimo": "[misurato] Il pavimento assoluto fra due mosse qualsiasi, in beat. Sotto questo non si scende mai. (fra 0.25 e 1.0)",
+  "respiro_minimo": 0.5,
+
+  "_respiro_fra_colpi_stesso_lato": "[misurato] Due colpi consecutivi con lo STESSO braccio: deve tornare in posizione. Nel repertorio ufficiale il minimo e' 1 beat. (fra 0.75 e 2.0)",
+  "respiro_fra_colpi_stesso_lato": 1.0,
+
+  "_respiro_dopo_swing_stesso_lato": "[provato] Dopo un gancio o un montante, sullo stesso braccio. Segnalato in VR il 24/08: 'un gancio non puo' avere un diretto nello stesso braccio vicino della stessa quantita''. (fra 1.0 e 2.5)",
+  "respiro_dopo_swing_stesso_lato": 1.5,
+
+  "_respiro_dopo_swing_altro_lato": "[provato] Dopo un gancio o un montante, quando il colpo dopo e' sull'altro braccio. Segnalato in VR il 07/09 ('un pochino di ms in piu''). Il gioco usa 1.0, ma copiarlo renderebbe le coreografie rade come le sue: 0.75 e' a meta' strada. (fra 0.5 e 1.5)",
+  "respiro_dopo_swing_altro_lato": 0.75,
+
+  "_respiro_attorno_schivata": "[misurato] Lo spazio libero prima e dopo una schivata. Tutte e dieci le schivate del repertorio ne hanno almeno un beat. (fra 0.5 e 2.0)",
+  "respiro_attorno_schivata": 1.0,
+
+  "_spostamento_massimo": "[scelto] Di quanto una mossa puo' essere spostata in avanti per rispettare le distanze prima di essere scartata. Spostare conserva il colpo, scartare lo perde. (fra 0.25 e 2.0)",
+  "spostamento_massimo": 1.0,
+
+  "_quota_ganci_bassi": "[misurato] Quanti ganci vanno al corpo invece che alla testa. Nel repertorio sono 12 su 132. (fra 0.0 e 0.35)",
+  "quota_ganci_bassi": 0.09,
+
+  "_quota_scudi_bassi": "[misurato] Quante parate sono basse. Nel repertorio sono 12 su 56. (fra 0.0 e 0.5)",
+  "quota_scudi_bassi": 0.21,
+
+  "_squat_che_diventano_schivate": "[scelto] La quota di squat generati dai marker che diventano una schivata. Serve perche' altrimenti la modalita' marker non ne produce quasi mai. (fra 0.0 e 1.0)",
+  "squat_che_diventano_schivate": 0.4,
+
+  "_catena_massima_di_squat": "[scelto] Quanti squat di fila al massimo. Segnalato in VR il 07/09: 'quando ci sono, sono troppo presenti e lunghi' - misurate catene da otto. Il repertorio arriva a 16, ma con una mediana di 1. (fra 1 e 16)",
+  "catena_massima_di_squat": 3,
+
+  "_preferenza_squat_contro_scudo": "[scelto] Sposta peso fra squat e scudo quando un tuo marker diventa una mossa centrale. A 0 restano le proporzioni misurate sui 465 workout; verso -1 piu' scudi, verso +1 piu' squat. (fra -1.0 e 1.0)",
+  "preferenza_squat_contro_scudo": 0.0,
+
+  "_soglia_fra_i_tuoi_colpi_ms": "[misurato] Due tuoi marker piu' vicini di cosi' contano come uno solo. E' il minimo misurato sui 465 workout ufficiali. (fra 80 e 400)",
+  "soglia_fra_i_tuoi_colpi_ms": 170,
+
+  "_aggancio_alla_griglia_ms": "[scelto] Di quanto un tuo colpo viene spostato sulla suddivisione piu' vicina. Serve a non far sentire i tuoi colpi diversi da quelli del tool; troppo alto li sposta dove non li hai messi. (fra 0 e 150)",
+  "aggancio_alla_griglia_ms": 60,
+
+  "_aggancio_agli_accenti_ms": "[scelto] Di quanto un tuo colpo viene spostato su un accento VERO del brano. Un accento e' un fatto della musica, la griglia e' la nostra approssimazione della musica. (fra 0 e 200)",
+  "aggancio_agli_accenti_ms": 80,
+
+  "_suddivisioni_della_griglia": "[scelto] In quante parti si divide un beat. Sopra 4 il ritmo diventa difficile da leggere in VR. (fra 2 e 8)",
+  "suddivisioni_della_griglia": 4,
+
+  "_estendi_secondi_minimi": "[scelto] Quanti secondi di ritmo continuo devi marcare perche' «Estendi» abbia qualcosa da imparare. (fra 15.0 e 120.0)",
+  "estendi_secondi_minimi": 45.0,
+
+  "_estendi_colpi_minimi": "[scelto] Idem, contati in colpi dentro i blocchi ritmici. (fra 4 e 40)",
+  "estendi_colpi_minimi": 8,
+
+  "_estendi_segue_la_tua_cadenza": "[scelto] Se 1, quando marchi piu' fitto del preset piu' intenso «Estendi» segue la TUA cadenza invece di fermarsi al tetto. Misurato il 07/09: due colpi per beat sono 241 colpi/min contro gli 88 del preset piu' intenso, un divario di 2,7 volte - ed e' il motivo per cui 'non riesce a imparare i colpi in rapida successione'. (fra 0 e 1)",
+  "estendi_segue_la_tua_cadenza": 1,
+
+  "_variazione_dei_pattern_leggero": "[scelto] Quanto ci si discosta dal repertorio ufficiale, col preset Leggero. A 0 si usano i pattern del gioco tali e quali. (fra 0.0 e 0.6)",
+  "variazione_dei_pattern_leggero": 0.1,
+
+  "_variazione_dei_pattern_medio": "[scelto] Come sopra, preset Medio. (fra 0.0 e 0.6)",
+  "variazione_dei_pattern_medio": 0.2,
+
+  "_variazione_dei_pattern_intenso": "[scelto] Come sopra, preset Intenso. (fra 0.0 e 0.6)",
+  "variazione_dei_pattern_intenso": 0.3,
+
+  "_colpi_al_minuto_leggero": "[misurato] La densita' a cui punta il preset Leggero. Un workout ufficiale BoxVR sta a 82. (fra 20 e 200)",
+  "colpi_al_minuto_leggero": 42,
+
+  "_colpi_al_minuto_medio": "[misurato] Come sopra, preset Medio. (fra 20 e 200)",
+  "colpi_al_minuto_medio": 74,
+
+  "_colpi_al_minuto_intenso": "[misurato] Come sopra, preset Intenso. (fra 20 e 200)",
+  "colpi_al_minuto_intenso": 88
+}

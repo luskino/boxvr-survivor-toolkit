@@ -450,7 +450,29 @@ def _pattern_for(section_key, intensity, vocab, chooser, memo, avoid=None, prese
 #     l'unica di gambe: le altre sono di braccia e non possono coesistere.
 # Confermato dal test in VR del 2026-08-24: pugni sovrapposti, colpi sopra i
 # ganci e scudo+pugno erano tutti fisicamente non eseguibili.
-MIN_GAP_BEATS = 0.5
+# ---------------------------------------------------------------------------
+# I valori qui sotto si possono regolare da `tuning.json` senza toccare il
+# codice: le costanti restano quelle di sempre (tutto cio' che le usa non
+# cambia), ma il loro valore lo chiede la tabella all'avvio. Vedi tuning.py
+# per l'elenco completo, i limiti e la provenienza di ciascuno, e
+# confronta_tuning.py per vedere l'effetto di una modifica senza rimettersi
+# il visore.
+#
+# Se `tuning` non c'e', si usano i numeri scritti qui: la tabella e' una
+# comodita', non una dipendenza.
+try:
+    import tuning as _tuning
+
+    def _reg(chiave, ripiego):
+        try:
+            return _tuning.valore(chiave)
+        except Exception:                      # noqa: BLE001
+            return ripiego
+except Exception:                              # noqa: BLE001
+    def _reg(chiave, ripiego):
+        return ripiego
+
+MIN_GAP_BEATS = _reg('respiro_minimo', 0.5)
 LEGAL_SIMULTANEOUS_MEASURED = frozenset((
     frozenset((MOVE_BLOCK, MOVE_SQUAT)),
     frozenset((MOVE_JAB, MOVE_SQUAT)),
@@ -491,7 +513,7 @@ LEGAL_SIMULTANEOUS = LEGAL_SIMULTANEOUS_MEASURED
 # Squat->Squat e Jab->Squat, cioe' quelle che coinvolgono le gambe.
 # Il primo test in VR con soglia 0.5 lo ha confermato a orecchio: in Act A Fool
 # restavano 21 coppie a 215ms percepite come "troppo vicine".
-MIN_GAP_ARM_BEATS = 1.0
+MIN_GAP_ARM_BEATS = _reg('respiro_fra_colpi_stesso_lato', 1.0)
 
 # Dopo un gancio o un montante SULLO STESSO LATO serve piu' recupero: sono
 # movimenti ampi (rotatorio/verticale) da cui il braccio deve tornare in guardia
@@ -499,14 +521,83 @@ MIN_GAP_ARM_BEATS = 1.0
 # avere un diretto nello stesso braccio vicino della stessa quantita'"). Il
 # repertorio non lo contraddice: ha pochissime coppie del genere, e
 # Uppercut->Uppercut ha mediana 1.5 beat.
-MIN_GAP_AFTER_SWING_BEATS = 1.5
+MIN_GAP_AFTER_SWING_BEATS = _reg('respiro_dopo_swing_stesso_lato', 1.5)
+
+# E dopo uno swing serve respiro ANCHE quando il colpo dopo e' sull'altro
+# lato. Segnalato in VR il 07/09 («un pelo di respiro in piu'»), e misurato:
+# il 44-50% dei colpi dopo un gancio o un montante stava sotto un beat, con
+# minimi di 0.00 - un montante e un jab nello stesso istante.
+#
+# Il valore e' UNA SCELTA, e vale la pena dire fra cosa. Il repertorio
+# ufficiale non scende mai sotto 1.00 beat - ne' dopo uno swing ne' altrove,
+# ne' stesso lato ne' lati diversi, minimo assoluto 1.00 su 550 azioni. Ma
+# copiare quel numero porterebbe le nostre coreografie verso quelle del
+# gioco, che sono piu' rade di proposito, e non e' cio' che questo strumento
+# vuole essere: la richiesta era "un pochino di ms in piu'", non "come il
+# gioco".
+#
+# 0.75 sta a meta' fra il mezzo beat di prima e il beat pieno ufficiale:
+#
+#     100 bpm   300 ms -> 450 ms   (+150)
+#     120 bpm   250 ms -> 375 ms   (+125)
+#     176 bpm   170 ms -> 256 ms   ( +86)
+#
+# Sotto il beat pieno, quindi una raffica veloce a lati alternati dopo un
+# gancio resta possibile - con un po' piu' d'aria.
+#
+# Resta fuori il caso che una prova in VR ha gia' difeso il 25/08: due PUGNI
+# DRITTI a lati alternati a mezzo beat, senza i quali un riff veloce diventa
+# impossibile da seguire. Quello non e' uno swing.
+MIN_GAP_AFTER_SWING_OPPOSITE_BEATS = _reg('respiro_dopo_swing_altro_lato', 0.75)
 
 # Il respiro attorno a una SCHIVATA, in beat. Misurato sul repertorio
 # ufficiale: tutte e dieci le schivate hanno almeno un beat intero libero
 # prima e dopo, e nessun pattern mette mai qualcos'altro nel loro stesso
 # istante. Non e' stile: e' il tempo che serve a spostare il corpo di lato
 # e tornare in guardia, e vale in tutte e due le direzioni.
-MIN_GAP_DODGE_BEATS = 1.0
+MIN_GAP_DODGE_BEATS = _reg('respiro_attorno_schivata', 1.0)
+
+# Quanti SQUAT di fila al massimo. Segnalato in VR il 07/09 - «gli squat
+# consecutivi, quando ci sono, sono troppo presenti e lunghi» - e misurato:
+# catene da otto nella modalita' «Solo marker». Il repertorio ufficiale
+# arriva a 16, ma con una mediana di 1: le catene lunghe li' sono
+# l'eccezione, da noi erano la norma nei tratti fitti.
+#
+# Oltre il limite lo squat diventa un colpo di braccia, non sparisce: il
+# ritmo che l'utente ha marcato resta, cambia la mossa.
+MAX_SQUAT_CHAIN = _reg('catena_massima_di_squat', 3)
+
+
+def spezza_catene_di_squat(azioni, rng=None):
+    """Oltre MAX_SQUAT_CHAIN squat di fila, i successivi diventano pugni.
+
+    Non si SCARTANO: l'istante resta, cambia la mossa. Se quello squat
+    veniva da un marker dell'utente, buttarlo violerebbe la regola piu'
+    forte del progetto - un marker vince sempre - e in ogni caso il ritmo
+    che ha battuto non c'entra niente col fatto che siano troppi squat.
+    """
+    if not azioni:
+        return azioni
+    limite = MAX_SQUAT_CHAIN
+    if not limite or limite < 1:
+        return azioni
+    rng = rng or random.Random('spezza_catene_seed')
+    ordinate = sorted(azioni, key=lambda a: a['startTime'])
+    di_fila = 0
+    lato_k = 0
+    for a in ordinate:
+        if a.get('moveType') != MOVE_SQUAT:
+            di_fila = 0
+            continue
+        di_fila += 1
+        if di_fila <= limite:
+            continue
+        a['moveType'] = _sample_next_arm_move(MOVE_JAB, rng)
+        a['moveChannel'] = _corsia_alta_o_bassa(
+            a['moveType'], CH_FRONT if lato_k % 2 == 0 else CH_BACK, rng)
+        lato_k += 1
+        di_fila = 0
+    return ordinate
 
 # Tolleranza per il jitter del rilevatore di accenti, in beat - vedi il
 # commento su _fits() in enforce_playability. ~0.02 beat sono pochi
@@ -517,7 +608,44 @@ ONSET_JITTER_TOLERANCE_BEATS = 0.02
 # Quanto una mossa puo' essere SPOSTATA in avanti per rispettare la distanza
 # minima prima di rinunciare e scartarla ("dovra' spostarsi di poco"): spostare
 # conserva il colpo, scartare lo perde, quindi si prova sempre prima a spostare.
-MAX_SHIFT_BEATS = 1.0
+MAX_SHIFT_BEATS = _reg('spostamento_massimo', 1.0)
+
+# Quanto spesso una mossa sta sulla corsia BASSA, misurato sul repertorio
+# ufficiale (47 pattern, 550 azioni). Non e' uniforme, e la distribuzione ha
+# un senso fisico: si para basso, e si tira un gancio basso al corpo; un jab
+# o un montante bassi non sono colpi di pugilato, e infatti il gioco non li
+# usa mai.
+#
+#     Block     44 alti / 12 bassi   -> 21%
+#     Hook     120 alti / 12 bassi   ->  9%
+#     Jab      217, mai
+#     Uppercut  53, mai
+#
+# Serviva perche' le corsie basse erano sparite del tutto: misurate a ZERO su
+# ogni preset e in ogni modalita', contro il 4,3% complessivo del gioco.
+# Segnalato in VR il 07/09 - "i colpi bassi che in generale non si sono piu'
+# visti".
+QUOTA_CORSIA_BASSA = {
+    MOVE_BLOCK: _reg('quota_scudi_bassi', 0.21),
+    MOVE_HOOK: _reg('quota_ganci_bassi', 0.09),
+}
+
+
+def _corsia_alta_o_bassa(move_type, canale_alto, rng):
+    """La corsia scelta da noi, con la quota di basse che ha il gioco.
+
+    I canali vanno a coppie: 0/1 un lato, 2/3 il centro, 4/5 l'altro lato -
+    il dispari e' la versione bassa del pari. Vedi `_same_side`, che infatti
+    divide per due per capire se due mosse sono sullo stesso braccio.
+
+    Le mosse che arrivano dai pattern ufficiali NON passano di qui: si
+    portano gia' dietro la loro corsia, bassa compresa.
+    """
+    quota = QUOTA_CORSIA_BASSA.get(move_type, 0.0)
+    if quota and rng is not None and rng.random() < quota:
+        return canale_alto + 1
+    return canale_alto
+
 
 ARM_MOVES = frozenset((MOVE_BLOCK, MOVE_JAB, MOVE_HOOK, MOVE_UPPERCUT))
 SWING_MOVES = frozenset((MOVE_HOOK, MOVE_UPPERCUT))
@@ -592,10 +720,17 @@ def _required_gap_beats(prev, cur):
         return MIN_GAP_DODGE_BEATS
     if a == MOVE_BLOCK and b in SWING_MOVES:
         return MIN_GAP_ARM_BEATS
-    if a in ARM_MOVES and b in ARM_MOVES and _same_side(prev, cur):
+    if a in ARM_MOVES and b in ARM_MOVES:
+        if _same_side(prev, cur):
+            if a in SWING_MOVES:
+                return MIN_GAP_AFTER_SWING_BEATS
+            return MIN_GAP_ARM_BEATS
+        # lati opposti: mezzo beat per due pugni dritti (difeso da una prova
+        # in VR il 25/08), ma dopo uno swing serve comunque un beat pieno -
+        # il braccio deve tornare in guardia prima che l'altro parta, e
+        # questo non dipende da quale braccio tira dopo
         if a in SWING_MOVES:
-            return MIN_GAP_AFTER_SWING_BEATS
-        return MIN_GAP_ARM_BEATS
+            return MIN_GAP_AFTER_SWING_OPPOSITE_BEATS
     return MIN_GAP_BEATS
 
 
@@ -858,6 +993,19 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
                     and all(a.get('_sidecar') for a in og) and all(a.get('_sidecar') for a in group)
                     and all(a['moveType'] not in OBSTACLE_MOVES for a in og)
                     and all(a['moveType'] not in OBSTACLE_MOVES for a in group)):
+                # NOTA (07/09): qui avevo aggiunto anche gli SWING, per
+                # analogia con gli ostacoli - un gancio e' ampio quanto
+                # uno scudo. Tolto: il test ha mostrato che due marker a
+                # 90 ms, con lo slider abbassato apposta, non
+                # sopravvivevano piu' se il motore assegnava loro un
+                # gancio. E' un conflitto fra due richieste - infittire i
+                # propri colpi, e avere piu' respiro dopo uno swing - in
+                # cui vince la regola piu' forte di questo progetto: un
+                # marker dell'utente vince sempre.
+                #
+                # Il respiro dopo uno swing resta, dove serviva: in
+                # _required_gap_beats, che agisce sul livello AUTOMATICO
+                # (dal 44-50% dei colpi sotto il beat al 6%).
                 need = sidecar_min_gap_s / beat_len
             elif ot < t:
                 need = max(_required_gap_beats(p, c) for p in og for c in group)
@@ -1076,7 +1224,11 @@ ARM_TRANSITION_PROBS = {
 # diverso da MOVE_BLOCK (vedi i due punti di chiamata: nel percorso ancorato
 # agli accenti la corsia e' gia' ricalcolata dinamicamente da CENTRO_MOVES,
 # nel percorso a griglia va assegnata esplicitamente).
-PATTERN_VARIATION_PROB = {'light': 0.10, 'medium': 0.20, 'high': 0.30}
+PATTERN_VARIATION_PROB = {
+    'light': _reg('variazione_dei_pattern_leggero', 0.10),
+    'medium': _reg('variazione_dei_pattern_medio', 0.20),
+    'high': _reg('variazione_dei_pattern_intenso', 0.30),
+}
 
 
 def _vary_pattern_move(move_type, prev_arm_type, rng, prob):
@@ -1171,7 +1323,10 @@ def _jab_combo(beats, t_start, n, start_side=0, rng=None):
             'startTime': float(t),
             'beatNumber': _beat_number_at(beats, t),
             'moveType': move_type,
-            'moveChannel': CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK,
+            # la quota di corsie BASSE misurata sul repertorio (ganci al
+            # corpo): vedi _corsia_alta_o_bassa
+            'moveChannel': _corsia_alta_o_bassa(
+                move_type, CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK, rng),
             '_injected': True,
             # una figura ha senso solo se resta INTATTA: enforce_playability non
             # deve spostarla sui mezzi beat per far posto ad altro, altrimenti la
@@ -1226,7 +1381,10 @@ def _hook_accent(beats, t_start, n, start_side=0, gap_beats=_HOOK_ACCENT_GAP_BEA
             'startTime': float(t),
             'beatNumber': _beat_number_at(beats, t),
             'moveType': move_type,
-            'moveChannel': CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK,
+            # la quota di corsie BASSE misurata sul repertorio (ganci al
+            # corpo): vedi _corsia_alta_o_bassa
+            'moveChannel': _corsia_alta_o_bassa(
+                move_type, CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK, rng),
             '_injected': True,
             '_protected': True,
             '_figure': 'hook_accent',
@@ -1507,7 +1665,10 @@ def _euclidean_figure(beats, t_start, pattern_name, start_side=0,
             'startTime': float(t),
             'beatNumber': _beat_number_at(beats, t),
             'moveType': move,
-            'moveChannel': CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK,
+            # la quota di corsie BASSE misurata sul repertorio (ganci al
+            # corpo): vedi _corsia_alta_o_bassa
+            'moveChannel': _corsia_alta_o_bassa(
+                move, CH_FRONT if (k + start_side) % 2 == 0 else CH_BACK, rng),
             '_injected': True,
             '_protected': True,
             '_figure': pattern_name,
@@ -1917,9 +2078,12 @@ def _place_moves_on_onsets(actions, song_onsets, seg_start_t, seg_end_t, target_
         # sui workout ufficiali) - solo le mosse laterali alternano il lato
         # in modo indipendente dal pattern, vedi commento sopra.
         if move_type in CENTRO_MOVES:
-            move_channel = CH_CENTER
+            # lo SCUDO puo' essere basso anche stando al centro: e' la
+            # parata bassa, 12 volte su 56 nel repertorio
+            move_channel = _corsia_alta_o_bassa(move_type, CH_CENTER, rng)
         else:
-            move_channel = CH_FRONT if lateral_k % 2 == 0 else CH_BACK
+            move_channel = _corsia_alta_o_bassa(
+                move_type, CH_FRONT if lateral_k % 2 == 0 else CH_BACK, rng)
             lateral_k += 1
             prev_arm_type = move_type
         beat_number = i + (t - beats[i]['_triggerTime']) / bl if bl else float(i)
@@ -2070,9 +2234,24 @@ def build_move_actions(analysis, preset=DEFAULT_PRESET, seed=None):
                     # assegnata una corsia laterale qui (a differenza delle
                     # altre mosse di braccia, che tengono la corsia gia'
                     # scritta nel pattern anche quando il TIPO viene variato).
-                    move_channel = CH_FRONT if block_lateral_k % 2 == 0 else CH_BACK
+                    move_channel = _corsia_alta_o_bassa(
+                        move_type,
+                        CH_FRONT if block_lateral_k % 2 == 0 else CH_BACK,
+                        var_rng)
                     block_lateral_k += 1
+                elif move_type != orig_type:
+                    # La mossa e' stata VARIATA: il tipo non e' piu' quello
+                    # per cui il pattern aveva scelto la corsia. Un jab
+                    # diventato gancio si portava dietro la corsia alta del
+                    # jab, e i ganci bassi non comparivano mai - erano lo
+                    # 0,3% contro il 9% del gioco. La corsia si ridecide col
+                    # tipo nuovo, restando sullo stesso lato.
+                    base = int(mv.get('moveChannel', CH_FRONT))
+                    move_channel = _corsia_alta_o_bassa(
+                        move_type, base - (base % 2), var_rng)
                 else:
+                    # non variata: la corsia l'ha scelta il gioco, e ha
+                    # ragione lui - basse comprese
                     move_channel = int(mv.get('moveChannel', CH_FRONT))
                 actions.append({
                     'startTime': float(t),
@@ -2080,6 +2259,10 @@ def build_move_actions(analysis, preset=DEFAULT_PRESET, seed=None):
                     'moveType': move_type,
                     'moveChannel': move_channel,
                 })
+
+    # Le catene di squat troppo lunghe diventano colpi (vedi
+    # spezza_catene_di_squat): il ritmo resta, cambia la mossa.
+    actions = spezza_catene_di_squat(actions)
 
     # PRIMA di tutto il resto: sposta i colpi sugli attacchi VERI dell'audio.
     # I pattern del repertorio hanno posizioni fisse rispetto al beat, quindi su

@@ -105,3 +105,52 @@ rebuilt separately: see `madmom_worker/BUILD.md`.
 No BoxVR data: tracks, official maps, the pattern repertoire, the game
 assemblies. They belong to FitXR, and `.gitignore` excludes them on purpose.
 No commercial music in the test folders.
+
+---
+
+## The tuning table
+
+The values that decide how the choreography *feels* — how much breathing room
+after a hook, how many hooks go to the body, how many squats in a row — live
+in `tuning.py` and are adjusted from a `tuning.json` file next to the
+executable, without touching the code.
+
+```bash
+python tuning.py                       # writes a complete tuning.esempio.json
+cp tuning.esempio.json tuning.json     # then change what you need
+```
+
+Write **only what you change**: everything else stays at factory values, so
+the file does not go stale when new ones are added. A value outside its
+allowed range is rejected with a message saying why, not silently ignored.
+It applies on restart.
+
+Every value carries **where it came from**, and that is the most important
+part of the table:
+
+| provenance | means |
+|---|---|
+| `misurato` | taken from the game's own files or the 465 official workouts. Changing it moves you away from how BoxVR behaves. |
+| `provato` | chosen by us and then confirmed in a VR session. |
+| `scelto` | chosen by us and never verified in the headset. This is where there is most room to play. |
+
+### Seeing the effect without the headset
+
+```bash
+python confronta_tuning.py "a track.mp3"
+```
+
+Regenerates the same track with and without your tuning and puts the
+measurements side by side — density, low lanes, squat chains, gaps after a
+swing.
+
+This half is not an accessory. A table of adjustable values, on its own, does
+not remove the guesswork: it moves it from whoever writes the code to whoever
+uses it. On 7 September that is exactly what happened to the author: chasing
+the missing low punches, he made three rounds of changes measuring on a
+single track each time, and on the third discovered the fix had worked from
+the first — he had been chasing the noise of one sample. That is why
+`confronta_tuning` averages several generations rather than one.
+
+The headset is still needed to say whether the choreography is *good*. Not to
+know whether a number moved the way you wanted.

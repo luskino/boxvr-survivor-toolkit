@@ -92,3 +92,51 @@ ricompila a parte: vedi `madmom_worker/BUILD.md`.
 Niente dati di BoxVR: brani, mappe ufficiali, il repertorio di pattern, gli
 assembly del gioco. Sono di FitXR, e il `.gitignore` li esclude apposta.
 Niente musica commerciale nelle cartelle di test.
+
+---
+
+## La tabella di tuning
+
+I valori che decidono come si *sente* la coreografia — quanto respiro dopo un
+gancio, quanti ganci vanno al corpo, quanti squat di fila — stanno in
+`tuning.py` e si regolano da un file `tuning.json` accanto all'eseguibile,
+senza toccare il codice.
+
+```bash
+python tuning.py                       # scrive tuning.esempio.json, completo
+cp tuning.esempio.json tuning.json     # e poi si cambia quello che serve
+```
+
+Nel file si scrive **solo ciò che si cambia**: il resto resta di fabbrica,
+quindi non invecchia quando se ne aggiungono di nuovi. Un valore fuori
+dall'intervallo ammesso viene rifiutato con un messaggio che dice il perché,
+non ignorato in silenzio. Si applica al riavvio.
+
+Ogni valore porta scritto **da dove viene**, ed è la cosa più importante
+della tabella:
+
+| provenienza | significa |
+|---|---|
+| `misurato` | preso dai file del gioco o dai 465 workout ufficiali. Cambiandolo ci si allontana da come si comporta BoxVR. |
+| `provato` | scelto da noi e poi confermato da una sessione in VR. |
+| `scelto` | scelto da noi e mai verificato in visore. Qui c'è più margine. |
+
+### Vedere l'effetto senza il visore
+
+```bash
+python confronta_tuning.py "un brano.mp3"
+```
+
+Rigenera lo stesso brano con e senza il tuo tuning e mette le misure a
+confronto — densità, corsie basse, catene di squat, distanze dopo uno swing.
+
+Questa metà non è un accessorio. Una tabella di valori regolabili, da sola,
+non toglie il *tentoni*: lo sposta da chi scrive il codice a chi lo usa. Il
+7 settembre è successo esattamente questo, all'autore: per il difetto dei
+colpi bassi ha fatto tre giri di modifiche misurando ogni volta su un brano
+solo, e al terzo ha scoperto che il fix funzionava già dal primo — stava
+inseguendo il rumore di un campione singolo. Per questo `confronta_tuning`
+media più generazioni, e non una.
+
+Il visore resta necessario per dire se la coreografia è *bella*. Non per
+sapere se un numero si è mosso nella direzione voluta.

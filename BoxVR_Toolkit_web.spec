@@ -68,6 +68,9 @@ hiddenimports = [
     # disegnato su canvas, e non ha niente a che vedere con quello vecchio.
     'version', 'webview2_check',
     'pulizia_temp',
+    # la tabella di tuning: le costanti dei motori la leggono all'import, e
+    # senza di lei ricadrebbero sui numeri scritti a mano senza dirlo
+    'tuning',
 ]
 
 for modulo in ('pywebview', 'librosa', 'soundfile', 'mutagen', 'sounddevice'):

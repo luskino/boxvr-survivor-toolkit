@@ -55,7 +55,29 @@ import boxvr_choreo as choreo
 # di corsia, si usa il piu' severo (170ms) come filtro grezzo: un secondo
 # input troppo vicino al precedente viene ignorato, non genera un secondo
 # colpo che il gioco stesso non produrrebbe mai.
-MIN_INPUT_GAP_S = 0.170
+# ---------------------------------------------------------------------------
+# I valori qui sotto si possono regolare da `tuning.json` senza toccare il
+# codice: le costanti restano quelle di sempre (tutto cio' che le usa non
+# cambia), ma il loro valore lo chiede la tabella all'avvio. Vedi tuning.py
+# per l'elenco completo, i limiti e la provenienza di ciascuno, e
+# confronta_tuning.py per vedere l'effetto di una modifica senza rimettersi
+# il visore.
+#
+# Se `tuning` non c'e', si usano i numeri scritti qui: la tabella e' una
+# comodita', non una dipendenza.
+try:
+    import tuning as _tuning
+
+    def _reg(chiave, ripiego):
+        try:
+            return _tuning.valore(chiave)
+        except Exception:                      # noqa: BLE001
+            return ripiego
+except Exception:                              # noqa: BLE001
+    def _reg(chiave, ripiego):
+        return ripiego
+
+MIN_INPUT_GAP_S = _reg('soglia_fra_i_tuoi_colpi_ms', 170) / 1000.0
 
 # Finestra di correzione (27/08, richiesta esplicita: "correggere leggere
 # imprecisioni dei marker"): se un marker cade entro questa distanza da un
@@ -68,7 +90,7 @@ MIN_INPUT_GAP_S = 0.170
 # analogia con le finestre di giudizio "buono" tipiche dei giochi ritmici,
 # abbastanza piccola da correggere solo un vero quasi-centro, non da
 # spostare un marker verso un accento che l'utente non intendeva colpire.
-MARKER_SNAP_WINDOW_S = 0.08
+MARKER_SNAP_WINDOW_S = _reg('aggancio_agli_accenti_ms', 80) / 1000.0
 
 # Quanto brano deve aver marcato l'utente perche' «Estendi» possa dire di
 # aver imparato qualcosa (richiesto esplicitamente: 45 secondi). Sotto
@@ -76,13 +98,13 @@ MARKER_SNAP_WINDOW_S = 0.08
 # CALCOLARE, ma sarebbero il ritratto di quattro colpi, non di un modo di
 # colpire: la modalita' continua a funzionare e lo dichiara, invece di
 # spacciare per "imparato" un numero senza fondamento.
-EXTEND_MIN_COVERAGE_S = 45.0
+EXTEND_MIN_COVERAGE_S = _reg('estendi_secondi_minimi', 45.0)
 
 # ...e almeno questo numero di marker. Quarantacinque secondi con quattro
 # colpi dentro sono una copertura larga, non una cadenza: senza questo
 # secondo vincolo bastava marcare l'inizio e la fine del brano per far
 # credere al motore di aver visto un modo di colpire.
-EXTEND_MIN_MARKER = 8
+EXTEND_MIN_MARKER = _reg('estendi_colpi_minimi', 8)
 
 # --- Blocchi ritmici e accenti isolati ---------------------------------
 #
@@ -108,7 +130,7 @@ BEATS_PER_BAR = 4
 # Quattro = sedicesimi: la suddivisione piu' fine che in un workout si
 # distingua ancora a orecchio (a 120 bpm sono 125 ms, contro i 170 ms del
 # limite fisico fra due input - vedi MIN_INPUT_GAP_S).
-GRID_DIVISIONI = 4
+GRID_DIVISIONI = _reg('suddivisioni_della_griglia', 4)
 
 # Di quanto al massimo l'aggancio magnetico puo' spostare un colpo.
 # Espresso come FRAZIONE del passo della griglia, non in millisecondi
@@ -119,7 +141,7 @@ GRID_DIVISIONI = 4
 GRID_SNAP_FRAZIONE = 0.34
 # Tetto assoluto, per i brani molto lenti dove un terzo di passo sarebbe
 # comunque un salto grosso a orecchio.
-GRID_SNAP_MAX_S = 0.06
+GRID_SNAP_MAX_S = _reg('aggancio_alla_griglia_ms', 60) / 1000.0
 
 
 def _snap_marker_to_onset(t, onsets):
@@ -231,7 +253,7 @@ CENTRO_TYPE_PROBS_BY_GAP_AND_PREV = {
 # LEGAL_SIMULTANEOUS in boxvr_choreo.py - la schivata col pugno simultaneo e'
 # risultata ineseguibile in VR, e non e' correggibile scegliendo il lato,
 # perche' la direzione della schivata non e' scritta da nessuna parte.
-SQUAT_TO_DODGE_PROB = 0.40
+SQUAT_TO_DODGE_PROB = _reg('squat_che_diventano_schivate', 0.40)
 
 
 def griglia_metrica(beats, divisioni=GRID_DIVISIONI):
@@ -605,6 +627,30 @@ def copertura_marcata(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S,
     }
 
 
+def togli_ostacoli(azioni):
+    """Via squat e schivate dal livello automatico, per «nessun ostacolo».
+
+    Fino al 07/09 quell'opzione arrivava solo ai marker dell'utente, quindi
+    gli ostacoli AUTOMATICI restavano tutti: misurati 11 squat ancora
+    presenti in Armonizza e 5 in «Solo marker», con una catena da otto.
+
+    Lo SCUDO resta: e' una mossa di braccia, si para in piedi, e non ha
+    niente a che vedere con l'abbassarsi. Ma se sta nello STESSO ISTANTE di
+    uno squat se ne va con lui: quello e' il combo Block+Squat, l'unica
+    coppia simultanea che il gioco usa davvero, e li' lo scudo e' basso
+    perche' il corpo e' gia' abbassato - senza lo squat sotto non e' piu'
+    quella mossa. E' quello che chiede la segnalazione: gli squat con lo
+    scudo contano come squat.
+    """
+    fuori = (choreo.MOVE_SQUAT, choreo.MOVE_DODGE)
+    istanti_ostacolo = {round(a['startTime'], 4)
+                        for a in azioni if a['moveType'] in fuori}
+    return [a for a in azioni
+            if a['moveType'] not in fuori
+            and not (a['moveType'] == choreo.MOVE_BLOCK
+                     and round(a['startTime'], 4) in istanti_ostacolo)]
+
+
 def _keep_auto_obstacles(auto_full):
     """Tiene Squat/Dodge del livello automatico (MAI un Block da solo - vedi
     il commento su `exclude_obstacles`: gli ostacoli restano una scelta
@@ -645,6 +691,37 @@ def _gap_bucket(gap_beats):
     if gap_beats < 1.5:
         return 'mid'
     return 'long'
+
+
+def _sposta_peso_squat_scudo(probs):
+    """Il cursore `preferenza_squat_contro_scudo` applicato a una riga.
+
+    A 0 la riga resta com'e' stata misurata sui 465 workout. Verso -1 il
+    peso passa dallo squat allo scudo, verso +1 il contrario. Le somme
+    restano 1 per costruzione: si sposta peso, non se ne aggiunge.
+
+    Serve perche' la tabella da' lo squat all'86% quando c'e' poco spazio e
+    al 42-56% altrove - domina ovunque, e lo scudo compare solo quando
+    avanza posto. E' la causa diretta di «tutti gli scudi sono solo con
+    squat» (07/09). Esporre le nove celle sarebbe un invito a rompere
+    l'equilibrio senza accorgersene: un cursore solo, che le muove tutte
+    insieme, fa la stessa cosa senza quel rischio.
+    """
+    k = _reg('preferenza_squat_contro_scudo', 0.0)
+    if not k:
+        return probs
+    squat = probs.get(choreo.MOVE_SQUAT, 0.0)
+    scudo = probs.get(choreo.MOVE_BLOCK, 0.0)
+    if k < 0:
+        sposta = squat * min(1.0, -k)          # dallo squat allo scudo
+        squat, scudo = squat - sposta, scudo + sposta
+    else:
+        sposta = scudo * min(1.0, k)           # dallo scudo allo squat
+        scudo, squat = scudo - sposta, squat + sposta
+    nuove = dict(probs)
+    nuove[choreo.MOVE_SQUAT] = squat
+    nuove[choreo.MOVE_BLOCK] = scudo
+    return nuove
 
 
 def _sample_weighted(probs, rng):
@@ -811,7 +888,8 @@ def _place_on_markers(marker_times, beats, rng, context_actions=None, exclude_ob
                     centro_probs = CENTRO_TYPE_PROBS_BY_GAP_AND_PREV.get(
                         (bucket_any, recent_any['moveType']),
                         CENTRO_TYPE_PROBS_BY_GAP[bucket_any])
-                move_type = _sample_weighted(centro_probs, rng)
+                move_type = _sample_weighted(
+                    _sposta_peso_squat_scudo(centro_probs), rng)
 
                 if move_type == choreo.MOVE_SQUAT and rng.random() < SQUAT_TO_DODGE_PROB:
                     # Una quota degli squat diventa SCHIVATA (vedi
@@ -887,6 +965,41 @@ def place_moves_on_markers(marker_times, beats, rng=None, exclude_obstacles=Fals
     actions = _place_on_markers(marker_times, beats, rng, exclude_obstacles=exclude_obstacles,
                                 onsets=onsets, min_gap_s=min_gap_s)
     return choreo.enforce_playability(actions, beats, snap_to_grid=False, sidecar_min_gap_s=min_gap_s)
+
+
+def preset_su_misura(n_colpi, durata_s, preset_base='high'):
+    """Un preset con la TUA cadenza, quando superi il piu' intenso.
+
+    Ritorna (nome, configurazione) da passare a build_move_actions, oppure
+    None se la cadenza sta gia' dentro i preset esistenti.
+
+    Serve perche' `preset_da_cadenza` puo' solo scegliere fra tre, e il piu'
+    fitto punta a 88 colpi al minuto: due colpi per beat sono 241, cioe' 2,7
+    volte tanto. Tutto cio' che sta sopra veniva ricondotto a 88, ed e' il
+    motivo per cui «Estendi» non seguiva i colpi in rapida successione.
+
+    Del preset intenso si tiene TUTTO tranne la densita': vocabolario di
+    mosse, livelli di intensita', soglia di riposo sono misurati sui workout
+    ufficiali e non c'entrano niente con quanto fitto batti tu.
+    """
+    if not _reg('estendi_segue_la_tua_cadenza', 1):
+        return None
+    minuti = durata_s / 60.0
+    if minuti <= 0 or not n_colpi:
+        return None
+    tua = n_colpi / minuti
+    base = choreo.INTENSITY_PRESETS.get(preset_base)
+    if not base:
+        return None
+    tetto = base.get('target_epm', 0)
+    if tua <= tetto:
+        return None                       # ci sta gia' dentro
+    cfg = dict(base)
+    cfg['target_epm'] = tua
+    basso, alto = cfg.get('epm_range', (tetto, tetto))
+    cfg['epm_range'] = (basso, max(alto, tua))
+    cfg['label'] = '%s (la tua cadenza: %.0f/min)' % (base.get('label', preset_base), tua)
+    return ('_su_misura', cfg)
 
 
 def preset_da_cadenza(n_colpi, durata_s):
@@ -1026,11 +1139,32 @@ def build_choreography(analysis, marker_times, preset='medium', rng=None,
         # La cadenza da imitare si misura sui blocchi: e' li' che l'utente
         # ha davvero dettato un passo.
         inferred_preset = preset
+        su_misura = None
         if imparato:
             inferred_preset = preset_da_cadenza(marcatura['colpi_nei_blocchi'],
                                                 marcatura['copertura']) or preset
-        auto_outside_source = (choreo.build_move_actions(analysis, preset=inferred_preset)
-                               if inferred_preset != preset else auto_full)
+            # E se batti piu' fitto del preset piu' intenso, si segue la TUA
+            # cadenza invece di ricondurti a 88 colpi/min: vedi
+            # preset_su_misura, e la misura del divario di 2,7 volte.
+            su_misura = preset_su_misura(marcatura['colpi_nei_blocchi'],
+                                         marcatura['copertura'])
+        if su_misura:
+            nome, cfg = su_misura
+            precedente = choreo.INTENSITY_PRESETS.get(nome)
+            choreo.INTENSITY_PRESETS[nome] = cfg
+            try:
+                auto_outside_source = choreo.build_move_actions(analysis, preset=nome)
+            finally:
+                # il preset su misura vale per QUESTO brano e basta: e'
+                # costruito sulla marcatura di adesso, e lasciarlo in giro
+                # lo farebbe usare anche dal brano dopo
+                if precedente is None:
+                    choreo.INTENSITY_PRESETS.pop(nome, None)
+                else:
+                    choreo.INTENSITY_PRESETS[nome] = precedente
+        else:
+            auto_outside_source = (choreo.build_move_actions(analysis, preset=inferred_preset)
+                                   if inferred_preset != preset else auto_full)
 
         inside_obstacles = [a for a in _keep_auto_obstacles(auto_full)
                             if _dentro_un_blocco(a['startTime'], intervalli)]
@@ -1084,6 +1218,13 @@ def build_choreography(analysis, marker_times, preset='medium', rng=None,
         marker_times, beats, rng, context_actions=auto_layer, exclude_obstacles=exclude_obstacles,
         onsets=(analysis.get('onsets') if correct_imprecision else None), min_gap_s=min_gap_s,
         aggancio_magnetico=aggancio_magnetico)
+
+    if exclude_obstacles:
+        # «Nessun ostacolo» vale anche per il livello AUTOMATICO, non solo
+        # per i marker: prima arrivava solo a _place_on_markers, e gli
+        # ostacoli automatici - che sono la maggior parte - restavano tutti.
+        # Vedi togli_ostacoli per cosa resta e cosa se ne va.
+        auto_layer = togli_ostacoli(auto_layer)
 
     combined = auto_layer + sidecar_actions
     result = choreo.enforce_playability(combined, beats, snap_to_grid=False, sidecar_min_gap_s=min_gap_s)

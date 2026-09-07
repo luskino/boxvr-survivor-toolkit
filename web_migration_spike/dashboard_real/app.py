@@ -539,6 +539,20 @@ def main():
     import shutil
     if not webview2_check.ensure_webview2_or_exit():
         return
+
+    # La tabella di tuning: si scrive il file di esempio (l'unico posto in
+    # cui i valori stanno tutti insieme con limiti e provenienza) e si dice
+    # cosa e' stato regolato o rifiutato. Regolare al buio, credendo di aver
+    # cambiato un valore che invece e' stato scartato, e' peggio che non
+    # poterlo regolare affatto.
+    try:
+        import tuning
+        tuning.scrivi_esempio()
+        _riepilogo = tuning.riepilogo()
+        if _riepilogo:
+            print(_riepilogo)
+    except Exception as e:                 # noqa: BLE001
+        print('tuning non disponibile (%s): valori di fabbrica' % e)
     # Il repertorio di pattern non e' dentro l'eseguibile - e' contenuto di
     # FitXR - e va estratto dalla copia del gioco dell'utente. Si fa qui,
     # all'apertura: serve sia alla generazione della coreografia sia
