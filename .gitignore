@@ -66,6 +66,10 @@ punti di ripristino/
 /build_web/
 dist_web.zip
 _tmp_verify.pyz
+# L'archivio delle build che segnano un passaggio: 1,5 GB di
+# eseguibili, sostituisce i due «OLD Ver.zip» da 12,7 GB. E' storia
+# del progetto e sta sul disco, non in un repository.
+OLD Ver pillar.zip
 
 # Materiale audio di prova dentro il pacchetto di test: musica commerciale,
 # stesso motivo delle altre cartelle audio.
@@ -106,3 +110,14 @@ web_migration_spike/mockups/mock-data.js
 # tuning.esempio.json. Se stesse nel repository, chi clona si porterebbe
 # dietro le regolazioni di un altro senza saperlo.
 tuning.json
+
+# I metodi salvati dal pannello: stessa ragione di tuning.json, con
+# un'aggiunta - un metodo porta con se' il nome di chi lo ha fatto, e non
+# va nel repository perche' e' finito in una cartella di lavoro. I metodi
+# che spediamo con una release si aggiungono a mano, uno per uno.
+tuning/
+
+# Materiale di collaudo: istruzioni per il test su macchina pulita, il
+# modello di report e tre mp3 su cui provarlo. Musica commerciale: resta
+# sul disco.
+collaudo/

@@ -95,6 +95,7 @@ To run from source, see [docs/contributing.md](docs/contributing.md).
 | [How BoxVR works](docs/boxvr-and-fix.md) | the `trackdata` format, why levels come out wrong, what **Fix** does |
 | [Generate](docs/generate.md) | track analysis, BPM, the librosa/madmom engines, the generation algorithm, exporting |
 | [Sidecar](docs/sidecar.md) | marking punches by hand and making them coexist with generated ones |
+| [Tuning the algorithm](docs/tuning.md) | the sliders that change how a workout feels, and how to share a setting |
 | [The game patch](docs/patch.md) | why it is needed, exactly what it changes, how to undo it |
 | [Playlist manager](docs/playlist-manager.md) | the separate tool for installed playlists |
 | [Project history](docs/history.md) | where it started, how it got here |

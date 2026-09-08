@@ -39,4 +39,22 @@ VERSION = "1.29.2"
 # Rinumerate di conseguenza: 1.0 -> 1.0.0, 1.1 -> 1.0.1, 1.2 -> 1.0.2,
 # 1.3 -> 1.0.3, sia nel nome del file sia dentro l'archivio delle vecchie
 # versioni.
+# La prossima release PUBBLICA. Avanza solo quando si pubblica davvero -
+# l'ultima uscita e' la 1.1.2, quindi questa e' cio' che uscira' la prossima
+# volta. Tutto il lavoro fra una release e l'altra sta in BUILD qui sotto.
+#
+# Cambiato l'08/09. Prima questo numero avanzava a ogni ricompilazione, e in
+# due giorni era passato per 1.2.0, 1.3.0, 1.3.1, 1.3.2, 1.3.3: cinque
+# versioni mai uscite. Chi legge il changelog trovava cinque voci per quello
+# che dal suo lato e' un cambiamento solo, e i numeri mancanti fra due
+# release sembravano versioni ritirate.
 VERSION_WEB = "1.2.0"
+
+# Il contatore interno: avanza a OGNI ricostruzione, si azzera quando si
+# pubblica. Serve alla ragione pratica per cui il numero finiva nel nome del
+# file - due build diverse non devono potersi sovrascrivere - senza per
+# questo consumare numeri pubblici.
+#
+# 0 = questa e' la build che si pubblica, e il file si chiama
+# "... Public Beta.exe". Sopra lo zero il file si chiama "... build N.exe".
+BUILD = 0

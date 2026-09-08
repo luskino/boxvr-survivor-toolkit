@@ -36,9 +36,6 @@
   "_quota_ganci_bassi": "[misurato] Quanti ganci vanno al corpo invece che alla testa. Nel repertorio sono 12 su 132. (fra 0.0 e 0.35)",
   "quota_ganci_bassi": 0.09,
 
-  "_quota_scudi_bassi": "[misurato] Quante parate sono basse. Nel repertorio sono 12 su 56. (fra 0.0 e 0.5)",
-  "quota_scudi_bassi": 0.21,
-
   "_squat_che_diventano_schivate": "[scelto] La quota di squat generati dai marker che diventano una schivata. Serve perche' altrimenti la modalita' marker non ne produce quasi mai. (fra 0.0 e 1.0)",
   "squat_che_diventano_schivate": 0.4,
 
@@ -48,10 +45,16 @@
   "_preferenza_squat_contro_scudo": "[scelto] Sposta peso fra squat e scudo quando un tuo marker diventa una mossa centrale. A 0 restano le proporzioni misurate sui 465 workout; verso -1 piu' scudi, verso +1 piu' squat. (fra -1.0 e 1.0)",
   "preferenza_squat_contro_scudo": 0.0,
 
+  "_deroga_sui_tuoi_marker": "[scelto] Quanto i colpi che marchi TU possono infischiarsene delle regole di respiro. 2 = deroga piena, restano dove li hai messi anche molto vicini (com'e' sempre stato). 1 = vale per i pugni dritti ma NON per ganci e montanti, che sono movimenti ampi. 0 = nessuna deroga, i tuoi marker seguono le stesse regole di tutto il resto. Segnalato in VR il 07/09: un montante e un gancio dello stesso braccio quasi attaccati, e nessun valore li allontanava. (fra 0 e 2)",
+  "deroga_sui_tuoi_marker": 2,
+
   "_soglia_fra_i_tuoi_colpi_ms": "[misurato] Due tuoi marker piu' vicini di cosi' contano come uno solo. E' il minimo misurato sui 465 workout ufficiali. (fra 80 e 400)",
   "soglia_fra_i_tuoi_colpi_ms": 170,
 
-  "_aggancio_alla_griglia_ms": "[scelto] Di quanto un tuo colpo viene spostato sulla suddivisione piu' vicina. Serve a non far sentire i tuoi colpi diversi da quelli del tool; troppo alto li sposta dove non li hai messi. (fra 0 e 150)",
+  "_aggancio_alla_griglia_frazione": "[scelto] Di quanto un tuo colpo viene spostato sulla suddivisione piu' vicina, come FRAZIONE del passo della griglia. E' questo il numero che decide quasi sempre: a 123 bpm il passo e' 116 ms, e 0.34 fa 39 ms. A 0 l'aggancio e' spento e i colpi restano esattamente dove li hai battuti; a 0.5 viene agganciato tutto e un colpo messo fuori tempo apposta non e' piu' possibile. (fra 0.0 e 0.5)",
+  "aggancio_alla_griglia_frazione": 0.34,
+
+  "_aggancio_alla_griglia_ms": "[scelto] TETTO in millisecondi allo spostamento qui sopra, per i brani lenti. Vince il piu' piccolo dei due, e sopra gli 85 bpm circa vince sempre la frazione: se muovi questo e non cambia niente, e' perche' e' la frazione che sta decidendo. (fra 0 e 150)",
   "aggancio_alla_griglia_ms": 60,
 
   "_aggancio_agli_accenti_ms": "[scelto] Di quanto un tuo colpo viene spostato su un accento VERO del brano. Un accento e' un fatto della musica, la griglia e' la nostra approssimazione della musica. (fra 0 e 200)",

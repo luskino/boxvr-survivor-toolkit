@@ -557,6 +557,38 @@ MIN_GAP_AFTER_SWING_OPPOSITE_BEATS = _reg('respiro_dopo_swing_altro_lato', 0.75)
 # e tornare in guardia, e vale in tutte e due le direzioni.
 MIN_GAP_DODGE_BEATS = _reg('respiro_attorno_schivata', 1.0)
 
+# Lo spazio PRIMA di un gancio o di un montante. Misurato sul repertorio
+# ufficiale, che non distingue fra il prima e il dopo: 1 beat pieno di
+# minimo in tutti e quattro i casi - prima di uno swing sullo stesso braccio
+# (8 casi) e sull'altro (141), dopo uno swing sullo stesso (4) e sull'altro
+# (154).
+#
+# Noi invece guardavamo solo il colpo che veniva PRIMA, quindi `jab ->
+# gancio` chiedeva il respiro dei colpi normali mentre `gancio -> jab`
+# chiedeva quello degli swing. Ma caricare uno swing vuole spazio quanto
+# recuperarci: segnalato l'08/09, «quel gancio dopo uno jab non va via».
+MIN_GAP_BEFORE_SWING_BEATS = _reg('respiro_prima_di_uno_swing', 1.0)
+
+# Lo stesso recupero, ma fra due colpi che ha marcato l'UTENTE. Vale solo per
+# loro, e la ragione e' misurata: portare il valore generale a 1.225 rende non
+# piu' eseguibili due figure del catalogo euclideo - tresillo e cinquillo
+# largo, che stanno a 1 beat esatto, come il repertorio ufficiale. Il livello
+# automatico costruisce sulle figure del gioco, dove 1 beat esiste e funziona;
+# i marker no, e li' un po' di respiro in piu' si sente (provato in anteprima
+# l'08/09).
+MIN_GAP_ARM_SIDECAR_BEATS = _reg('respiro_fra_i_tuoi_colpi_stesso_lato', 1.225)
+
+# Uno scudo e uno squat CONSECUTIVI vogliono spazio. Misurato: nel
+# repertorio ufficiale non ce n'e' nemmeno una coppia - o sono simultanei
+# (il combo, 12 volte) o sono lontani. Segnalato in VR il 07/09 - «arriva
+# uno scudo alto + uno squat, come due eventi consecutivi molto vicini» - e
+# gia' una volta il 30/08 con parole quasi uguali: e' un difetto rientrato.
+#
+# Sono due movimenti del corpo intero in direzioni diverse: alzare le
+# braccia in guardia e accosciarsi. Uno dopo l'altro a mezzo beat non si
+# fanno.
+MIN_GAP_SCUDO_SQUAT_BEATS = _reg('respiro_fra_scudo_e_squat', 1.0)
+
 # Quanti SQUAT di fila al massimo. Segnalato in VR il 07/09 - «gli squat
 # consecutivi, quando ci sono, sono troppo presenti e lunghi» - e misurato:
 # catene da otto nella modalita' «Solo marker». Il repertorio ufficiale
@@ -626,7 +658,12 @@ MAX_SHIFT_BEATS = _reg('spostamento_massimo', 1.0)
 # Segnalato in VR il 07/09 - "i colpi bassi che in generale non si sono piu'
 # visti".
 QUOTA_CORSIA_BASSA = {
-    MOVE_BLOCK: _reg('quota_scudi_bassi', 0.21),
+    # Lo SCUDO non e' qui, ed e' una correzione del 07/09 sera. Ci avevo
+    # messo una quota del 21%, che e' il numero giusto (12 scudi bassi su
+    # 56) col meccanismo sbagliato: estratta a caso produce scudi bassi
+    # SENZA squat e scudi alti CON lo squat, cioe' le due posizioni che nel
+    # gioco non esistono. La regola vera e' deterministica - vedi
+    # allinea_scudi_agli_squat.
     MOVE_HOOK: _reg('quota_ganci_bassi', 0.09),
 }
 
@@ -718,19 +755,43 @@ def _required_gap_beats(prev, cur):
     # LEGAL_SIMULTANEOUS.
     if MOVE_DODGE in (a, b):
         return MIN_GAP_DODGE_BEATS
+    # scudo e squat consecutivi: due movimenti del corpo in direzioni
+    # opposte, e nel repertorio non capitano mai vicini
+    if {a, b} == {MOVE_BLOCK, MOVE_SQUAT}:
+        return MIN_GAP_SCUDO_SQUAT_BEATS
     if a == MOVE_BLOCK and b in SWING_MOVES:
         return MIN_GAP_ARM_BEATS
     if a in ARM_MOVES and b in ARM_MOVES:
+        # Lo swing conta DA TUTTE E DUE LE PARTI. Fino all'08/09 qui si
+        # guardava solo `a`, il colpo che viene prima: `gancio -> jab`
+        # chiedeva il respiro degli swing, `jab -> gancio` quello dei colpi
+        # normali. Ma caricare un gancio vuole spazio quanto recuperarci, e
+        # il repertorio ufficiale non fa differenza - 1 beat pieno di minimo
+        # in tutti e quattro i casi (prima di uno swing: 8 casi sullo stesso
+        # braccio, 141 sull'altro; dopo: 4 e 154).
+        #
+        # Segnalato guardando l'anteprima: «quel gancio dopo uno jab non va
+        # via», con `respiro fra colpi stesso lato` gia' alzato.
         if _same_side(prev, cur):
+            # Fra due colpi TUOI il recupero puo' essere piu' largo che fra
+            # due automatici - vedi MIN_GAP_ARM_SIDECAR_BEATS.
+            gap_dritti = (MIN_GAP_ARM_SIDECAR_BEATS
+                          if (prev.get('_sidecar') and cur.get('_sidecar'))
+                          else MIN_GAP_ARM_BEATS)
             if a in SWING_MOVES:
                 return MIN_GAP_AFTER_SWING_BEATS
-            return MIN_GAP_ARM_BEATS
+            if b in SWING_MOVES:
+                # valgono tutte e due le regole: vince la piu' larga
+                return max(gap_dritti, MIN_GAP_BEFORE_SWING_BEATS)
+            return gap_dritti
         # lati opposti: mezzo beat per due pugni dritti (difeso da una prova
         # in VR il 25/08), ma dopo uno swing serve comunque un beat pieno -
         # il braccio deve tornare in guardia prima che l'altro parta, e
         # questo non dipende da quale braccio tira dopo
         if a in SWING_MOVES:
             return MIN_GAP_AFTER_SWING_OPPOSITE_BEATS
+        if b in SWING_MOVES:
+            return MIN_GAP_BEFORE_SWING_BEATS
     return MIN_GAP_BEATS
 
 
@@ -747,7 +808,103 @@ def _grid_times(beats):
     return grid
 
 
-def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_grid=True,
+def _coppia_ammessa(prec, cur, beat_len, sidecar_min_gap_s):
+    """Questi due possono stare cosi' vicini?
+
+    Ripete le due regole che valgono al piazzamento: la deroga sui marker
+    dell'utente, e altrimenti il respiro richiesto dai loro tipi.
+    """
+    distanza = cur['startTime'] - prec['startTime']
+    deroga = _reg('deroga_sui_tuoi_marker', 2)
+    if (sidecar_min_gap_s is not None and deroga
+            and prec.get('_sidecar') and cur.get('_sidecar')
+            and prec['moveType'] not in OBSTACLE_MOVES
+            and cur['moveType'] not in OBSTACLE_MOVES
+            # entrambi, per la stessa ragione detta in _fits: un gancio
+            # e' un movimento ampio anche quando e' il secondo dei due
+            and (deroga >= 2
+                 or (prec['moveType'] not in SWING_MOVES
+                     and cur['moveType'] not in SWING_MOVES))):
+        return distanza >= sidecar_min_gap_s - 1e-9
+    return distanza / beat_len >= _required_gap_beats(prec, cur) - 1e-6
+
+
+def cascata_swing_diretto(azioni, beats, sidecar_min_gap_s=None):
+    """La regola dettata l'08/09, applicata alla coreografia finita.
+
+        C'e' spazio per due SWING?   si -> restano    no -> due DIRETTI
+        C'e' spazio per due DIRETTI? si -> restano    no -> uno decade
+
+    Perche' alla fine e non durante il piazzamento: la regola parte dal
+    posizionamento, e il posizionamento e' fermo solo adesso. Provarla prima,
+    mossa per mossa, lasciava passare il caso piu' importante - quello in cui
+    a imporre la distanza e' il colpo PRECEDENTE, gia' piazzato e non piu'
+    guardato.
+
+    Gli ostacoli non si toccano: squat, scudo e schivata non sono colpi di
+    braccia e hanno regole loro.
+    """
+    if not azioni or len(beats) < 2:
+        return azioni
+    ts = [b['_triggerTime'] for b in beats]
+    beat_len = ((ts[-1] - ts[0]) / (len(ts) - 1)) if len(ts) > 1 else 0.0
+    if beat_len <= 0:
+        return azioni
+    azioni = sorted(azioni, key=lambda a: a['startTime'])
+    tenute = []
+    scartate = set()
+    for a in azioni:
+        if a['moveType'] not in ARM_MOVES:
+            tenute.append(a)
+            continue
+        prec = None
+        for b in reversed(tenute):
+            if b['moveType'] in ARM_MOVES:
+                prec = b
+                break
+        if prec is None or _coppia_ammessa(prec, a, beat_len, sidecar_min_gap_s):
+            tenute.append(a)
+            continue
+        # Non ci stanno da swing: si prova a farne due diretti. E' il passo
+        # che conserva il colpo invece di perderlo - l'istante resta, la
+        # mossa cambia, come gia' si fa per le catene di squat.
+        _declassa_swing([prec, a])
+        if _coppia_ammessa(prec, a, beat_len, sidecar_min_gap_s):
+            tenute.append(a)
+            continue
+        # nemmeno da diretti: il secondo decade
+        scartate.add(id(a))
+    if not scartate:
+        return azioni
+    return [a for a in azioni if id(a) not in scartate]
+
+
+def _declassa_swing(group):
+    """Gancio/montante -> diretto, per far stare due colpi troppo vicini.
+
+    Il primo passo della regola dettata l'08/09: se non c'e' spazio per due
+    swing, ci si mettono due diretti. Un diretto e' un movimento piu' piccolo
+    e vuole meno spazio (`respiro fra colpi stesso lato`, 1 beat, contro
+    `respiro dopo swing stesso lato`, 1.5), quindi dove lo swing non entra il
+    diretto puo' entrare - e il colpo si conserva invece di perderlo.
+
+    Ritorna True se ha cambiato qualcosa, cioe' se vale la pena riprovare.
+    """
+    cambiato = False
+    for a in group:
+        if a.get('moveType') in SWING_MOVES:
+            a['moveType'] = MOVE_JAB
+            # Il diretto non va MAI in corsia bassa: misurato sul repertorio
+            # ufficiale, Jab e Uppercut al corpo non esistono. Un gancio
+            # basso che diventa diretto risale.
+            if a.get('moveChannel', 0) % 2 == 1:
+                a['moveChannel'] -= 1
+            a['_declassato'] = True
+            cambiato = True
+    return cambiato
+
+
+def enforce_playability(actions, beats, min_gap_beats=None, snap_to_grid=True,
                         sidecar_min_gap_s=None):
     """Rende una coreografia fisicamente eseguibile, in tre passaggi.
 
@@ -822,6 +979,11 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
     non lo chiarisce, disattivarla e' una scelta esplicita di chi chiama, non il
     comportamento normale.
     """
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_beats is None:
+        min_gap_beats = MIN_GAP_BEATS
     if not actions or not beats:
         return actions
 
@@ -945,6 +1107,31 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
         span = hi - lo
         return (i - 1) + ((t - lo) / span if span > 0 else 0.0)
 
+    def _posto_per(t, group):
+        """Dove sta questo gruppo: qui, poco piu' avanti, o da nessuna parte."""
+        if _fits(t, group):
+            return t
+        i = bisect.bisect_left(grid, t)
+        for g in grid[i:]:
+            if g - t > max_shift + 1e-9:
+                break
+            if _fits(g, group):
+                return g
+        return None
+
+    def _posto_o_declassa(t, group):
+        """La cascata: se non c'e' spazio per questi colpi, si cambia mossa.
+
+        Prima si cerca posto cosi' come sono. Se non ce n'e' e nel gruppo ci
+        sono degli swing, si declassano a diretti e si ricerca: due diretti
+        stanno in meno spazio di due swing. Solo se non entrano nemmeno
+        quelli si rinuncia, ed e' l'ultimo passo della regola - "uno decade".
+        """
+        target = _posto_per(t, group)
+        if target is None and _declassa_swing(group):
+            target = _posto_per(t, group)
+        return target
+
     def _fits(t, group):
         """La distanza da cio' che e' gia' piazzato e' rispettata?"""
         si = _steps(t)
@@ -989,23 +1176,39 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
             # beat pieno per due scudi) anche quando entrambe le mosse sono
             # marker dell'utente. Lo slider resta libero di infittire solo
             # i PUGNI, per cui era stato pensato.
-            if (sidecar_min_gap_s is not None
+            # Quanto larga e' la deroga la decide l'utente, perche' le due
+            # richieste in gioco sono tutte e due sue e in conflitto:
+            # «voglio infittire i miei colpi» contro «questi due sono
+            # troppo vicini». Tre posizioni:
+            #   2  piena, i marker restano dove sono (com'e' sempre stato)
+            #   1  vale per i pugni dritti ma non per ganci e montanti
+            #   0  nessuna: i marker seguono le regole di tutto il resto
+            _deroga = _reg('deroga_sui_tuoi_marker', 2)
+            if (sidecar_min_gap_s is not None and _deroga
                     and all(a.get('_sidecar') for a in og) and all(a.get('_sidecar') for a in group)
                     and all(a['moveType'] not in OBSTACLE_MOVES for a in og)
-                    and all(a['moveType'] not in OBSTACLE_MOVES for a in group)):
-                # NOTA (07/09): qui avevo aggiunto anche gli SWING, per
-                # analogia con gli ostacoli - un gancio e' ampio quanto
-                # uno scudo. Tolto: il test ha mostrato che due marker a
-                # 90 ms, con lo slider abbassato apposta, non
-                # sopravvivevano piu' se il motore assegnava loro un
-                # gancio. E' un conflitto fra due richieste - infittire i
-                # propri colpi, e avere piu' respiro dopo uno swing - in
-                # cui vince la regola piu' forte di questo progetto: un
-                # marker dell'utente vince sempre.
+                    and all(a['moveType'] not in OBSTACLE_MOVES for a in group)
+                    # TUTTI E DUE i colpi, non solo il precedente: il
+                    # movimento ampio conta che ci sia, non che venga prima
+                    # o dopo. Guardando solo `og`, un gancio ravvicinato
+                    # dopo un jab passava - segnalato l'08/09 e verificato
+                    # in runtime.
+                    and (_deroga >= 2
+                         or all(a['moveType'] not in SWING_MOVES
+                                for a in list(og) + list(group)))):
+                # STORIA, che vale la pena tenere. Il 06/09 avevo escluso
+                # gli SWING dalla deroga per analogia con gli ostacoli - un
+                # gancio e' ampio quanto uno scudo. Un test ha mostrato il
+                # prezzo: due marker a 90 ms, con lo slider abbassato
+                # apposta, sparivano. Ho fatto marcia indietro invocando la
+                # regola piu' forte del progetto, «un marker vince sempre».
                 #
-                # Il respiro dopo uno swing resta, dove serviva: in
-                # _required_gap_beats, che agisce sul livello AUTOMATICO
-                # (dal 44-50% dei colpi sotto il beat al 6%).
+                # Sbagliato lo stesso: cosi' sceglievo IO fra due richieste
+                # dell'utente, tutte e due sensate. Il 07/09 il caso e'
+                # tornato dall'altra parte - un montante e un gancio dello
+                # stesso braccio quasi attaccati, e nessuno slider li
+                # allontanava. Adesso la larghezza della deroga e' un
+                # valore: `deroga_sui_tuoi_marker`.
                 need = sidecar_min_gap_s / beat_len
             elif ot < t:
                 need = max(_required_gap_beats(p, c) for p in og for c in group)
@@ -1045,7 +1248,14 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
     # essere sempre" (presenti), non solo probabili.
     for t in sorted(buckets):
         group = _resolve(buckets[t])
-        if any(a.get('_sidecar') for a in group) and _fits(t, group):
+        if not any(a.get('_sidecar') for a in group):
+            continue
+        # Un marker non si sposta MAI - l'utente ha detto "qui" - ma puo'
+        # cambiare mossa. E' il caso segnalato l'08/09: due swing tuoi
+        # attaccati restavano attaccati e nessun valore li allontanava,
+        # perche' l'unica alternativa era farne sparire uno. Adesso
+        # diventano due diretti: l'istante resta, il colpo si puo' battere.
+        if _fits(t, group) or (_declassa_swing(group) and _fits(t, group)):
             bisect.insort(placed, (t, group), key=lambda p: p[0])
 
     # 1b. Accenti audio veri rilevati automaticamente - stesso trattamento,
@@ -1081,17 +1291,9 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
             continue                     # gia' valutata sopra (livello 1)
         if not any(a.get('_protected') for a in group):
             continue
-        target = t if _fits(t, group) else None
+        target = _posto_o_declassa(t, group)
         if target is None:
-            i = bisect.bisect_left(grid, t)
-            for g in grid[i:]:
-                if g - t > max_shift + 1e-9:
-                    break
-                if _fits(g, group):
-                    target = g
-                    break
-        if target is None:
-            continue                     # nessuno slot utile vicino: si rinuncia
+            continue                     # nemmeno da diretti ci sta: decade
         if target != t:
             for a in group:
                 a['startTime'] = float(target)
@@ -1105,17 +1307,9 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
         group = _resolve(buckets[t])
         if any(a.get('_exact') for a in group) or any(a.get('_protected') for a in group):
             continue                     # gia' valutate sopra
-        target = t if _fits(t, group) else None
+        target = _posto_o_declassa(t, group)
         if target is None:
-            i = bisect.bisect_left(grid, t)
-            for g in grid[i:]:
-                if g - t > max_shift + 1e-9:
-                    break
-                if _fits(g, group):
-                    target = g
-                    break
-        if target is None:
-            continue                     # nessuno slot utile vicino: si rinuncia
+            continue                     # nemmeno da diretti ci sta: decade
         if target != t:
             for a in group:
                 a['startTime'] = float(target)
@@ -1125,7 +1319,11 @@ def enforce_playability(actions, beats, min_gap_beats=MIN_GAP_BEATS, snap_to_gri
     result = []
     for _, group in placed:
         result.extend(group)
-    return result
+    # La cascata swing -> diretto -> decadenza, sulla coreografia ormai
+    # posizionata: e' l'ultimo passo perche' la regola parte dagli istanti,
+    # e gli istanti sono fermi solo adesso. Qui perche' e' il punto da cui
+    # passano TUTTE le strade - automatico, misto e solo marker.
+    return cascata_swing_diretto(result, beats, sidecar_min_gap_s)
 
 
 def _beat_number_at(beats, t):
@@ -2260,8 +2458,16 @@ def build_move_actions(analysis, preset=DEFAULT_PRESET, seed=None):
                     'moveChannel': move_channel,
                 })
 
+    # Il cursore squat/scudo, su TUTTA la coreografia: gli squat nascono da
+    # tre sorgenti diverse e correggerne una sola non si vedeva.
+    actions = applica_preferenza_squat_scudo(actions)
+    # dopo il cursore, che puo' aver creato o tolto degli squat: la corsia
+    # dello scudo dipende da chi gli sta sotto ADESSO
+    actions = allinea_scudi_agli_squat(actions)
+
     # Le catene di squat troppo lunghe diventano colpi (vedi
-    # spezza_catene_di_squat): il ritmo resta, cambia la mossa.
+    # spezza_catene_di_squat): il ritmo resta, cambia la mossa. Dopo il
+    # cursore, cosi' conta gli squat che restano davvero.
     actions = spezza_catene_di_squat(actions)
 
     # PRIMA di tutto il resto: sposta i colpi sugli attacchi VERI dell'audio.
@@ -2424,3 +2630,130 @@ def describe(move_actions, duration=None):
     parts = [f"{n}x{k}" for k, n in c.most_common()]
     rate = f", {len(move_actions) / duration * 60:.0f} eventi/min" if duration else ""
     return f"{len(move_actions)} eventi ({', '.join(parts)}){rate}"
+
+
+def allinea_scudi_agli_squat(azioni):
+    """Lo scudo e' BASSO se e solo se c'e' uno squat nel suo stesso istante.
+
+    Misurato sul repertorio ufficiale, senza una sola eccezione:
+
+        scudo in combo con squat   12 volte, sempre CENTRO BASSO
+        scudo da solo              44 volte, sempre CENTRO ALTO
+
+    Ha un senso fisico immediato: ti abbassi e pari basso, oppure stai in
+    piedi e pari alto. Uno scudo alto mentre sei accosciato e' una posizione
+    che non esiste, ed e' quello che si vedeva in VR.
+
+    Si applica alla coreografia finita come le altre regole di questo
+    genere: lo scudo puo' arrivare dai pattern, dagli accenti o dai marker,
+    e la regola vale uguale per tutti e tre.
+    """
+    if not azioni:
+        return azioni
+    con_squat = {round(a['startTime'], 4) for a in azioni
+                 if a.get('moveType') == MOVE_SQUAT}
+    for a in azioni:
+        if a.get('moveType') != MOVE_BLOCK:
+            continue
+        a['moveChannel'] = (CH_CENTER_LOW
+                            if round(a['startTime'], 4) in con_squat
+                            else CH_CENTER)
+    return azioni
+
+
+def applica_preferenza_squat_scudo(azioni, rng=None):
+    """Sposta peso fra squat e scudo su TUTTA la coreografia gia' costruita.
+
+    Il cursore `preferenza_squat_contro_scudo` va da -1 (piu' scudi) a +1
+    (piu' squat). A 0 non tocca niente.
+
+    Si applica alla fine e non alle singole sorgenti perche' gli squat
+    nascono in tre punti diversi - i pattern del repertorio, gli accenti di
+    sezione, i marker dell'utente - e correggerne uno solo era il difetto
+    segnalato il 07/09: col cursore a -1.0 gli squat dell'automatico
+    restavano 57, identici a quelli col cursore a 0.
+
+    Non tocca il combo Block+Squat simultaneo (convertirne un membro darebbe
+    Block+Block, che nel gioco non esiste) e non cambia QUANTE mosse ci
+    sono: cambia il tipo di alcune.
+    """
+    k = _reg('preferenza_squat_contro_scudo', 0.0)
+    if not k or not azioni:
+        return azioni
+    rng = rng or random.Random('preferenza_squat_scudo_seed')
+    da, a = (MOVE_SQUAT, MOVE_BLOCK) if k < 0 else (MOVE_BLOCK, MOVE_SQUAT)
+    quota = min(1.0, abs(k))
+
+    # gli istanti in cui scudo e squat convivono: sono il combo del gioco
+    per_istante = {}
+    for x in azioni:
+        per_istante.setdefault(round(x['startTime'], 4), []).append(x['moveType'])
+    intoccabili = {t for t, tipi in per_istante.items()
+                   if MOVE_BLOCK in tipi and MOVE_SQUAT in tipi}
+
+    for x in azioni:
+        if x.get('moveType') != da:
+            continue
+        if round(x['startTime'], 4) in intoccabili:
+            continue
+        if rng.random() >= quota:
+            continue
+        x['moveType'] = a
+        # la corsia si ridecide col tipo nuovo: lo scudo puo' essere basso
+        # (12 volte su 56 nel repertorio), lo squat mai
+        x['moveChannel'] = _corsia_alta_o_bassa(a, CH_CENTER, rng)
+    return azioni
+
+
+def rileggi_tuning():
+    """Ricalcola le costanti regolabili senza riavviare.
+
+    Il contratto normale della tabella e' "cambia il file, riavvia": va bene
+    per chi regola una cosa ogni tanto, non per cercare un valore a occhio -
+    li' servono venti tentativi di fila. Il pannello di tuning chiama questa,
+    e la coreografia si rigenera in 33 ms.
+
+    Le costanti restano quelle di sempre e conservano il loro nome: le
+    funzioni le leggono come globali del modulo a ogni chiamata, quindi
+    riassegnarle qui basta perche' il prossimo giro le veda.
+    """
+    global MIN_GAP_BEATS, MIN_GAP_ARM_BEATS, MIN_GAP_AFTER_SWING_BEATS
+    global MIN_GAP_AFTER_SWING_OPPOSITE_BEATS, MIN_GAP_DODGE_BEATS
+    global MIN_GAP_BEFORE_SWING_BEATS, MIN_GAP_ARM_SIDECAR_BEATS
+    global MAX_SHIFT_BEATS, MAX_SQUAT_CHAIN, MIN_GAP_SCUDO_SQUAT_BEATS
+    MIN_GAP_BEATS = _reg('respiro_minimo', 0.5)
+    MIN_GAP_ARM_BEATS = _reg('respiro_fra_colpi_stesso_lato', 1.0)
+    MIN_GAP_AFTER_SWING_BEATS = _reg('respiro_dopo_swing_stesso_lato', 1.5)
+    MIN_GAP_AFTER_SWING_OPPOSITE_BEATS = _reg('respiro_dopo_swing_altro_lato', 0.75)
+    MIN_GAP_DODGE_BEATS = _reg('respiro_attorno_schivata', 1.0)
+    MIN_GAP_BEFORE_SWING_BEATS = _reg('respiro_prima_di_uno_swing', 1.0)
+    MIN_GAP_ARM_SIDECAR_BEATS = _reg('respiro_fra_i_tuoi_colpi_stesso_lato', 1.225)
+    MAX_SHIFT_BEATS = _reg('spostamento_massimo', 1.0)
+    MAX_SQUAT_CHAIN = _reg('catena_massima_di_squat', 3)
+    MIN_GAP_SCUDO_SQUAT_BEATS = _reg('respiro_fra_scudo_e_squat', 1.0)
+
+    # I dizionari si aggiornano SUL POSTO: altrove qualcuno potrebbe averne
+    # tenuto un riferimento, e riassegnarli lo lascerebbe sul vecchio.
+    # lo SCUDO non ha piu' una quota: la sua corsia e' una regola, vedi
+    # allinea_scudi_agli_squat
+    QUOTA_CORSIA_BASSA[MOVE_HOOK] = _reg('quota_ganci_bassi', 0.09)
+    PATTERN_VARIATION_PROB['light'] = _reg('variazione_dei_pattern_leggero', 0.10)
+    PATTERN_VARIATION_PROB['medium'] = _reg('variazione_dei_pattern_medio', 0.20)
+    PATTERN_VARIATION_PROB['high'] = _reg('variazione_dei_pattern_intenso', 0.30)
+    # Scritte per esteso e non in un ciclo con la chiave in una variabile:
+    # cosi' il controllo che cerca le manopole scollegate (tests/test_tuning)
+    # le trova. Quello e' un controllo testuale, e una chiamata dinamica gli
+    # sfugge - erano risultate morte tre volte pur funzionando.
+    if 'light' in INTENSITY_PRESETS:
+        INTENSITY_PRESETS['light']['target_epm'] = _reg('colpi_al_minuto_leggero', 42)
+    if 'medium' in INTENSITY_PRESETS:
+        INTENSITY_PRESETS['medium']['target_epm'] = _reg('colpi_al_minuto_medio', 74)
+    if 'high' in INTENSITY_PRESETS:
+        INTENSITY_PRESETS['high']['target_epm'] = _reg('colpi_al_minuto_intenso', 88)
+
+
+# La tabella si applica anche all'AVVIO, non solo quando la ricarica il
+# pannello. Prima `colpi_al_minuto_*` era letto unicamente qui dentro:
+# metterlo in tuning.json e riavviare non faceva niente, muovere lo slider
+# si'. Due strade per la stessa cosa, e una delle due rotta.
+rileggi_tuning()

@@ -138,7 +138,7 @@ GRID_DIVISIONI = _reg('suddivisioni_della_griglia', 4)
 # praticamente mezzo passo - avrebbe agganciato TUTTO, cancellando la
 # possibilita' stessa di un colpo messo fuori tempo apposta. Un terzo
 # scarso del passo raddrizza la sbavatura e lascia stare la scelta.
-GRID_SNAP_FRAZIONE = 0.34
+GRID_SNAP_FRAZIONE = _reg('aggancio_alla_griglia_frazione', 0.34)
 # Tetto assoluto, per i brani molto lenti dove un terzo di passo sarebbe
 # comunque un salto grosso a orecchio.
 GRID_SNAP_MAX_S = _reg('aggancio_alla_griglia_ms', 60) / 1000.0
@@ -256,13 +256,18 @@ CENTRO_TYPE_PROBS_BY_GAP_AND_PREV = {
 SQUAT_TO_DODGE_PROB = _reg('squat_che_diventano_schivate', 0.40)
 
 
-def griglia_metrica(beats, divisioni=GRID_DIVISIONI):
+def griglia_metrica(beats, divisioni=None):
     """Gli istanti della griglia ritmica e la loro posizione dentro il beat.
 
     Ritorna una lista ordinata di (istante, fase), con fase 0 sul battere e
     1..divisioni-1 sulle suddivisioni. I beat NON sono equidistanti (la
     griglia viene dal beat-tracking del brano vero), quindi ogni intervallo
     si divide per conto suo invece di usare un passo medio."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if divisioni is None:
+        divisioni = GRID_DIVISIONI
     bt = [b['_triggerTime'] for b in beats]
     punti = []
     for i in range(len(bt) - 1):
@@ -295,7 +300,7 @@ def _punto_griglia_vicino(t, griglia, fasi=None):
     return migliore
 
 
-def firma_ritmica(marker_times, beats, divisioni=GRID_DIVISIONI):
+def firma_ritmica(marker_times, beats, divisioni=None):
     """DOVE cadono i colpi dell'utente dentro il beat.
 
     Ritorna la quota di marker su ciascuna suddivisione (lista lunga
@@ -303,6 +308,11 @@ def firma_ritmica(marker_times, beats, divisioni=GRID_DIVISIONI):
     differenza che si SENTE fra un tratto marcato a mano e uno generato:
     due coreografie con gli stessi colpi al minuto suonano lontanissime se
     una sta sul battere e l'altra sui levare."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if divisioni is None:
+        divisioni = GRID_DIVISIONI
     griglia = griglia_metrica(beats, divisioni)
     if not griglia or not marker_times:
         return None
@@ -329,8 +339,8 @@ def fasi_preferite(firma, soglia=0.12):
     return fasi or {0}
 
 
-def aggancia_marker_alla_griglia(marker_times, beats, divisioni=GRID_DIVISIONI,
-                                 max_s=GRID_SNAP_MAX_S, onsets=None):
+def aggancia_marker_alla_griglia(marker_times, beats, divisioni=None,
+                                 max_s=None, onsets=None):
     """Aggancio magnetico: ogni colpo dell'utente va sulla suddivisione piu'
     vicina, se dista meno di `max_s`.
 
@@ -339,6 +349,13 @@ def aggancia_marker_alla_griglia(marker_times, beats, divisioni=GRID_DIVISIONI,
     reazione della mano, che nemmeno la correzione di latenza azzera. Fra
     due colpi che devono suonare uguali quella differenza si sente, ed e'
     la "differenza grossolana" fra i colpi propri e quelli del tool."""
+    if max_s is None:
+        max_s = GRID_SNAP_MAX_S
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if divisioni is None:
+        divisioni = GRID_DIVISIONI
     griglia = griglia_metrica(beats, divisioni)
     if not griglia:
         return list(marker_times)
@@ -368,7 +385,7 @@ def _su_un_accento(t, onsets, tolleranza=0.005):
     return False
 
 
-def ritma_come_utente(azioni, beats, firma, divisioni=GRID_DIVISIONI,
+def ritma_come_utente(azioni, beats, firma, divisioni=None,
                       soglia=0.03):
     """Rimette i colpi generati sulle suddivisioni che l'utente usa davvero,
     NELLE SUE PROPORZIONI.
@@ -400,6 +417,11 @@ def ritma_come_utente(azioni, beats, firma, divisioni=GRID_DIVISIONI,
 
     Gli ostacoli non si toccano: l'utente non li marca mai, e spostarli
     significherebbe inventargli un'intenzione che non ha espresso."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if divisioni is None:
+        divisioni = GRID_DIVISIONI
     if not firma or not azioni or not beats:
         return list(azioni)
 
@@ -462,7 +484,7 @@ def ritma_come_utente(azioni, beats, firma, divisioni=GRID_DIVISIONI,
     return risultato
 
 
-def allinea_azioni_alla_firma(azioni, beats, fasi, divisioni=GRID_DIVISIONI):
+def allinea_azioni_alla_firma(azioni, beats, fasi, divisioni=None):
     """Riporta la coreografia automatica sulle suddivisioni che usa l'utente.
 
     SUPERATA il 06/09 da `ritma_come_utente`, e vale la pena dire perche':
@@ -480,6 +502,11 @@ def allinea_azioni_alla_firma(azioni, beats, fasi, divisioni=GRID_DIVISIONI):
     Gli ostacoli (Squat/Schivata/Block) NON si toccano: non sono colpi,
     l'utente non li marca mai, e spostarli sulle sue fasi significherebbe
     inventargli un'intenzione che non ha espresso."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if divisioni is None:
+        divisioni = GRID_DIVISIONI
     if not fasi or len(fasi) >= divisioni:
         return list(azioni)          # usa tutta la griglia: niente da allineare
     griglia = griglia_metrica(beats, divisioni)
@@ -589,7 +616,7 @@ def ha_imparato(copertura_s, n_marker):
     return copertura_s >= EXTEND_MIN_COVERAGE_S and n_marker >= EXTEND_MIN_MARKER
 
 
-def copertura_marcata(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S,
+def copertura_marcata(marker_times, onsets=None, min_gap_s=None,
                       beats=None):
     """Come e' fatta la marcatura dell'utente, per il motore e per il pannello.
 
@@ -603,6 +630,11 @@ def copertura_marcata(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S,
     classificare niente - i gruppi si misurano in battute - e si risponde
     dicendolo, invece di dare un numero inventato.
     """
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_s is None:
+        min_gap_s = MIN_INPUT_GAP_S
     filtrati = snap_and_filter_markers(marker_times, onsets, min_gap_s)
     if not beats:
         return {'analisi_pronta': False, 'marker': len(filtrati),
@@ -734,7 +766,7 @@ def _sample_weighted(probs, rng):
     return next(iter(probs))   # ripiego per arrotondamento float
 
 
-def snap_and_filter_markers(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S,
+def snap_and_filter_markers(marker_times, onsets=None, min_gap_s=None,
                             beats=None):
     """Applica ESATTAMENTE la stessa pipeline di `_place_on_markers` prima di
     decidere corsia/tipo: aggancio agli accenti veri (se `onsets` dato), poi
@@ -756,6 +788,11 @@ def snap_and_filter_markers(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S
     qualunque cosa il gioco abbia mai generato), mostrandogli chiaramente
     quanti marker questo scarterebbe PRIMA di generare, invece di imporre il
     valore misurato come un tetto invalicabile silenzioso."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_s is None:
+        min_gap_s = MIN_INPUT_GAP_S
     ordered = sorted(marker_times)
     if onsets:
         ordered = sorted(_snap_marker_to_onset(t, onsets) for t in ordered)
@@ -775,7 +812,7 @@ def snap_and_filter_markers(marker_times, onsets=None, min_gap_s=MIN_INPUT_GAP_S
 
 
 def _place_on_markers(marker_times, beats, rng, context_actions=None, exclude_obstacles=False,
-                      onsets=None, min_gap_s=MIN_INPUT_GAP_S,
+                      onsets=None, min_gap_s=None,
                       aggancio_magnetico=False):
     """Decide corsia/tipo per ogni marker dell'utente e ritorna le azioni
     GREZZE (non ancora passate da enforce_playability - la risoluzione dei
@@ -811,6 +848,11 @@ def _place_on_markers(marker_times, beats, rng, context_actions=None, exclude_ob
     MARKER_SNAP_WINDOW_S da un accento audio VERO viene spostato esattamente
     li' prima di ogni altra decisione - vedi _snap_marker_to_onset. None
     (default) disattiva la correzione, comportamento di sempre."""
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_s is None:
+        min_gap_s = MIN_INPUT_GAP_S
     if not beats:
         return []
     ts_beats = [b['_triggerTime'] for b in beats]
@@ -951,8 +993,26 @@ MODE_EXTEND = 'extend'              # 30/08, richiesto esplicitamente: fedele ai
                                      # dove non ci sono (vedi build_choreography)
 
 
+def _seme_stabile(analysis=None, marker_times=None, beats=None):
+    """Un seme che dipende dal BRANO e non dall'orologio.
+
+    Stesso criterio di `choreo.build_move_actions`, che lo ricava da
+    titolo|artista: lo stesso brano deve dare sempre la stessa coreografia.
+    Senza, il pannello di tuning non serve a niente - muovi uno slider e
+    cambia tutto, quindi non sai piu' cos'e' stato lo slider e cos'e' stato
+    il caso. Segnalato l'08/09.
+
+    Quando l'analisi non c'e' (chiamate dirette a place_moves_on_markers) si
+    ripiega su qualcosa di altrettanto stabile: quanti beat, e i marker.
+    """
+    if analysis is not None:
+        return '%s|%s' % (analysis.get('name'), analysis.get('artist'))
+    return '%d|%s' % (len(beats or ()),
+                      ','.join('%.3f' % t for t in (marker_times or ())[:32]))
+
+
 def place_moves_on_markers(marker_times, beats, rng=None, exclude_obstacles=False, onsets=None,
-                           min_gap_s=MIN_INPUT_GAP_S):
+                           min_gap_s=None):
     """Coreografia SOLO dai marker dell'utente, senza livello automatico -
     utile per provare l'algoritmo A4/Markov in isolamento (vedi test_engine.py),
     o per un brano dove l'utente ha marcato letteralmente tutto. Per l'uso
@@ -961,7 +1021,12 @@ def place_moves_on_markers(marker_times, beats, rng=None, exclude_obstacles=Fals
 
     Ritorna azioni pronte per `serialize_actions`, gia' passate per
     `enforce_playability(snap_to_grid=False)`."""
-    rng = rng or random.Random()
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_s is None:
+        min_gap_s = MIN_INPUT_GAP_S
+    rng = rng or random.Random(_seme_stabile(marker_times=marker_times, beats=beats))
     actions = _place_on_markers(marker_times, beats, rng, exclude_obstacles=exclude_obstacles,
                                 onsets=onsets, min_gap_s=min_gap_s)
     return choreo.enforce_playability(actions, beats, snap_to_grid=False, sidecar_min_gap_s=min_gap_s)
@@ -1042,7 +1107,7 @@ def _infer_preset_from_marker_density(filtered_markers, span_start, span_end):
 
 def build_choreography(analysis, marker_times, preset='medium', rng=None,
                        mode=MODE_HARMONIZE, exclude_obstacles=False, correct_imprecision=False,
-                       min_gap_s=MIN_INPUT_GAP_S, aggancio_magnetico=True):
+                       min_gap_s=None, aggancio_magnetico=True):
     """Uso normale della sidecar: i marker dell'utente possono coprire
     QUALUNQUE frazione del brano (tutto, niente, solo i ritornelli).
 
@@ -1100,7 +1165,16 @@ def build_choreography(analysis, marker_times, preset='medium', rng=None,
     snap_and_filter_markers - default MIN_INPUT_GAP_S (170ms, il minimo
     misurato sui 465 workout ufficiali), sovrascrivibile per-brano se
     l'utente sceglie consapevolmente di scendere sotto quel valore."""
-    rng = rng or random.Random()
+    # `None` e non il global come default: un default si valuta all'import,
+    # e da li' rileggi_tuning() non lo raggiunge piu'. Lo slider si muoveva
+    # e non cambiava niente. Vedi il controllo in tests/test_tuning.py.
+    if min_gap_s is None:
+        min_gap_s = MIN_INPUT_GAP_S
+    # Il seme viene dal brano, non dall'orologio: lo stesso brano con gli
+    # stessi marker deve dare sempre la stessa coreografia. Vale per
+    # l'anteprima (dove altrimenti ogni slider sembra cambiare tutto) e per
+    # la generazione vera (dove due giri davano due workout diversi).
+    rng = rng or random.Random(_seme_stabile(analysis))
     beats = analysis['beats']
     if not beats:
         return []
@@ -1230,3 +1304,21 @@ def build_choreography(analysis, marker_times, preset='medium', rng=None,
     result = choreo.enforce_playability(combined, beats, snap_to_grid=False, sidecar_min_gap_s=min_gap_s)
     result.sort(key=lambda a: a['startTime'])
     return result
+
+
+def rileggi_tuning():
+    """Ricalcola le costanti regolabili senza riavviare - vedi la gemella in
+    boxvr_choreo.py per il perche'."""
+    global MIN_INPUT_GAP_S, MARKER_SNAP_WINDOW_S, GRID_SNAP_MAX_S
+    global GRID_DIVISIONI, EXTEND_MIN_COVERAGE_S, EXTEND_MIN_MARKER
+    global GRID_SNAP_FRAZIONE
+    global SQUAT_TO_DODGE_PROB
+    MIN_INPUT_GAP_S = _reg('soglia_fra_i_tuoi_colpi_ms', 170) / 1000.0
+    MARKER_SNAP_WINDOW_S = _reg('aggancio_agli_accenti_ms', 80) / 1000.0
+    GRID_SNAP_MAX_S = _reg('aggancio_alla_griglia_ms', 60) / 1000.0
+    GRID_SNAP_FRAZIONE = _reg('aggancio_alla_griglia_frazione', 0.34)
+    GRID_DIVISIONI = _reg('suddivisioni_della_griglia', 4)
+    EXTEND_MIN_COVERAGE_S = _reg('estendi_secondi_minimi', 45.0)
+    EXTEND_MIN_MARKER = _reg('estendi_colpi_minimi', 8)
+    SQUAT_TO_DODGE_PROB = _reg('squat_che_diventano_schivate', 0.40)
+    choreo.rileggi_tuning()

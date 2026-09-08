@@ -94,6 +94,7 @@ Per usarlo dai sorgenti: vedi [CONTRIBUTING.md](docs/it/contribuire.md).
 | [Come funziona BoxVR](docs/it/boxvr-e-correggi.md) | il formato `trackdata`, perché i livelli sbagliano, cosa fa **Correggi** |
 | [Genera](docs/it/genera.md) | analisi del brano, BPM, motori librosa/madmom, algoritmo di generazione, esportazione |
 | [Sidecar](docs/it/sidecar.md) | marcare i colpi a mano e farli convivere con quelli automatici |
+| [Regolare l'algoritmo](docs/it/tuning.md) | gli slider che cambiano come si sente un workout, e come condividere un assetto |
 | [La patch al gioco](docs/it/patch.md) | perché serve, cosa cambia esattamente, come si annulla |
 | [Gestione playlist](docs/it/playlist-manager.md) | lo strumento separato per le playlist installate |
 | [Storia del progetto](docs/it/storia.md) | da dov'è partito, come ci è arrivato |

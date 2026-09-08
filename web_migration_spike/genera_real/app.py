@@ -452,11 +452,23 @@ _anteprima_choreo = {}
 
 
 def _firma_anteprima(key):
+    # Il TUNING fa parte della firma, e per un motivo trovato sul campo:
+    # senza, muovendo uno slider la firma restava identica e questa cache
+    # restituiva la coreografia di prima. Il `rigenera=True` del pannello
+    # arrivava fin qui e veniva annullato un livello sotto - riprodotto il
+    # 08/09: respiro da 1.0 a 2.0, 279 colpi prima e 279 dopo, agli stessi
+    # istanti. Non riguardava un valore: riguardava tutti.
+    try:
+        import tuning
+        stato_tuning = tuning.firma()
+    except Exception:                      # noqa: BLE001
+        stato_tuning = ()
     return (
         tuple(_sidecar_markers.get(key) or ()),
         _sidecar_mode.get(key),
         _sidecar_min_gap_ms.get(key),
         _sidecar_exclude.get(key, False),
+        stato_tuning,
     )
 
 
@@ -468,14 +480,33 @@ def _scarta_anteprima(key=None):
         _anteprima_choreo.pop(key, None)
 
 
-def _actionlist_anteprima(key):
+def _actionlist_anteprima(key, calcola_analisi=False):
     """La coreografia del brano, costruita ora se serve.
 
     None se l'analisi non e' ancora pronta: la pagina ha gia' lo stato
     "Analisi in corso" da mostrare, meglio quello di un errore.
+
+    `calcola_analisi` ribalta quella scelta, e serve a un caso preciso: il
+    pannello di tuning. La tendina dell'anteprima elenca i brani GIA'
+    GENERATI, che all'avvio non hanno nessuna analisi in memoria - la
+    cartella di servizio e' temporanea e la cache parte vuota. Rifiutare
+    li' significa che muovendo uno slider non succede niente, che e'
+    esattamente cio' che e' stato segnalato l'08/09 dopo due correzioni che
+    nei test risultavano a posto: i test mettevano l'analisi in cache a
+    mano, cioe' provavano il caso raro.
+
+    Il rifiuto ha senso mentre la pagina disegna. Non ha senso quando
+    qualcuno ha appena mosso uno slider e aspetta di vedere l'effetto: li'
+    l'analisi si calcola, anche se costa qualche secondo, e si calcola una
+    volta sola perche' poi resta in cache.
     """
     if key not in _analysis_cache:
-        return None
+        if not calcola_analisi or not _song_paths.get(key):
+            return None
+        try:
+            get_analysis(key)
+        except Exception:                  # noqa: BLE001
+            return None
     firma = _firma_anteprima(key)
     salvata = _anteprima_choreo.get(key)
     if salvata and salvata[0] == firma:
@@ -1254,7 +1285,162 @@ class Api:
         out += [a for a in anteprime if a['track_id'] not in gia]
         return out
 
-    def get_action_list(self, track_id):
+    # ---- pannello di tuning (pulsante Avanzate, o Ctrl+Shift+T) ----
+    #
+    # I valori si provano DAL VIVO, senza toccare `tuning.json`: si cambia
+    # uno slider, si rigenera la coreografia (33 ms misurati) e la si vede
+    # subito nel visualizzatore. Il file si scrive solo premendo Salva.
+    #
+    # E' l'unico modo per cercare un valore a occhio: il contratto normale
+    # della tabella ("cambia il file, riavvia") va bene per una regolazione
+    # ogni tanto, non per venti tentativi di fila.
+
+    def tuning_valori(self):
+        """Tutto cio' che serve al pannello: valori, limiti, provenienza."""
+        try:
+            import tuning
+            return {'ok': True, **tuning.per_il_pannello()}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_applica(self, valori):
+        """Prova dei valori senza scriverli. Ritorna cosa e' stato rifiutato."""
+        try:
+            import tuning
+            messaggi = tuning.imposta_dal_vivo(valori or {})
+            gen.sidecar_engine().rileggi_tuning()
+            return {'ok': True, 'problemi': messaggi}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_azzera(self):
+        """Torna a cio' che dice il file (o alla fabbrica)."""
+        try:
+            import tuning
+            tuning.azzera_dal_vivo()
+            gen.sidecar_engine().rileggi_tuning()
+            return {'ok': True, **tuning.per_il_pannello()}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_salva(self):
+        """Scrive su tuning.json cio' che si sta provando."""
+        try:
+            import tuning
+            percorso = tuning.salva_su_file()
+            return {'ok': True, 'percorso': percorso,
+                    'messaggio': ('salvato in %s' % percorso) if percorso
+                                 else 'tutti i valori sono di fabbrica: '
+                                      'tuning.json rimosso'}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    # ---- metodi: un assetto salvato, con un nome, che si puo' dare via ----
+    #
+    # Un `tuning.json` solo basta finche' si cerca UN assetto. Ma cercando
+    # se ne trovano di diversi buoni per cose diverse - uno rado per i brani
+    # lenti, uno fitto per i pezzi tirati - e con un file solo il secondo
+    # cancella il primo.
+    #
+    # E servono a girare: un metodo fatto bene lo si manda a qualcuno, e se
+    # regge finisce in una release. Per questo import ed export passano dal
+    # selettore di file del sistema e non da una cartella nascosta: un file
+    # che si sa dov'e' e' un file che si puo' allegare a un messaggio.
+
+    def tuning_metodi(self):
+        """L'elenco dei metodi e quale e' in uso."""
+        try:
+            import tuning
+            return {'ok': True, 'metodi': tuning.elenco_metodi(),
+                    'metodo': tuning.metodo_corrente()}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_carica_metodo(self, nome):
+        """Applica un metodo. «Predefinito» torna ai valori di fabbrica."""
+        try:
+            import tuning
+            problemi = tuning.carica_metodo(nome)
+            gen.sidecar_engine().rileggi_tuning()
+            fuori = {'ok': True, 'problemi': problemi}
+            fuori.update(tuning.per_il_pannello())
+            testa = tuning.intestazione_metodo(nome)
+            if testa:
+                fuori['intestazione'] = testa
+            return fuori
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_salva_metodo(self, nome, autore='', descrizione=''):
+        """Scrive cio' che si sta provando come metodo con questo nome."""
+        try:
+            import tuning
+            percorso = tuning.salva_metodo(nome, autore=autore,
+                                           descrizione=descrizione)
+            fuori = {'ok': True, 'percorso': percorso,
+                     'messaggio': 'metodo «%s» salvato' % nome}
+            fuori.update(tuning.per_il_pannello())
+            return fuori
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_elimina_metodo(self, nome):
+        try:
+            import tuning
+            tolto = tuning.elimina_metodo(nome)
+            gen.sidecar_engine().rileggi_tuning()
+            fuori = {'ok': True,
+                     'messaggio': ('metodo «%s» eliminato' % nome) if tolto
+                                  else "non c'era niente da eliminare"}
+            fuori.update(tuning.per_il_pannello())
+            return fuori
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_importa_metodo(self):
+        """Prende un metodo da un file scelto col selettore del sistema."""
+        try:
+            import tuning
+            window = webview.windows[0]
+            scelti = window.create_file_dialog(
+                webview.FileDialog.OPEN, allow_multiple=False,
+                file_types=('Metodo di tuning (*.json)', 'Tutti i file (*.*)'))
+            if not scelti:
+                return {'ok': True, 'annullato': True}
+            percorso = scelti[0] if isinstance(scelti, (list, tuple)) else scelti
+            nome, avvisi = tuning.importa_metodo(percorso)
+            if nome is None:
+                return {'ok': False, 'error': ' · '.join(avvisi)}
+            # importato E applicato: chi apre un metodo lo vuole vedere
+            # all'opera, non trovarselo in un elenco da scegliere di nuovo
+            tuning.carica_metodo(nome)
+            gen.sidecar_engine().rileggi_tuning()
+            fuori = {'ok': True, 'nome': nome, 'avvisi': avvisi,
+                     'messaggio': 'importato «%s»' % nome}
+            fuori.update(tuning.per_il_pannello())
+            return fuori
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def tuning_esporta_metodo(self, nome):
+        """Salva un metodo dove dice l'utente, per mandarlo a qualcuno."""
+        try:
+            import tuning
+            window = webview.windows[0]
+            dove = window.create_file_dialog(
+                webview.FileDialog.SAVE,
+                save_filename='%s.json' % nome,
+                file_types=('Metodo di tuning (*.json)',))
+            if not dove:
+                return {'ok': True, 'annullato': True}
+            percorso = dove[0] if isinstance(dove, (list, tuple)) else dove
+            tuning.esporta_metodo(nome, percorso)
+            return {'ok': True, 'percorso': percorso,
+                    'messaggio': 'esportato in %s' % percorso}
+        except Exception as e:                 # noqa: BLE001
+            return {'ok': False, 'error': str(e)}
+
+    def get_action_list(self, track_id, rigenera=False):
         """Dati REALI per il visualizzatore - legge `<track_id>.actionlist.json`
         (scritto da generate_track, formato `serialize_actions`: ogni voce ha
         `musicActionJSON` come STRINGA json annidata, non un oggetto diretto -
@@ -1274,17 +1460,26 @@ class Api:
                              + motivo}
         output_folder = os.path.join(TEST_DIR, 'generati')
         path = os.path.join(output_folder, f"{track_id}.actionlist.json")
-        if os.path.isfile(path):
+        # `rigenera` salta il file gia' scritto e ricostruisce al volo: senza,
+        # il pannello di tuning muoverebbe gli slider su una coreografia
+        # congelata su disco, e non si vedrebbe cambiare niente.
+        if os.path.isfile(path) and not rigenera:
             with open(path, encoding='utf-8') as f:
                 raw = json.load(f)
         else:
             # Non ancora generato: si costruisce la coreografia al volo, con
             # le stesse funzioni della generazione vera. Niente file scritti.
-            raw = _actionlist_anteprima(track_id)
+            # `rigenera` arriva dal pannello di tuning, e li' l'attesa e'
+            # di vedere l'effetto dello slider: se l'analisi manca la si
+            # calcola invece di rifiutare. Senza questo, sui brani gia'
+            # generati - cioe' quelli che la tendina elenca - nessuno
+            # slider faceva niente.
+            raw = _actionlist_anteprima(track_id, calcola_analisi=bool(rigenera))
             if raw is None:
                 return {'ok': False,
-                        'error': 'Analisi del brano non ancora pronta: '
-                                 'apri il brano in anteprima e riprova.'}
+                        'error': 'Analisi del brano non disponibile: '
+                                 'aggiungi il brano nella pagina Genera '
+                                 'per poterne regolare la coreografia.'}
         events = []
         bpm, wav_path, duration = 0.0, None, 0.0
         for action in raw.get('actionList', []):

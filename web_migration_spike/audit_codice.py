@@ -317,6 +317,57 @@ if os.path.isfile(_dash):
                         % (_cartella.replace('_real', '').upper(),
                            ', '.join(_ripiego)))
 
+# ---- le firme degli inoltri della Dashboard -----------------------------
+# La Dashboard riespone i metodi delle altre pagine col prefisso
+# (`genera_get_action_list` -> `genera_app.Api().get_action_list`). Se
+# l'inoltro ha MENO parametri dell'originale, gli argomenti in piu' cadono
+# per strada: il metodo esiste, viene chiamato, e fa la cosa sbagliata senza
+# dare errore.
+#
+# Successo il 07/09: `genera_get_action_list(self, track_id)` contro
+# `get_action_list(self, track_id, rigenera=False)`. Il pannello di tuning
+# muoveva gli slider e l'anteprima restava congelata su disco.
+import ast as _ast
+
+
+def _firme(percorso):
+    """{nome del metodo: numero di parametri} per ogni classe del file."""
+    try:
+        albero = _ast.parse(io.open(percorso, encoding='utf-8').read())
+    except Exception:                      # noqa: BLE001
+        return {}
+    fuori = {}
+    for nodo in _ast.walk(albero):
+        if isinstance(nodo, _ast.ClassDef):
+            for f in nodo.body:
+                if isinstance(f, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                    fuori[f.name] = len(f.args.args)
+    return fuori
+
+
+_dash = _firme(os.path.join(QUI, 'dashboard_real', 'app.py'))
+_disallineati = []
+for _cartella, _pref in (('genera_real', 'genera_'), ('correggi_real', 'correggi_'),
+                         ('playlist_real', 'playlist_')):
+    _vere = _firme(os.path.join(QUI, _cartella, 'app.py'))
+    for _nome, _n in _dash.items():
+        if not _nome.startswith(_pref):
+            continue
+        _originale = _nome[len(_pref):]
+        if _originale not in _vere:
+            continue
+        if _n < _vere[_originale]:
+            _disallineati.append(
+                "%s: %s(%d parametri) inoltra %s.%s(%d) - gli argomenti "
+                "in piu' cadono in silenzio"
+                % (_cartella.replace('_real', '').upper(), _nome, _n - 1,
+                   _cartella, _originale, _vere[_originale] - 1))
+if _disallineati:
+    problemi.append("DASHBOARD: inoltri con meno parametri dell'originale: "
+                    + ' | '.join(_disallineati))
+else:
+    ok_count += 1
+
 # ---- i due blocchi del tema scuro devono restare identici ---------------
 # Il tema scuro e' scritto DUE volte: una per "il sistema e' scuro e l'utente
 # non ha scelto" (media query) e una per "l'utente ha scelto scuro"

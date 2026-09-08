@@ -110,7 +110,15 @@ a = Analysis(
 # con il nome nuovo; VERSION resta ai due eseguibili Tkinter storici.
 sys.path.insert(0, os.path.abspath('.'))
 from version import VERSION_WEB
-NOME_EXE = 'BoxVR SrvToolkit %s Public Beta' % VERSION_WEB
+try:
+    from version import BUILD
+except ImportError:
+    BUILD = 0
+# Finche' si sta lavorando il nome porta il numero di build, cosi' due
+# ricostruzioni non si sovrascrivono; a BUILD 0 il file prende il nome
+# pubblico ed e' quello che si allega alla release.
+NOME_EXE = ('BoxVR SrvToolkit %s Public Beta' % VERSION_WEB if not BUILD
+            else 'BoxVR SrvToolkit %s build %d' % (VERSION_WEB, BUILD))
 
 pyz = PYZ(a.pure)
 

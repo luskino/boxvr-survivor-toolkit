@@ -188,13 +188,24 @@ def controlla_versione():
     if not m:
         rileva('version.py', 'VERSION_WEB non trovata')
         return
-    atteso = 'BoxVR SrvToolkit %s Public Beta.exe' % m.group(1)
+    # Due numerazioni dall'08/09: VERSION_WEB e' quella pubblica e si muove
+    # solo quando si pubblica davvero; BUILD e' il contatore interno, e
+    # finisce nel nome del file finche' non e' zero. Il nome atteso dipende
+    # da quale delle due situazioni siamo - vedi rilascia.py.
+    b = re.search(r'^BUILD = (\d+)', ver, re.M)
+    build = int(b.group(1)) if b else 0
+    if build:
+        atteso = 'BoxVR SrvToolkit %s build %d.exe' % (m.group(1), build)
+        come = 'build interna %d' % build
+    else:
+        atteso = 'BoxVR SrvToolkit %s Public Beta.exe' % m.group(1)
+        come = 'pubblica'
     d = os.path.join(R, 'dist_web')
     if os.path.isdir(d):
         presenti = [f for f in os.listdir(d) if f.endswith('.exe')]
         if presenti and atteso not in presenti:
-            rileva('dist_web', 'la versione dichiarata e\' %s ma in dist_web c\'e\' %s'
-                              % (m.group(1), ', '.join(presenti)))
+            rileva('dist_web', 'atteso "%s" (%s) ma in dist_web c\'e\' %s'
+                              % (atteso, come, ', '.join(presenti)))
 
 
 def controlla_gitignore_vivo():

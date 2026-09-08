@@ -365,15 +365,16 @@
   /* Selettore piu' specifico di proposito: il foglio condiviso ha
      `input[type="range"] { width: 100% }` (specificita' 0,1,1), che batteva
      `.viz-vol` (0,1,0). Risultato: il cursore del volume veniva largo 874px
-     e sfondava fuori dalla modale, spingendo fuori nome del brano e BPM.
-     Le due regole si combattevano senza dare nessun errore. */
-  .visualizer-transport input.viz-seek { flex: 1 1 auto; width: auto; min-width: 140px; }
+     e sfondava fuori dalla modale, spingendo fuori il BPM. Le due regole
+     si combattevano senza dare nessun errore. */
+  /* Il cursore di posizione si prende tutto lo spazio che avanza, e ne ha
+     bisogno: e' l'unico comando della barra la cui PRECISIONE dipende da
+     quanto e' lungo. Prima gli restavano 140px perche' accanto c'era il
+     nome del brano, che ne occupava fino a 260 per ripetere quello che la
+     tendina in cima dice gia'. */
+  .visualizer-transport input.viz-seek { flex: 1 1 auto; width: auto; min-width: 280px; }
   .visualizer-transport input.viz-vol { flex: 0 0 84px; width: 84px; }
   .viz-tempo { font-variant-numeric: tabular-nums; color: #9A9AC0; flex: none; }
-  .viz-brano {
-    margin-left: auto; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: 260px; color: #C9C9E0;
-  }
   .viz-bpm {
     flex: none; background: #2A2A55; color: #7FD0FF; border-radius: 10px;
     padding: 3px 9px; font-weight: 700; font-size: 12px;
@@ -884,6 +885,163 @@
     font-size: 13px; color: var(--text-muted); margin-left: 12px;
     white-space: nowrap;
   }
+
+  /* ---- Pannello di tuning (Ctrl+Shift+T) ---------------------------
+     Lo strumento per cercare un valore a occhio guardando la coreografia
+     cambiare. Vive accanto al visualizzatore per questo: separarli
+     vorrebbe dire perdere il filo a ogni tentativo.
+
+     Nato come strumento nostro e tenuto nascosto dietro una scorciatoia.
+     Non lo e' piu' - c'e' il pulsante Avanzate, e i testi seguono la lingua
+     dell'app come tutto il resto. Chi usa il tool ha diritto di regolarlo:
+     le difese contro l'assetto assurdo sono nei valori (intervalli che
+     rifiutano l'impossibile, provenienza scritta accanto a ognuno), non
+     nel nascondere il pannello. */
+  .tuning-pan {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 420px;
+    background: #0E1230; border-left: 1px solid #2A2A55;
+    overflow-y: auto; padding: 14px 16px 20px; z-index: 5;
+    font-family: var(--font-display); color: #CFCFE8;
+  }
+  .tuning-pan[hidden] { display: none; }
+  /* Il solo pulsante con del TESTO in una fila di pulsanti a icona.
+     `.viz-btn` fissa width:30px per i quadrati, e senza annullarla qui la
+     parola sbordava dalla pillola (visto il 08/09). Larghezza dal
+     contenuto, cosi' regge anche "Advanced" e qualsiasi traduzione piu'
+     lunga senza che nessuno debba ricordarsi di ritoccare un numero. */
+  .viz-avanzate {
+    width: auto; min-width: 0; height: 30px; padding: 0 12px;
+    font-family: var(--font-display); font-weight: 600; font-size: 12px;
+    white-space: nowrap;
+  }
+  .viz-avanzate.aperto { background: var(--accent-blue-strong); color: #fff; border-color: transparent; }
+  .tuning-pan h4 {
+    margin: 0 0 2px; font-size: 15px; color: #FFF; font-weight: 700;
+  }
+  .tuning-pan .tp-sub { font-size: 12px; color: #8B8BB0; margin: 0 0 12px; }
+  /* I tre blocchi per ambito. `details` e non un div con un gestore:
+     apre, chiude e risponde alla tastiera da solo, e non c'e' niente da
+     tenere in sincronia. */
+  .tp-blocco { margin: 14px 0 0; border-top: 1px solid #23234A; }
+  .tp-blocco > summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 8px 0 6px; list-style: none; user-select: none;
+  }
+  .tp-blocco > summary::-webkit-details-marker { display: none; }
+  .tp-blocco > summary::before {
+    content: '\25B8'; color: #5C5C8A; font-size: 11px; flex: none;
+    transition: transform .12s ease;
+  }
+  .tp-blocco[open] > summary::before { transform: rotate(90deg); }
+  .tp-gtit {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; color: #9E9EC8; flex: 1 1 auto;
+  }
+  .tp-blocco[open] > summary .tp-gtit { color: #FFF; }
+  .tp-gnum { font-size: 11px; color: #6A6A96; flex: none; }
+  /* quanti valori di questo blocco sono stati spostati: chiuso, e' l'unico
+     modo per sapere che li' dentro c'e' qualcosa di modificato */
+  .tp-gmod {
+    flex: none; font-size: 10px; font-weight: 700; padding: 1px 6px;
+    border-radius: 8px; background: #33280F; color: #FFD24A;
+  }
+  .tp-gspiega { font-size: 11px; color: #7E7EA6; margin: 0 0 10px; line-height: 1.35; }
+
+  /* ---- la barra dei metodi ----
+     Sta in alto perche' e' la prima domanda: su quale assetto sto
+     lavorando? Senza, dopo aver caricato un metodo e mosso tre slider non
+     si sa piu' da dove vengono i numeri che si hanno davanti. */
+  .tp-metodi { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+  .tp-metodi select {
+    flex: 1 1 auto; min-width: 0; font-family: var(--font-display);
+    font-size: 12px; padding: 5px 6px; border-radius: 6px;
+    border: 1px solid #33335E; background: #171B3C; color: #EDEDFA;
+  }
+  .tp-mbtn {
+    flex: none; width: 28px; height: 28px; padding: 0; line-height: 1;
+    border-radius: 6px; border: 1px solid #33335E; background: #191E42;
+    color: #B9B9DA; font-size: 13px; cursor: pointer;
+  }
+  .tp-mbtn:hover:not(:disabled) { background: #23295A; color: #FFF; }
+  .tp-mbtn:disabled { opacity: .35; cursor: default; }
+  .tp-mbtn:focus-visible { outline: 2px solid var(--accent-blue-strong); outline-offset: 1px; }
+  .tp-metodo-nota { font-size: 11px; color: #7E7EA6; margin: -4px 0 12px; min-height: 13px; }
+
+  /* il modulo del salva-con-nome: tre campi, perche' un metodo che gira
+     senza autore ne' scopo e' un file di numeri e nessuno lo prova */
+  .tp-nuovo {
+    margin: 10px 0 0; padding: 10px; border-radius: 8px;
+    border: 1px solid #33335E; background: #12163A;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tp-nuovo[hidden] { display: none; }
+  .tp-nuovo input {
+    font-family: var(--font-display); font-size: 12px; padding: 5px 7px;
+    border-radius: 6px; border: 1px solid #33335E; background: #171B3C;
+    color: #EDEDFA;
+  }
+  .tp-nuovo-az { display: flex; gap: 6px; }
+  .tp-nuovo-az button {
+    flex: 1 1 auto; font-family: var(--font-display); font-weight: 600;
+    font-size: 12px; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    border: 1px solid #33335E; background: #191E42; color: #DCDCF2;
+  }
+  .tp-nuovo-az button.primario { background: var(--accent-blue-strong); border-color: transparent; color: #fff; }
+  .tp-voce { margin: 0 0 11px; }
+  .tp-riga { display: flex; align-items: center; gap: 8px; }
+  .tp-nome { font-size: 12.5px; flex: 1 1 auto; }
+  .tp-voce.modificata .tp-nome { color: #FFD24A; font-weight: 600; }
+  .tp-num {
+    width: 74px; flex: none; font-family: var(--font-display); font-size: 12px;
+    padding: 3px 6px; border-radius: 5px; border: 1px solid #33335E;
+    background: #171B3C; color: #EDEDFA; text-align: right;
+  }
+  .tp-voce input[type=range] { width: 100%; margin: 3px 0 0; accent-color: #0071DA; }
+  /* La PROVENIENZA e' la cosa piu' importante del pannello: dice se stai
+     scavalcando una misura fatta sul gioco o un numero che abbiamo scelto
+     noi e mai verificato. Colore, non solo testo, per vederlo di sfuggita. */
+  .tp-prov {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+    padding: 1px 6px; border-radius: 8px; flex: none; font-weight: 700;
+  }
+  .tp-prov.misurato { background: #113322; color: #6FE3A0; }
+  .tp-prov.provato  { background: #102A44; color: #6FB8E3; }
+  .tp-prov.scelto   { background: #33280F; color: #E3C46F; }
+  /* L'azzera del singolo valore. Sempre presente, anche a valore di
+     fabbrica: se comparisse solo dopo una modifica la riga cambierebbe
+     larghezza sotto il dito mentre si trascina lo slider. */
+  .tp-reset {
+    flex: none; width: 22px; height: 22px; padding: 0; line-height: 1;
+    border-radius: 5px; border: 1px solid #2A2A55; background: #171B3C;
+    color: #4E4E78; font-size: 13px; cursor: default;
+  }
+  .tp-voce.modificata .tp-reset {
+    color: #FFD24A; border-color: #4A4020; cursor: pointer;
+  }
+  .tp-voce.modificata .tp-reset:hover { background: #2A2410; color: #FFE08A; }
+  .tp-reset:focus-visible { outline: 2px solid var(--accent-blue-strong); outline-offset: 1px; }
+
+  .tp-desc { font-size: 11px; color: #7E7EA6; margin: 2px 0 0; line-height: 1.35; }
+  .tp-azioni {
+    display: flex; gap: 8px; margin: 18px 0 0; position: sticky; bottom: -20px;
+    background: #0E1230; padding: 10px 0 0; border-top: 1px solid #23234A;
+  }
+  .tp-azioni button {
+    flex: 1 1 auto; font-family: var(--font-display); font-weight: 600;
+    font-size: 12.5px; padding: 7px 10px; border-radius: 7px; cursor: pointer;
+    border: 1px solid #33335E; background: #191E42; color: #DCDCF2;
+  }
+  .tp-azioni button.primario { background: var(--accent-blue-strong); border-color: transparent; color: #fff; }
+  .tp-msg { font-size: 11.5px; color: #E3C46F; margin: 8px 0 0; min-height: 14px; }
+  /* Il pannello fa spazio a se stesso ALLARGANDO il riquadro, non
+     togliendo larghezza alla coreografia: quella e' la cosa che si sta
+     guardando, e il canvas ha una misura fissa apposta - la prospettiva
+     della scena e' calcolata su quella, quindi restringerlo la deforma.
+     Prima c'era `max-width: calc(100% - 420px)` sul canvas: l'anteprima si
+     stringeva, segnalato subito. */
+  .visualizer-box { position: relative; transition: padding-right .12s ease; }
+  .visualizer-box.con-tuning { padding-right: 436px; }
+
   /* ---- Comandi spenti perche' l'analisi non e' pronta ----------------
      Non solo piu' chiari: anche non premibili (applicaStatoAnalisi mette
      l'attributo disabled vero). Qui c'e' solo l'aspetto. */

@@ -154,3 +154,49 @@ the first — he had been chasing the noise of one sample. That is why
 
 The headset is still needed to say whether the choreography is *good*. Not to
 know whether a number moved the way you wanted.
+
+### Adjusting while you watch
+
+`tuning.json` works on the "change it, restart" contract. That is fine for an
+occasional adjustment and unusable for twenty attempts in a row — which is
+what looking for a value actually takes.
+
+Open a track's **workout preview** and press **Advanced** (or `Ctrl+Shift+T`).
+A panel opens beside the preview with the same 24 values as sliders. Move one:
+the choreography regenerates — 33 ms measured — and you see the new one right
+there. Nothing is written to disk until you press Save.
+
+The values are grouped by **what they affect**, because that is the first
+question when something looks wrong and you do not know which slider to reach
+for:
+
+| block | applies to |
+|---|---|
+| on every kind of workout | automatic, mixed and markers-only alike |
+| only on what the tool generates | the automatic layer: Automatic, Harmonize, Extend — not "Markers only" |
+| only on the hits you mark | how your markers are filtered, snapped, and how far they may ignore the rules |
+
+Each block opens and closes on its own; one that holds a changed value says so
+even while closed, and opens itself when you load a set that touches it.
+
+### Methods: an adjustment set with a name
+
+One `tuning.json` is enough while you are looking for *one* setting. But
+looking, you find several good for different things — a sparser one for slow
+tracks, a denser one for fast ones — and with a single file the second erases
+the first.
+
+A **method** is the same format, with a name, in a `tuning/` folder next to
+the executable. The dropdown at the top of the panel chooses one;
+"Predefinito" is simply the absence of a choice, i.e. factory values.
+
+Methods are meant to **travel**. Import and export go through the system file
+dialog, not a hidden folder, because a file you can point at is a file you can
+attach to a message. Each one carries who made it, what for, when, and with
+which version of the tool — a bag of numbers from a stranger does not even
+tell you whether it still applies to the build you are holding. On import you
+are told what your version does not recognise, rather than having it applied
+half-way in silence.
+
+If you find a setting that holds up in VR, send it: a good method can ship
+with a release.

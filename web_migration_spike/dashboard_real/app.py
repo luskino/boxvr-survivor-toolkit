@@ -294,14 +294,55 @@ class Api:
     def install_run(self, salta=None, fai_backup=True):
         return self._correggi.install_run(salta, fai_backup)
 
+    # ---- pannello di tuning: Genera gira in QUESTA finestra ----
+    # Nell'eseguibile la pagina Genera vive dentro la finestra della
+    # Dashboard, quindi l'Api che vede e' questa: senza questi quattro
+    # metodi gli slider del pannello non fanno niente, e senza dare errore.
+    def tuning_valori(self):
+        return genera_app.Api().tuning_valori()
+
+    def tuning_applica(self, valori):
+        return genera_app.Api().tuning_applica(valori)
+
+    def tuning_azzera(self):
+        return genera_app.Api().tuning_azzera()
+
+    def tuning_salva(self):
+        return genera_app.Api().tuning_salva()
+
+    # e i metodi salvati, stessa ragione: la tendina, il salva-con-nome,
+    # l'importa e l'esporta vivono tutti nella pagina Genera, che qui gira
+    # dentro questa finestra.
+    def tuning_metodi(self):
+        return genera_app.Api().tuning_metodi()
+
+    def tuning_carica_metodo(self, nome):
+        return genera_app.Api().tuning_carica_metodo(nome)
+
+    def tuning_salva_metodo(self, nome, autore='', descrizione=''):
+        return genera_app.Api().tuning_salva_metodo(nome, autore, descrizione)
+
+    def tuning_elimina_metodo(self, nome):
+        return genera_app.Api().tuning_elimina_metodo(nome)
+
+    def tuning_importa_metodo(self):
+        return genera_app.Api().tuning_importa_metodo()
+
+    def tuning_esporta_metodo(self, nome):
+        return genera_app.Api().tuning_esporta_metodo(nome)
+
     def open_game_folder(self):
         return self._correggi.open_game_folder()
 
     def genera_list_generated_tracks(self):
         return self._genera.list_generated_tracks()
 
-    def genera_get_action_list(self, track_id):
-        return self._genera.get_action_list(track_id)
+    def genera_get_action_list(self, track_id, rigenera=False):
+        # `rigenera` NON e' un dettaglio: e' quello che il pannello di tuning
+        # usa per saltare l'actionlist gia' scritta su disco e ricostruire la
+        # coreografia coi valori di adesso. Senza, gli slider si muovono e
+        # l'anteprima resta quella di prima.
+        return self._genera.get_action_list(track_id, rigenera)
 
     def genera_install_preview(self):
         return self._genera.install_preview()

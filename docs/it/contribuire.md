@@ -140,3 +140,50 @@ media più generazioni, e non una.
 
 Il visore resta necessario per dire se la coreografia è *bella*. Non per
 sapere se un numero si è mosso nella direzione voluta.
+
+### Regolare mentre guardi
+
+`tuning.json` funziona col patto «cambia e riavvia». Va bene per una
+regolazione ogni tanto, ed è inutilizzabile per venti tentativi di fila —
+che è quello che cercare un valore richiede davvero.
+
+Apri l'**anteprima workout** di un brano e premi **Avanzate** (oppure
+`Ctrl+Shift+T`). Accanto all'anteprima si apre un pannello con gli stessi 24
+valori sotto forma di slider. Ne muovi uno: la coreografia si rigenera — 33 ms
+misurati — e la vedi lì accanto. Sul disco non si scrive niente finché non
+premi Salva.
+
+I valori sono raggruppati per **su cosa agiscono**, perché è la prima domanda
+quando qualcosa non va e non sai quale slider toccare:
+
+| blocco | agisce su |
+|---|---|
+| su tutti i tipi di workout | automatico, misto e solo marker allo stesso modo |
+| solo sulla parte generata dal tool | il livello automatico: Automatica, Armonizza, Estendi — non «Solo marker» |
+| solo sui colpi che batti tu | come i tuoi marker vengono filtrati, agganciati, e quanto possono infischiarsene delle regole |
+
+Ogni blocco si apre e si chiude per conto suo; uno che contiene un valore
+modificato lo dice anche da chiuso, e si apre da solo quando carichi un
+assetto che lo tocca.
+
+### I metodi: un assetto con un nome
+
+Un `tuning.json` solo basta finché cerchi *un* assetto. Ma cercando se ne
+trovano di diversi buoni per cose diverse — uno più rado per i brani lenti,
+uno fitto per i pezzi tirati — e con un file solo il secondo cancella il
+primo.
+
+Un **metodo** è lo stesso formato, con un nome, in una cartella `tuning/`
+accanto all'eseguibile. La tendina in cima al pannello ne sceglie uno;
+«Predefinito» è semplicemente l'assenza di scelta, cioè i valori di fabbrica.
+
+I metodi sono fatti per **girare**. Import ed export passano dal selettore di
+file del sistema e non da una cartella nascosta, perché un file che sai dov'è
+è un file che puoi allegare a un messaggio. Ognuno porta con sé chi lo ha
+fatto, per cosa, quando e con quale versione del tool — un sacchetto di numeri
+ricevuto da uno sconosciuto non dice nemmeno se vale ancora per la versione
+che hai in mano. Importandolo ti viene detto che cosa la tua versione non
+riconosce, invece di applicartelo a metà in silenzio.
+
+Se trovi un assetto che regge in VR, mandalo: un metodo fatto bene può finire
+in una release.
